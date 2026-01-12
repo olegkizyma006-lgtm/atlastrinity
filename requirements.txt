@@ -16,7 +16,7 @@ tenacity>=8.2.0
 # === Voice ===
 # TTS (Legacy pins for compatibility)
 numpy<2.0.0
-scipy<1.12.0
+scipy<1.18.0
 espnet==202301
 git+https://github.com/robinhad/ukrainian-tts.git
 
