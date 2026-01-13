@@ -752,22 +752,68 @@ Please type your response below and press Enter:
 
             if action == "click":
                 x, y = args.get("x", 0), args.get("y", 0)
+                pid = int(args.get("pid", 0))
                 res = await mcp_manager.call_tool(
-                    "computer-use", "mouse_click", {"x": int(x), "y": int(y)}
+                    "macos-use", 
+                    "macos-use_click_and_traverse", 
+                    {"pid": pid, "x": float(x), "y": float(y)}
                 )
                 return self._format_mcp_result(res)
 
             elif action == "type":
                 text = args.get("text", "")
+                pid = int(args.get("pid", 0))
                 res = await mcp_manager.call_tool(
-                    "computer-use", "keyboard_paste", {"text": text}
+                    "macos-use", 
+                    "macos-use_type_and_traverse", 
+                    {"pid": pid, "text": text}
                 )
                 return self._format_mcp_result(res)
 
             elif action == "hotkey":
                 keys = args.get("keys", [])
+                pid = int(args.get("pid", 0))
+                
+                # Mapper for Swift SDK keys
+                modifiers = []
+                key_name = ""
+                
+                modifier_map = {
+                    "cmd": "Command", "command": "Command",
+                    "shift": "Shift",
+                    "ctrl": "Control", "control": "Control",
+                    "opt": "Option", "option": "Option", "alt": "Option",
+                    "fn": "Function"
+                }
+                
+                for k in keys:
+                    lower_k = k.lower()
+                    if lower_k in modifier_map:
+                        modifiers.append(modifier_map[lower_k])
+                    else:
+                        # Key Map
+                        key_map = {
+                            "enter": "Return", "return": "Return",
+                            "esc": "Escape", "escape": "Escape",
+                            "space": "Space", 
+                            "tab": "Tab",
+                            "up": "ArrowUp", "down": "ArrowDown",
+                            "left": "ArrowLeft", "right": "ArrowRight"
+                        }
+                        key_name = key_map.get(lower_k, k) # Default to raw key (e.g. "a", "1")
+
+                if not key_name and not modifiers:
+                     return {"success": False, "error": "Invalid hotkey definition"}
+                
+                # If only modifiers, we can't really "press" a key in this API, needs a key
+                if not key_name:
+                    # Fallback or error? Let's error for now
+                     return {"success": False, "error": "No non-modifier key specified"}
+
                 res = await mcp_manager.call_tool(
-                    "computer-use", "keyboard_hotkey", {"keys": keys}
+                    "macos-use", 
+                    "macos-use_press_key_and_traverse", 
+                    {"pid": pid, "keyName": key_name, "modifierFlags": modifiers}
                 )
                 return self._format_mcp_result(res)
 
