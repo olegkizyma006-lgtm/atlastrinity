@@ -120,7 +120,9 @@ class SystemConfig:
                     "max_tokens": 2000,
                 },
                 "tetyana": {
-                    "model": os.getenv("COPILOT_MODEL", "gpt-4o"),
+                    "model": os.getenv("COPILOT_MODEL", "gpt-4.1"),  # Execution (Main)
+                    "reasoning_model": os.getenv("COPILOT_MODEL", "gpt-4.1"),  # Tool Selection (Reasoning)
+                    "reflexion_model": os.getenv("COPILOT_MODEL", "gpt-4.1"),  # Self-Correction
                     "temperature": 0.5,
                     "max_tokens": 2000,
                 },

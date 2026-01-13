@@ -28,11 +28,11 @@ agents:
     max_tokens: 2000
     temperature: 0.7
   tetyana:
-    reasoning_model: raptor-mini
+    reasoning_model: gpt-4.1
     model: gpt-4.1
     max_tokens: 2000
     temperature: 0.5
-    reflexion_model: gpt-5-mini
+    reflexion_model: gpt-4.1
 mcp:
   # === TIER 1: MUST-HAVE (Ядро системи) ===
   filesystem:

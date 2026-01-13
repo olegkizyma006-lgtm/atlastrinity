@@ -3,6 +3,7 @@
         "_comment_tier1": "=== TIER 1: MUST-HAVE (Ядро системи) ===",
         "macos-use": {
             "command": "${PROJECT_ROOT}/vendor/mcp-server-macos-use/.build/release/mcp-server-macos-use",
+            "connect_timeout": 60,
             "description": "Native macOS control: mouse, keyboard, UI automation, screenshots",
             "permissions": {
                 "accessibility": true,
