@@ -8,6 +8,7 @@ Model: GPT-4.1
 
 import asyncio
 import os
+import json
 # Robust path handling for both Dev and Production (Packaged)
 import sys
 import time
@@ -125,22 +126,57 @@ class Tetyana:
                 },
             )
 
-            if (
-                isinstance(result, dict)
-                and result.get("success")
-                and result.get("notes")
-            ):
-                notes = result["notes"]
+            # Normalize notes search result to a plain dict when possible
+            notes_result = None
+            try:
+                if isinstance(result, dict):
+                    notes_result = result
+                elif hasattr(result, "structuredContent") and isinstance(
+                    getattr(result, "structuredContent"), dict
+                ):
+                    notes_result = result.structuredContent.get("result", {})
+                elif hasattr(result, "content") and len(result.content) > 0 and hasattr(
+                    result.content[0], "text"
+                ):
+                    import json as _json
+
+                    try:
+                        notes_result = _json.loads(result.content[0].text)
+                    except Exception:
+                        notes_result = None
+            except Exception:
+                notes_result = None
+
+            if isinstance(notes_result, dict) and notes_result.get("success") and notes_result.get("notes"):
+                notes = notes_result["notes"]
                 if notes and len(notes) > 0:
                     note_id = notes[0]["id"]
                     note_result = await mcp_manager.call_tool(
                         "notes", "read_note", {"note_id": note_id}
                     )
+
+                    # Normalize read_note result
+                    note_content = None
                     if isinstance(note_result, dict) and note_result.get("success"):
+                        note_content = note_result.get("content", "")
+                    elif hasattr(note_result, "structuredContent") and isinstance(
+                        getattr(note_result, "structuredContent"), dict
+                    ):
+                        note_content = note_result.structuredContent.get("result", {}).get("content", "")
+                    elif hasattr(note_result, "content") and len(note_result.content) > 0 and hasattr(
+                        note_result.content[0], "text"
+                    ):
+                        try:
+                            note_parsed = json.loads(note_result.content[0].text)
+                            note_content = note_parsed.get("content", "")
+                        except Exception:
+                            note_content = None
+
+                    if note_content:
                         logger.info(
                             f"[TETYANA] Retrieved Grisha's feedback from notes for step {step_id}"
                         )
-                        return note_result.get("content", "")
+                        return note_content
         except Exception as e:
             logger.warning(f"[TETYANA] Could not retrieve from notes: {e}")
 
@@ -265,6 +301,9 @@ Please type your response below and press Enter:
             grisha_feedback = await self.get_grisha_feedback(step.get("id")) or ""
 
         target_server = step.get("realm") or step.get("tool") or step.get("server")
+        # Normalize generic 'browser' realm to concrete puppeteer server when available
+        if target_server == "browser":
+            target_server = "puppeteer"
         tools_summary = ""
         monologue = {}
 
@@ -351,6 +390,13 @@ Please type your response below and press Enter:
 
         if target_server and "server" not in tool_call:
             tool_call["server"] = target_server
+
+        # Attach step id to args when available so wrappers can collect artifacts
+        try:
+            if isinstance(tool_call.get("args"), dict):
+                tool_call["args"]["step_id"] = step.get("id")
+        except Exception:
+            pass
 
         # --- PHASE 2: TOOL EXECUTION ---
         tool_result = await self._execute_tool(tool_call)
@@ -649,6 +695,11 @@ Please type your response below and press Enter:
         from ..mcp_manager import mcp_manager
 
         explicit_server = tool_call.get("server")
+        # Normalize common aliases
+        if explicit_server == "browser":
+            explicit_server = "puppeteer"
+            tool_call["server"] = explicit_server
+
         if explicit_server:
             # Handle realm-as-tool name in explicit dispatch
             if tool_name == explicit_server:
@@ -667,7 +718,143 @@ Please type your response below and press Enter:
             logger.info(
                 f"[TETYANA] Explicit server dispatch: {explicit_server}.{tool_name}"
             )
-            return await self._call_mcp_direct(explicit_server, tool_name, args)
+            # Execute the direct MCP call first
+            res = await self._call_mcp_direct(explicit_server, tool_name, args)
+
+            # If this was a puppeteer/browser call that navigated or clicked, try to collect
+            # verification artifacts (title, HTML, screenshot) so Grisha can verify the step.
+            try:
+                if explicit_server in ("puppeteer", "browser"):
+                    action_hint = args.get("action") or ""
+                    if tool_name in ("puppeteer_navigate", "navigate") or action_hint in ("navigate", "open") or tool_name.endswith("navigate"):
+                        # small delay to allow rendering
+                        await asyncio.sleep(1.5)
+                        from ..logger import logger
+                        from ..mcp_manager import mcp_manager
+
+                        logger.info(f"[TETYANA] (explicit dispatch) Collecting browser artifacts for step {args.get('step_id')}")
+
+                        # Document title
+                        title_res = await mcp_manager.call_tool(
+                            "puppeteer", "puppeteer_evaluate", {"script": "document.title"}
+                        )
+                        title_text = None
+                        if hasattr(title_res, "content") and len(title_res.content) > 0 and hasattr(title_res.content[0], "text"):
+                            title_text = title_res.content[0].text
+
+                        # Page HTML
+                        html_res = await mcp_manager.call_tool(
+                            "puppeteer", "puppeteer_evaluate", {"script": "document.documentElement.outerHTML"}
+                        )
+                        html_text = None
+                        if hasattr(html_res, "content") and len(html_res.content) > 0 and hasattr(html_res.content[0], "text"):
+                            html_text = html_res.content[0].text
+
+                        # Screenshot (base64)
+                        shot_res = await mcp_manager.call_tool(
+                            "puppeteer", "puppeteer_screenshot", {"name": f"grisha_step_{args.get('step_id')}", "encoded": True}
+                        )
+                        screenshot_b64 = None
+                        if hasattr(shot_res, "content"):
+                            for c in shot_res.content:
+                                if getattr(c, "type", "") == "image" and hasattr(c, "data"):
+                                    screenshot_b64 = c.data
+                                    break
+                                if hasattr(c, "text") and c.text:
+                                    txt = c.text.strip()
+                                    if txt.startswith("iVBOR"):
+                                        screenshot_b64 = txt
+                                        break
+                                    if "base64," in txt:
+                                        try:
+                                            screenshot_b64 = txt.split("base64,", 1)[1]
+                                            break
+                                        except Exception:
+                                            pass
+
+                        # Save artifacts (inline to avoid refactor)
+                        try:
+                            import base64
+                            from ..config import WORKSPACE_DIR, SCREENSHOTS_DIR
+                            from ..mcp_manager import mcp_manager
+
+                            ts = __import__('time').strftime("%Y%m%d_%H%M%S")
+                            artifacts = []
+
+                            if html_text:
+                                html_file = WORKSPACE_DIR / f"grisha_step_{args.get('step_id')}_{ts}.html"
+                                html_file.parent.mkdir(parents=True, exist_ok=True)
+                                html_file.write_text(html_text, encoding="utf-8")
+                                artifacts.append(str(html_file))
+                                logger.info(f"[TETYANA] Saved HTML artifact: {html_file}")
+
+                            if screenshot_b64:
+                                SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+                                img_file = SCREENSHOTS_DIR / f"grisha_step_{args.get('step_id')}_{ts}.png"
+                                with open(img_file, "wb") as f:
+                                    f.write(base64.b64decode(screenshot_b64))
+                                artifacts.append(str(img_file))
+                                logger.info(f"[TETYANA] Saved screenshot artifact: {img_file}")
+
+                            # Prepare note content
+                            note_title = f"Grisha Artifact - Step {args.get('step_id')} @ {ts}"
+                            snippet = ''
+                            if title_text:
+                                snippet += f"Title: {title_text}\n\n"
+                            if html_text:
+                                snippet += f"HTML Snippet:\n{(html_text[:1000] + '...') if len(html_text) > 1000 else html_text}\n\n"
+
+                            detected = []
+                            if html_text:
+                                keywords = ['phone', 'sms', 'verification', 'код', 'телефон']
+                                low = html_text.lower()
+                                for kw in keywords:
+                                    if kw in low:
+                                        detected.append(kw)
+
+                            note_content = f"Artifacts for step {args.get('step_id')} saved at {ts}.\n\nFiles:\n" + ("\n".join(artifacts) if artifacts else "(no binary files captured)") + "\n\n" + snippet
+                            if detected:
+                                note_content += f"Detected keywords in HTML: {', '.join(detected)}\n"
+
+                            try:
+                                await mcp_manager.call_tool(
+                                    "notes",
+                                    "create_note",
+                                    {
+                                        "title": note_title,
+                                        "content": note_content,
+                                        "category": "verification_artifact",
+                                        "tags": ["grisha", f"step_{args.get('step_id')}"] ,
+                                    },
+                                )
+                                logger.info(f"[TETYANA] Created verification artifact note for step {args.get('step_id')}")
+                            except Exception as e:
+                                logger.warning(f"[TETYANA] Failed to create artifact note: {e}")
+
+                            try:
+                                await mcp_manager.call_tool(
+                                    "memory",
+                                    "create_entities",
+                                    {
+                                        "entities": [
+                                            {
+                                                "name": f"grisha_artifact_step_{args.get('step_id')}",
+                                                "entityType": "artifact",
+                                                "observations": artifacts,
+                                            }
+                                        ]
+                                    },
+                                )
+                                logger.info(f"[TETYANA] Created memory artifact for step {args.get('step_id')}")
+                            except Exception as e:
+                                logger.warning(f"[TETYANA] Failed to create memory artifact: {e}")
+                        except Exception as e:
+                            logger.warning(f"[TETYANA] explicit dispatch _save_artifacts exception: {e}")
+            except Exception as e:
+                from ..logger import logger
+                logger.warning(f"[TETYANA] Explicit dispatch artifact collection failed: {e}")
+
+            return res
 
         servers = mcp_manager.config.get("mcpServers", {})
         if tool_name in servers and not tool_name.startswith("_"):
@@ -992,26 +1179,188 @@ Please type your response below and press Enter:
             return {"success": False, "error": str(e)}
 
     async def _browser_action(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Browser action via Puppeteer MCP"""
+        """Browser action via Puppeteer MCP
+
+        Additionally collects verification artifacts (HTML, screenshot, small evaluations)
+        and persists them to disk/notes/memory so that Grisha can verify actions."""
         from ..mcp_manager import mcp_manager
+        from ..config import WORKSPACE_DIR, SCREENSHOTS_DIR
+        import base64
+        import time as _time
 
         action = args.get("action", "")
-        # Mapping to puppeteer tools
+        step_id = args.get("step_id")
+
+        # Helper: save artifact files and register in notes/memory
+        async def _save_artifacts(html_text: str = None, title_text: str = None, screenshot_b64: str = None):
+            try:
+                from ..mcp_manager import mcp_manager
+                from ..logger import logger
+                from ..config import WORKSPACE_DIR, SCREENSHOTS_DIR
+                ts = _time.strftime("%Y%m%d_%H%M%S")
+                artifacts = []
+
+                if html_text:
+                    html_file = WORKSPACE_DIR / f"grisha_step_{step_id}_{ts}.html"
+                    html_file.parent.mkdir(parents=True, exist_ok=True)
+                    html_file.write_text(html_text, encoding="utf-8")
+                    artifacts.append(str(html_file))
+                    logger.info(f"[TETYANA] Saved HTML artifact: {html_file}")
+
+                if screenshot_b64:
+                    SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+                    img_file = SCREENSHOTS_DIR / f"grisha_step_{step_id}_{ts}.png"
+                    with open(img_file, "wb") as f:
+                        f.write(base64.b64decode(screenshot_b64))
+                    artifacts.append(str(img_file))
+                    logger.info(f"[TETYANA] Saved screenshot artifact: {img_file}")
+
+                # Create a note linking artifacts and include short HTML/title snippet and keyword checks
+                note_title = f"Grisha Artifact - Step {step_id} @ {ts}"
+                snippet = ''
+                if title_text:
+                    snippet += f"Title: {title_text}\n\n"
+                if html_text:
+                    snippet += f"HTML Snippet:\n{(html_text[:1000] + '...') if len(html_text) > 1000 else html_text}\n\n"
+
+                # Keyword search in HTML snippet
+                detected = []
+                if html_text:
+                    keywords = ['phone', 'sms', 'verification', 'код', 'телефон']
+                    low = html_text.lower()
+                    for kw in keywords:
+                        if kw in low:
+                            detected.append(kw)
+
+                note_content = f"Artifacts for step {step_id} saved at {ts}.\n\nFiles:\n" + ("\n".join(artifacts) if artifacts else "(no binary files captured)") + "\n\n" + snippet
+                if detected:
+                    note_content += f"Detected keywords in HTML: {', '.join(detected)}\n"
+
+                try:
+                    await mcp_manager.call_tool(
+                        "notes",
+                        "create_note",
+                        {
+                            "title": note_title,
+                            "content": note_content,
+                            "category": "verification_artifact",
+                            "tags": ["grisha", f"step_{step_id}"] ,
+                        },
+                    )
+                    logger.info(f"[TETYANA] Created verification artifact note for step {step_id}")
+                except Exception as e:
+                    logger.warning(f"[TETYANA] Failed to create artifact note: {e}")
+
+                # Create memory entity for easy search
+                try:
+                    await mcp_manager.call_tool(
+                        "memory",
+                        "create_entities",
+                        {
+                            "entities": [
+                                {
+                                    "name": f"grisha_artifact_step_{step_id}",
+                                    "entityType": "artifact",
+                                    "observations": artifacts,
+                                }
+                            ]
+                        },
+                    )
+                    logger.info(f"[TETYANA] Created memory artifact for step {step_id}")
+                except Exception as e:
+                    logger.warning(f"[TETYANA] Failed to create memory artifact: {e}")
+
+                return True
+            except Exception as e:
+                from ..logger import logger
+                logger.warning(f"[TETYANA] _save_artifacts exception: {e}")
         if action == "navigate" or action == "open":
-            return self._format_mcp_result(
-                await mcp_manager.call_tool(
-                    "puppeteer", "puppeteer_navigate", {"url": args.get("url", "")}
-                )
+            res = await mcp_manager.call_tool(
+                "puppeteer", "puppeteer_navigate", {"url": args.get("url", "")}
             )
+
+            # Try to collect artifacts (title, html, screenshot)
+            try:
+                # small delay to allow navigation/rendering
+                await asyncio.sleep(1.5)
+                from ..logger import logger
+                logger.info(f"[TETYANA] Collecting browser artifacts for step {step_id}...")
+
+                # Document title
+                title_res = await mcp_manager.call_tool(
+                    "puppeteer", "puppeteer_evaluate", {"script": "document.title"}
+                )
+                title_text = None
+                if hasattr(title_res, "content") and len(title_res.content) > 0 and hasattr(title_res.content[0], "text"):
+                    title_text = title_res.content[0].text
+
+                # Page HTML
+                html_res = await mcp_manager.call_tool(
+                    "puppeteer", "puppeteer_evaluate", {"script": "document.documentElement.outerHTML"}
+                )
+                html_text = None
+                if hasattr(html_res, "content") and len(html_res.content) > 0 and hasattr(html_res.content[0], "text"):
+                    # The evaluation may return a JSON wrapper, try to extract raw
+                    html_text = html_res.content[0].text
+
+                # Screenshot (base64)
+                shot_res = await mcp_manager.call_tool(
+                    "puppeteer", "puppeteer_screenshot", {"name": f"grisha_step_{step_id}", "encoded": True}
+                )
+                screenshot_b64 = None
+                if hasattr(shot_res, "content"):
+                    for c in shot_res.content:
+                        if getattr(c, "type", "") == "image" and hasattr(c, "data"):
+                            screenshot_b64 = c.data
+                            break
+                        if hasattr(c, "text") and c.text:
+                            txt = c.text.strip()
+                            # plain base64 or data URI
+                            if txt.startswith("iVBOR"):
+                                screenshot_b64 = txt
+                                break
+                            if "base64," in txt:
+                                try:
+                                    screenshot_b64 = txt.split("base64,", 1)[1]
+                                    break
+                                except Exception:
+                                    pass
+
+                await _save_artifacts(html_text=html_text, title_text=title_text, screenshot_b64=screenshot_b64)
+            except Exception as e:
+                from ..logger import logger
+
+                logger.warning(f"[TETYANA] Failed to collect browser artifacts: {e}")
+
+            return self._format_mcp_result(res)
         elif action == "click":
+            res = await mcp_manager.call_tool(
+                "puppeteer",
+                "puppeteer_click",
+                {"selector": args.get("selector", "")},
+            )
+
+            # If click likely submitted a form, collect artifacts as well
+            selector = args.get("selector", "") or ""
+            if any(k in selector.lower() for k in ["submit", "next", "confirm", "phone", "sms"]):
+                try:
+                    # small delay to allow navigation
+                    await asyncio.sleep(1.0)
+                    # reuse collection
+                    await self._browser_action({"action": "navigate", "url": args.get("url", ""), "step_id": step_id})
+                except Exception:
+                    pass
+
+            return self._format_mcp_result(res)
+        elif action == "type" or action == "fill":
             return self._format_mcp_result(
                 await mcp_manager.call_tool(
                     "puppeteer",
-                    "puppeteer_click",
-                    {"selector": args.get("selector", "")},
+                    "puppeteer_fill",
+                    {"selector": args.get("selector", ""), "value": args.get("value", "")},
                 )
             )
-        elif action == "type" or action == "fill":
+
             return self._format_mcp_result(
                 await mcp_manager.call_tool(
                     "puppeteer",

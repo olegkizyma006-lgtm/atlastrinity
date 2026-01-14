@@ -210,6 +210,35 @@ class Grisha:
         ):
             screenshot_path = None
 
+        # If we don't already have a screenshot path, try to find artifacts saved by Tetyana
+        if not screenshot_path:
+            try:
+                from ..mcp_manager import mcp_manager
+                notes_search = await mcp_manager.call_tool(
+                    "notes",
+                    "search_notes",
+                    {"tags": [f"step_{step_id}"], "limit": 5},
+                )
+                if isinstance(notes_search, dict) and notes_search.get("result", {}).get("success"):
+                    for n in notes_search["result"].get("notes", []):
+                        note_file = n.get("file")
+                        if note_file and os.path.exists(note_file):
+                            try:
+                                text = open(note_file, "r", encoding="utf-8").read()
+                                import re
+
+                                m = re.search(r"(/[^\s']+?\.png)", text)
+                                if m:
+                                    candidate = m.group(1)
+                                    if os.path.exists(candidate):
+                                        screenshot_path = candidate
+                                        logger.info(f"[GRISHA] Found screenshot from notes: {candidate}")
+                                        break
+                            except Exception:
+                                pass
+            except Exception as e:
+                logger.warning(f"[GRISHA] Could not search notes for screenshot: {e}")
+
         context_info = shared_context.to_dict()
 
         if hasattr(result, "result") and not isinstance(result, dict):
@@ -386,6 +415,39 @@ class Grisha:
                             if new_path and os.path.exists(new_path):
                                 screenshot_path = new_path
                                 attach_screenshot_next = True
+                            else:
+                                # FALLBACK: search notes for verification_artifact notes for this step
+                                try:
+                                    from ..mcp_manager import mcp_manager
+                                    notes_search = await mcp_manager.call_tool(
+                                        "notes",
+                                        "search_notes",
+                                        {"tags": [f"step_{step_id}"], "limit": 5},
+                                    )
+                                    if (
+                                        isinstance(notes_search, dict)
+                                        and notes_search.get("result", {}).get("success")
+                                    ):
+                                        for n in notes_search["result"].get("notes", []):
+                                            note_file = n.get("file")
+                                            if note_file and os.path.exists(note_file):
+                                                try:
+                                                    text = open(note_file, "r", encoding="utf-8").read()
+                                                    # Find absolute png paths
+                                                    import re
+
+                                                    m = re.search(r"(/[^\s']+?\.png)", text)
+                                                    if m:
+                                                        candidate = m.group(1)
+                                                        if os.path.exists(candidate):
+                                                            screenshot_path = candidate
+                                                            attach_screenshot_next = True
+                                                            logger.info(f"[GRISHA] Attached screenshot from note: {candidate}")
+                                                            break
+                                                except Exception:
+                                                    pass
+                                except Exception as e:
+                                    logger.warning(f"[GRISHA] Could not search notes for artifacts: {e}")
                         except Exception as e:
                             logger.warning(
                                 f"[GRISHA] Could not attach refreshed screenshot: {e}"
