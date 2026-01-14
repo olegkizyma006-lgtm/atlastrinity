@@ -59,6 +59,8 @@
             "disabled": false,
             "tier": 1,
             "agents": [
+                "atlas",
+                "tetyana",
                 "grisha"
             ]
         },

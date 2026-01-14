@@ -1517,27 +1517,54 @@ Please type your response below and press Enter:
 
     def get_voice_message(self, action: str, **kwargs) -> str:
         """
-        Generates short message for TTS
+        Generates context-aware TTS message dynamically.
         """
-        # PRIORITY: If a specific voice message is provided by the LLM (in kwargs), use it directly.
-        # This allows for rich, detailed, dynamic messages from the prompt logic.
+        # 1. Use LLM-provided message if available (Highest Priority)
         voice_msg = kwargs.get("voice_message")
         if voice_msg and len(voice_msg) > 5:
             return voice_msg
 
-        step = kwargs.get("step", 0)
+        # 2. Dynamic generation based on context
+        step_id = kwargs.get("step", 0)
         desc = kwargs.get("description", "")
+        error = kwargs.get("error", "")
 
-        messages = {
-            "starting": "Дякую Атласе, приступаю до виконання.",
-            "executing": (
-                f"Виконую пункт {step}: {desc}" if desc else f"Виконую пункт {step}..."
-            ),
-            "completed": f"Пункт {step} виконано успішно.",
-            "failed": f"Я не змогла виконати пункт {step}. Поможи мені, Атласе.",
-            "asking_verification": "Гріша, перевір будь ласка результат.",
-        }
-        return messages.get(action, "")
+        # Extract "essence" of description (first 5-7 words usually contain the verb and object)
+        import re
+        essence = desc
+        if len(desc) > 60:
+             # Take start, cut at punctuation or reasonable length
+             match = re.search(r"^(.{10,50})[.;,]", desc)
+             if match:
+                 essence = match.group(1)
+             else:
+                 essence = desc[:50] + "..."
+        
+        # Translate commonly used technical prefixes if English
+        essence = essence.lower()
+        if essence.startswith("create"): essence = essence.replace("create", "Створюю", 1)
+        elif essence.startswith("update"): essence = essence.replace("update", "Оновлюю", 1)
+        elif essence.startswith("check"): essence = essence.replace("check", "Перевіряю", 1)
+        elif essence.startswith("install"): essence = essence.replace("install", "Встановлюю", 1)
+        elif essence.startswith("run"): essence = essence.replace("run", "Запускаю", 1)
+        elif essence.startswith("execute"): essence = essence.replace("execute", "Виконую", 1)
+
+        # Construct message based on state
+        if action == "completed":
+             return f"Крок {step_id}: {essence} — виконано."
+        elif action == "failed":
+             err_essence = "Помилка."
+             if error:
+                 # Clean error message
+                 err_clean = str(error).split('\n')[0][:50]
+                 err_essence = f"Помилка: {err_clean}"
+             return f"У кроці {step_id} не вдалося {essence}. {err_essence}"
+        elif action == "starting":
+             return f"Розпочинаю крок {step_id}: {essence}."
+        elif action == "asking_verification":
+             return f"Крок {step_id} завершено. Гріша, верифікуй."
+        
+        return f"Статус кроку {step_id}: {action}."
 
     def _parse_response(self, content: str) -> Dict[str, Any]:
         """Parse JSON response from LLM"""

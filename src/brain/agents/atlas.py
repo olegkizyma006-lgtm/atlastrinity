@@ -572,15 +572,34 @@ class Atlas:
 
     def get_voice_message(self, action: str, **kwargs) -> str:
         """
-        Generates short message for TTS
+        Generates dynamic TTS message.
         """
-        messages = {
-            "plan_created": f"Я створив план на {kwargs.get('steps', 0)} пунктів. Передаю тобі, Тетяно.",
-            "enriched": "Я збагатив контекст запиту та сформував розширену версію.",
-            "helping": "Зрозумів проблему. Ось альтернативне рішення.",
-            "delegating": "Передаю виконання тобі, Тетяно.",
-        }
-        return messages.get(action, "")
+        if action == "plan_created":
+            count = kwargs.get('steps', 0)
+            suffix = "кроків"
+            if count == 1: suffix = "крок"
+            elif 2 <= count <= 4: suffix = "кроки"
+            return f"План готовий. {count} {suffix}. Тетяно, виконуй."
+        
+        elif action == "no_steps":
+            return "Не бачу необхідних кроків для виконання цього запиту."
+        
+        elif action == "enriched":
+            return "Контекст проаналізовано. Розширюю запит."
+        
+        elif action == "helping":
+            return "Бачу проблему. Пробую альтернативний підхід."
+            
+        elif action == "delegating":
+            return "Тетяно, передаю керування тобі."
+            
+        elif action == "recovery_started":
+            return f"Крок {kwargs.get('step_id', '?')} зупинився. Шукаю рішення."
+
+        elif action == "vibe_engaged":
+            return f"Залучаю Vibe для глибинного аналізу помилки у кроці {kwargs.get('step_id', '?')}."
+
+        return f"Атлас: {action}"
 
     def _parse_response(self, content: str) -> Dict[str, Any]:
         """Parse JSON response from LLM"""

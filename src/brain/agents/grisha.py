@@ -624,9 +624,9 @@ class Grisha:
             description=f"Auto-verdict after {max_attempts} tool calls. {success_count}/{len(verification_history)} successful. History: {[h.get('tool') for h in verification_history]}",
             issues=["Max attempts reached", "Forced verdict based on tool history"],
             voice_message=(
-                "Результат не прийнято."
+                f"Автоматична верифікація не пройшла. Успіх: {success_count} з {len(verification_history)}."
                 if not auto_verified
-                else "Перевірку завершено автоматично."
+                else f"Автоматично підтверджено. {success_count} перевірок успішні."
             ),
         )
 

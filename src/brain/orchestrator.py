@@ -497,7 +497,7 @@ class Trinity:
                     pass
 
             if not plan or not plan.steps:
-                msg = "Не знайдено кроків для виконання."
+                msg = self.atlas.get_voice_message("no_steps")
                 await self._speak("atlas", msg)
                 return {"status": "completed", "result": msg, "type": "chat"}
 
@@ -759,7 +759,7 @@ class Trinity:
 
                 await self._log(f"Atlas Recovery for Step {step_id}...", "orchestrator")
                 await self._speak(
-                    "atlas", f"Крок {step_id} не вдався. Шукаю рішення..."
+                    "atlas", self.atlas.get_voice_message("recovery_started", step_id=step_id)
                 )
                 try:
 
@@ -780,7 +780,7 @@ class Trinity:
                     
                     await self._log(f"Engaging Vibe Self-Healing for Step {step_id} (Timeout: 300s)...", "orchestrator")
                     await self._log(f"[VIBE] Error to analyze: {last_error[:200]}...", "vibe")
-                    await self._speak("atlas", f"Активував Vibe для виправлення кроку {step_id}...")
+                    await self._speak("atlas", self.atlas.get_voice_message("vibe_engaged", step_id=step_id))
 
                     # Use vibe_analyze_error for programmatic CLI mode with full logging
                     vibe_res = await asyncio.wait_for(
