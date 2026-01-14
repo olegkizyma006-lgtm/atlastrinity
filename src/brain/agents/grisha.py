@@ -139,11 +139,8 @@ class Grisha:
 
         # Decide which verification stack to prefer based on environment and step
         decision = self._decide_verification_stack(step_action, expected_result, context)
-        system_msg = (
-            "You are a Verification Strategist. Consider the environment and choose the best verification stack.\n"
-            f"ENVIRONMENT_DECISION: prefer_vision_first={decision['prefer_vision_first']}; use_mcp={decision['use_mcp']}; preferred_servers={decision['preferred_servers']}; rationale={decision['rationale']}\n"
-            "When visual evidence is conclusive, prioritize Vision verification. When authoritative system/data checks are needed, prefer MCP servers (favor local Swift-based MCP servers when available). Output internal strategies in English."
-        )
+        decision_context = f"prefer_vision_first={decision['prefer_vision_first']}; use_mcp={decision['use_mcp']}; preferred_servers={decision['preferred_servers']}; rationale={decision['rationale']}"
+        system_msg = AgentPrompts.grisha_strategist_system_prompt(decision_context)
         messages = [
             SystemMessage(content=system_msg),
             HumanMessage(content=prompt),

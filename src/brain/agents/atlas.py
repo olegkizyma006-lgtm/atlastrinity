@@ -207,32 +207,9 @@ class Atlas:
             any(kw in req_lower for kw in dev_keywords_en)
         )
 
-        prompt = f"""Analyze the user request and decide if it's a simple conversation, a technical task, or a SOFTWARE DEVELOPMENT task.
-
-User Request: {user_request}
-Context: {context or 'None'}
-Conversation History: {history or 'None'}
-
-CRITICAL CLASSIFICATION RULES:
-1. 'chat' - Greetings, 'How are you', jokes, appreciation (thanks), or SIMPLE CONFIRMATIONS.
-2. 'task' - Direct instructions to DO something (open app, run command, search file).
-3. 'development' - Requests to CREATE, BUILD, or WRITE software, code, scripts, apps, websites, APIs.
-   Examples: "Create a Python script", "Build a website", "Write an API", "Develop a bot"
-
-If request is 'development', set complexity to 'high' and use_vibe to true.
-
-ALL textual responses (reason, initial_response) MUST be in UKRAINIAN.
-
-Respond STRICTLY in JSON:
-{{
-    "intent": "chat" or "task" or "development",
-    "reason": "Explain your choice in Ukrainian",
-    "enriched_request": "Detailed description of the request (English)",
-    "complexity": "low/medium/high",
-    "use_vibe": true/false (true for development tasks),
-    "initial_response": "Short reply to user ONLY if intent is 'chat' (Ukrainian), else null"
-}}
-"""
+        prompt = AgentPrompts.atlas_intent_classification_prompt(
+            user_request, str(context or "None"), str(history or "None")
+        )
         messages = [
             SystemMessage(content=self.SYSTEM_PROMPT),
             HumanMessage(content=prompt),
@@ -264,11 +241,7 @@ Respond STRICTLY in JSON:
         """Friendly chat mode with context memory"""
         from langchain_core.messages import HumanMessage, SystemMessage
 
-        chat_prompt = """You are in friendly conversation mode.
-Your role: Witty, smart interlocutor Atlas.
-Style: Concise, with humor.
-LANGUAGE: You MUST respond in UKRAINIAN only!
-Do not suggest creating a plan, just talk."""
+        chat_prompt = AgentPrompts.atlas_chat_prompt()
 
         # Build message history
         messages = [SystemMessage(content=chat_prompt)]
@@ -310,16 +283,9 @@ Do not suggest creating a plan, just talk."""
                     + "\n".join([f"- {s['document']}" for s in similar])
                 )
 
-        simulation_prompt = f"""Think deeply as a Strategic Architect about: {task_text}
-        {memory_context}
-
-        Analyze:
-        1. Underlying logic of the task.
-        2. Sequence of apps/tools needed.
-        3. Potential technical barriers on macOS.
-
-        Respond in English with a technical strategy.
-        """
+        simulation_prompt = AgentPrompts.atlas_simulation_prompt(
+            task_text, memory_context
+        )
 
         try:
             sim_resp = await self.llm.ainvoke(
@@ -352,21 +318,16 @@ Do not suggest creating a plan, just talk."""
             Do NOT attempt to write complex code yourself via filesystem. Delegate to Vibe.
             """
 
-        prompt = f"""Create a Master Execution Plan.
-
-        REQUEST: {task_text}
-        STRATEGY: {simulation_result}
-        {vibe_directive}
-        {shared_context.available_mcp_catalog if hasattr(shared_context, 'available_mcp_catalog') else ''}
-
-        CONSTRAINTS:
-        - Output JSON matching the format in your SYSTEM PROMPT.
-        - 'goal', 'reason', and 'action' descriptions MUST be in English (technical precision).
-        - 'voice_summary' MUST be in UKRAINIAN (for the user).
-        - **NO META-STEPS**: Skip steps like "Think about X", "Classify Y", or "Verify Z". Only plan DIRECT tasks.
-
-        Steps should be atomic and logical.
-        """
+        prompt = AgentPrompts.atlas_plan_creation_prompt(
+            task_text,
+            simulation_result,
+            (
+                shared_context.available_mcp_catalog
+                if hasattr(shared_context, "available_mcp_catalog")
+                else ""
+            ),
+            vibe_directive,
+        )
 
         messages = [
             SystemMessage(content=self.SYSTEM_PROMPT),
@@ -480,27 +441,13 @@ Do not suggest creating a plan, just talk."""
         if grisha_report:
             grisha_feedback = f"\n\nGRISHA'S DETAILED FEEDBACK:\n{grisha_report}\n"
 
-        prompt = f"""Tetyana is stuck at step {step_id}.
-
- Error: {error}
- {grisha_feedback}
-
- SHARED CONTEXT: {context_info}
-
- Current plan: {self.current_plan.steps if self.current_plan else 'None'}
-
- You are the Meta-Planner. Provide an ALTERNATIVE strategy or a structural correction.
- IMPORTANT: If Grisha provided detailed feedback above, use it to understand EXACTLY what went wrong and avoid repeating the same mistake.
-
- Output JSON matching the 'help_tetyana' schema:
- {{
-     "reason": "English analysis of the failure (incorporate Grisha's feedback if available)",
-     "alternative_steps": [
-         {{"id": 1, "action": "English description", "expected_result": "English description"}}
-     ],
-     "voice_message": "Short Ukrainian message explaining the pivot to the user"
- }}
- """
+        prompt = AgentPrompts.atlas_help_tetyana_prompt(
+            step_id,
+            error,
+            grisha_feedback,
+            context_info,
+            self.current_plan.steps if self.current_plan else [],
+        )
 
         messages = [
             SystemMessage(content=self.SYSTEM_PROMPT),
@@ -528,31 +475,7 @@ Do not suggest creating a plan, just talk."""
             if res.get("error"):
                 history += f"   Error: {res.get('error')}\n"
 
-        prompt = f"""Review the execution of the following task.
-
-        GOAL: {goal}
-
-        EXECUTION HISTORY:
-        {history}
-
-        CRITICAL EVALUATION:
-        1. Did we achieve the actual goal?
-        2. Was the path efficient?
-        3. Is this a 'Golden Path' that should be a lesson for the future?
-
-        Respond STRICTLY in JSON:
-        {{
-            "quality_score": 0.0 to 1.0 (float),
-            "achieved": true/false,
-            "analysis": "Critique in UKRAINIAN",
-            "compressed_strategy": [
-                "Step 1 intent",
-                "Step 2 intent",
-                ...
-            ],
-            "should_remember": true/false
-        }}
-        """
+        prompt = AgentPrompts.atlas_evaluation_prompt(goal, history)
 
         messages = [
             SystemMessage(content=self.SYSTEM_PROMPT),
