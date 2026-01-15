@@ -293,7 +293,8 @@ Please type your response below and press Enter:
         ]
 
         # --- PHASE 0: DYNAMIC INSPECTION ---
-        logger.info(f"[TETYANA] Executing step {step.get('id')}...")
+        actual_step_id = step.get('id', self.current_step)
+        logger.info(f"[TETYANA] Executing step {actual_step_id}...")
         context_data = shared_context.to_dict()
 
         # Populate tools summary if empty
@@ -1663,7 +1664,7 @@ Please type your response below and press Enter:
             return voice_msg
 
         # 2. Dynamic generation based on context
-        step_id = kwargs.get("step", 0)
+        step_id = kwargs.get("step", 1)
         desc = kwargs.get("description", "")
         error = kwargs.get("error", "")
 
