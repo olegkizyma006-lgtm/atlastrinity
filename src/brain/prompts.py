@@ -31,7 +31,11 @@ class AgentPrompts:
 
     @staticmethod
     def tetyana_reasoning_prompt(
-        step: str, context: dict, tools_summary: str = "", feedback: str = ""
+        step: str,
+        context: dict,
+        tools_summary: str = "",
+        feedback: str = "",
+        previous_results: list = None,
     ) -> str:
         feedback_section = (
             f"\n        PREVIOUS REJECTION FEEDBACK (from Grisha):\n        {feedback}\n"
@@ -39,9 +43,22 @@ class AgentPrompts:
             else ""
         )
 
+        results_section = ""
+        if previous_results:
+            # Format results nicely
+            formatted_results = []
+            for res in previous_results:
+                # Truncate long outputs
+                res_str = str(res)
+                if len(res_str) > 1000:
+                    res_str = res_str[:1000] + "...(truncated)"
+                formatted_results.append(res_str)
+            results_section = f"\n        RESULTS OF PREVIOUS STEPS (Use this data to fill arguments):\n        {formatted_results}\n"
+
         return f"""Analyze how to execute this atomic step: {step}.
 
         CONTEXT: {context}
+        {results_section}
         {feedback_section}
         {tools_summary}
 

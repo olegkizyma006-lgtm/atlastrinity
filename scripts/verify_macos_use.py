@@ -87,7 +87,7 @@ if __name__ == "__main__":
                     result_data = json.loads(text_content)
                     print(f"Success! App opened. PID: {result_data.get('pid')}")
                     if result_data.get("traversalAfter"):
-                        elements = result_data["traversalAfter"].get("elements", [])
+                        elements = result_data["traversalAfter"].get("elements") or []
                         print(f"Elements found: {len(elements)}")
                         print("Sample elements:")
                         for el in elements[:5]:

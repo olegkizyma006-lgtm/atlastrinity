@@ -913,7 +913,12 @@ class Trinity:
             )
         else:
             try:
-                result = await self.tetyana.execute_step(step, attempt=attempt)
+                # Inject context results (last 3 for relevance) so Tetyana knows what happened
+                step_copy = step.copy()
+                if self.state and "step_results" in self.state:
+                    step_copy["previous_results"] = self.state["step_results"][-3:]
+
+                result = await self.tetyana.execute_step(step_copy, attempt=attempt)
                 if result.voice_message:
                     await self._speak("tetyana", result.voice_message)
             except Exception as e:

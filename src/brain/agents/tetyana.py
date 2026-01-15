@@ -356,11 +356,15 @@ Please type your response below and press Enter:
                     "List available tools using list_tools if needed.",
                 )
 
+            # Extract previous_results from step if available
+            previous_results = step.get("previous_results")
+
             reasoning_prompt = AgentPrompts.tetyana_reasoning_prompt(
                 str(step),
                 context_data,
                 tools_summary=tools_summary,
                 feedback=grisha_feedback,
+                previous_results=previous_results,
             )
 
             try:

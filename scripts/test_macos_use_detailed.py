@@ -64,7 +64,7 @@ if __name__ == "__main__":
             tool_result = json.loads(tool_result_text)
             print(f"Tool Result Summary: {tool_result.keys()}")
             if "traversalAfter" in tool_result:
-                elements = tool_result["traversalAfter"].get("elements", [])
+                elements = tool_result["traversalAfter"].get("elements") or []
                 print(f"Traversal items count: {len(elements)}")
                 # Print first few items to see structure
                 for item in elements[:5]:
