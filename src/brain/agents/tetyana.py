@@ -1247,6 +1247,7 @@ Please type your response below and press Enter:
                     "time": "get_current_time",
                     "sequential-thinking": "sequentialthinking",
                     "filesystem": "read_file",
+                    "vibe": "vibe_prompt",
                 }
                 if explicit_server in default_map:
                     tool_name = default_map[explicit_server]
@@ -1447,6 +1448,19 @@ Please type your response below and press Enter:
 
                 if mcp_tool in ["window_management", "window_mgmt"]:
                     mcp_tool = "macos-use_window_management"
+
+            # Vibe Fixes
+            if server_name == "vibe":
+                if mcp_tool in ["vibe", "prompt", "chat", "ask_vibe"]:
+                    mcp_tool = "vibe_prompt"
+                if mcp_tool in ["analyze_error", "debug", "self-healing", "fix"]:
+                    mcp_tool = "vibe_analyze_error"
+                if mcp_tool in ["smart_plan", "design"]:
+                    mcp_tool = "vibe_smart_plan"
+                if mcp_tool in ["code_review", "review"]:
+                    mcp_tool = "vibe_code_review"
+                if mcp_tool in ["ask", "question"]:
+                    mcp_tool = "vibe_ask"
 
                 if mcp_tool in ["set_clipboard", "clipboard_set", "copy"]:
                     mcp_tool = "macos-use_set_clipboard"
