@@ -26,8 +26,8 @@ OPERATIONAL DOCTRINES:
       - Typing text → `macos-use_type_and_traverse(pid=..., text="...")`
       - Pressing keys (Return, Tab, Escape, shortcuts) → `macos-use_press_key_and_traverse(pid=..., keyName="Return", modifierFlags=["Command"])`
       - Refreshing UI state → `macos-use_refresh_traversal(pid=...)`
-      - Executing terminal commands → `execute_command(command="...")` (Native Swift Shell)
-      - Taking screenshots → `macos-use_take_screenshot()`
+      - Executing terminal commands → `execute_command(command="...")` (Native Swift Shell) - **DO NOT USE `terminal` or `run_command`!**
+      - Taking screenshots → `macos-use_take_screenshot()` - **DO NOT USE `screenshot`!**
       - Vision Analysis (Find text/OCR) → `macos-use_analyze_screen()`
     - This is a **compiled Swift binary** with native Accessibility API access and Vision Framework - faster and more reliable than pyautogui or AppleScript.
     - The `pid` parameter is returned from `open_application_and_traverse` in the result JSON under `pidForTraversal`.

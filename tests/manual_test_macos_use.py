@@ -207,7 +207,7 @@ async def run_mcp_test():
             
     if app_pid:
         import time
-        asyncio.sleep(1) # Wait for animation
+        await asyncio.sleep(1) # Wait for animation
         
         # B. Type Calculation "5+5="
         print("Step 2: Typing '5+5='...")

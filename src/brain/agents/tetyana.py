@@ -109,9 +109,33 @@ class Tetyana:
             "required": [],
             "types": {},
         },
+        "screenshot": {
+            "required": [],
+            "types": {},
+        },
         "macos-use_analyze_screen": {
             "required": [],
             "types": {},
+        },
+        "vision": {
+            "required": [],
+            "types": {},
+        },
+        "ocr": {
+            "required": [],
+            "types": {},
+        },
+        "analyze": {
+            "required": [],
+            "types": {},
+        },
+        "terminal": {
+            "required": ["command"],
+            "types": {"command": str},
+        },
+        "run_command": {
+            "required": ["command"],
+            "types": {"command": str},
         },
     }
 
@@ -1262,6 +1286,8 @@ Please type your response below and press Enter:
 
         # Wrappers
         if tool_name == "terminal":
+            # Map legacy 'terminal' wrapper directly to 'execute_command'
+            # This handles cases where LLM still tries to use 'terminal' tool name
             return await self._run_terminal_command(args)
         elif tool_name == "gui":
             return await self._perform_gui_action(args)
@@ -1368,8 +1394,27 @@ Please type your response below and press Enter:
         from ..mcp_manager import mcp_manager  # noqa: E402
 
         try:
-            # MACOS-USE VALIDATION: Ensure correct argument types for Swift binary
+            # MACOS-USE VALIDATION & MAPPING
             if server == "macos-use":
+                # Map legacy/hallucinated tool names to official ones
+                tool_map = {
+                    "terminal": "execute_command",
+                    "run_command": "execute_command",
+                    "exec": "execute_command",
+                    "command": "execute_command",
+                    "screenshot": "macos-use_take_screenshot",
+                    "take_screenshot": "macos-use_take_screenshot",
+                    "capture": "macos-use_take_screenshot",
+                    "vision": "macos-use_analyze_screen",
+                    "analyze": "macos-use_analyze_screen",
+                    "analyze_screen": "macos-use_analyze_screen",
+                    "ocr": "macos-use_analyze_screen",
+                    "scan": "macos-use_analyze_screen",
+                }
+                if tool in tool_map:
+                    logger.info(f"[TETYANA] Auto-mapping tool '{tool}' -> '{tool_map[tool]}'")
+                    tool = tool_map[tool]
+
                 try:
                     args = self._validate_macos_use_args(tool, args)
                     logger.info(f"[TETYANA] Validated macos-use args: {args}")
@@ -1465,6 +1510,15 @@ Please type your response below and press Enter:
                             "down": "ArrowDown",
                             "left": "ArrowLeft",
                             "right": "ArrowRight",
+                            "delete": "Delete",
+                            "backspace": "Delete",
+                            "home": "Home",
+                            "end": "End",
+                            "pageup": "PageUp",
+                            "pagedown": "PageDown",
+                            "f1": "F1", "f2": "F2", "f3": "F3", "f4": "F4", "f5": "F5",
+                            "f6": "F6", "f7": "F7", "f8": "F8", "f9": "F9", "f10": "F10",
+                            "f11": "F11", "f12": "F12",
                         }
                         key_name = key_map.get(lower_k, k)  # Default to raw key (e.g. "a", "1")
 
