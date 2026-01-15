@@ -122,21 +122,27 @@ func runShellCommand(_ command: String) -> String {
 
         task.waitUntilExit()
 
-        // Handle "cd" manually in the wrapper, but if we are here, we are running a process.
-        // Actually, cd needs to be handled before calling this if strictly mimicking persistent shell.
-        // But for one-off commands that don't change directory *persistently* via shell, this is fine.
-        // Real persistence requires handling "cd" logic in the tool handler.
-
         let output = String(data: data, encoding: .utf8) ?? ""
-        let error = String(data: errorData, encoding: .utf8) ?? ""
-
-        if !error.isEmpty {
-            return output + "\nError: " + error
-        }
-        return output
+        let errorOutput = String(data: errorData, encoding: .utf8) ?? ""
+        return output + errorOutput
     } catch {
         return "Failed to execute command: \(error)"
     }
+}
+
+// --- Helper to resolve PID (handles 0 or -1 for frontmost app) ---
+func resolvePid(_ pid: Int?) -> Int {
+    if let p = pid, p > 0 {
+        return p
+    }
+    // Default to frontmost application
+    if let frontmost = NSWorkspace.shared.frontmostApplication {
+        fputs(
+            "log: resolvePid: using frontmost application '\(frontmost.localizedName ?? "unknown")' (PID: \(frontmost.processIdentifier))\n",
+            stderr)
+        return Int(frontmost.processIdentifier)
+    }
+    return 0
 }
 
 // --- Helper to serialize Swift structs to JSON String ---
@@ -331,7 +337,8 @@ func setupAndStartServer() async throws -> Server {
         "properties": .object([
             "pid": .object([
                 "type": .string("number"),
-                "description": .string("REQUIRED. PID of the target application window."),
+                "description": .string(
+                    "OPTIONAL. PID of the target application. Defaults to frontmost app."),
             ]),
             "x": .object([
                 "type": .string("number"),
@@ -341,9 +348,16 @@ func setupAndStartServer() async throws -> Server {
                 "type": .string("number"),
                 "description": .string("REQUIRED. Y coordinate for the click."),
             ]),
-            // Add optional options here if needed later
+            "showAnimation": .object([
+                "type": .string("boolean"),
+                "description": .string("OPTIONAL. Show visual feedback animation (green circle)."),
+            ]),
+            "animationDuration": .object([
+                "type": .string("number"),
+                "description": .string("OPTIONAL. Duration of the animation in seconds."),
+            ]),
         ]),
-        "required": .array([.string("pid"), .string("x"), .string("y")]),
+        "required": .array([.string("x"), .string("y")]),
     ])
     let clickTool = Tool(
         name: "macos-use_click_and_traverse",
@@ -357,14 +371,15 @@ func setupAndStartServer() async throws -> Server {
         "properties": .object([
             "pid": .object([
                 "type": .string("number"),
-                "description": .string("REQUIRED. PID of the target application window."),
+                "description": .string(
+                    "OPTIONAL. PID of the target application window. Defaults to frontmost app."),
             ]),
             "text": .object([
                 "type": .string("string"), "description": .string("REQUIRED. Text to type."),
             ]),
             // Add optional options here if needed later
         ]),
-        "required": .array([.string("pid"), .string("text")]),
+        "required": .array([.string("text")]),
     ])
     let typeTool = Tool(
         name: "macos-use_type_and_traverse",
@@ -378,11 +393,12 @@ func setupAndStartServer() async throws -> Server {
         "properties": .object([
             "pid": .object([
                 "type": .string("number"),
-                "description": .string("REQUIRED. PID of the application to traverse."),
+                "description": .string(
+                    "OPTIONAL. PID of the application to traverse. Defaults to frontmost app."),
             ])
             // Add optional options here if needed later
         ]),
-        "required": .array([.string("pid")]),
+        "required": .array([]),
     ])
     let refreshTool = Tool(
         name: "macos-use_refresh_traversal",
@@ -457,7 +473,8 @@ func setupAndStartServer() async throws -> Server {
         "properties": .object([
             "pid": .object([
                 "type": .string("number"),
-                "description": .string("REQUIRED. PID of the target application window."),
+                "description": .string(
+                    "OPTIONAL. PID of the target application window. Defaults to frontmost app."),
             ]),
             "keyName": .object([
                 "type": .string("string"),
@@ -474,7 +491,7 @@ func setupAndStartServer() async throws -> Server {
             ]),
             // Add optional ActionOptions overrides here if needed later
         ]),
-        "required": .array([.string("pid"), .string("keyName")]),
+        "required": .array([.string("keyName")]),
     ])
     let pressKeyTool = Tool(
         name: "macos-use_press_key_and_traverse",
@@ -489,7 +506,8 @@ func setupAndStartServer() async throws -> Server {
         "properties": .object([
             "pid": .object([
                 "type": .string("number"),
-                "description": .string("REQUIRED. PID of the target application."),
+                "description": .string(
+                    "OPTIONAL. PID of the target application. Defaults to frontmost app."),
             ]),
             "direction": .object([
                 "type": .string("string"),
@@ -501,7 +519,7 @@ func setupAndStartServer() async throws -> Server {
                 "description": .string("OPTIONAL. Amount to scroll (default 3)."),
             ]),
         ]),
-        "required": .array([.string("pid"), .string("direction")]),
+        "required": .array([.string("direction")]),
     ])
     let scrollTool = Tool(
         name: "macos-use_scroll_and_traverse",
@@ -515,7 +533,8 @@ func setupAndStartServer() async throws -> Server {
         "properties": .object([
             "pid": .object([
                 "type": .string("number"),
-                "description": .string("REQUIRED. PID of the target application."),
+                "description": .string(
+                    "OPTIONAL. PID of the target application. Defaults to frontmost app."),
             ]),
             "x": .object([
                 "type": .string("number"), "description": .string("REQUIRED. Screen X coordinate."),
@@ -524,7 +543,7 @@ func setupAndStartServer() async throws -> Server {
                 "type": .string("number"), "description": .string("REQUIRED. Screen Y coordinate."),
             ]),
         ]),
-        "required": .array([.string("pid"), .string("x"), .string("y")]),
+        "required": .array([.string("x"), .string("y")]),
     ])
     let rightClickTool = Tool(
         name: "macos-use_right_click_and_traverse",
@@ -543,7 +562,8 @@ func setupAndStartServer() async throws -> Server {
         "properties": .object([
             "pid": .object([
                 "type": .string("number"),
-                "description": .string("REQUIRED. PID of the target application."),
+                "description": .string(
+                    "OPTIONAL. PID of the target application. Defaults to frontmost app."),
             ]),
             "startX": .object([
                 "type": .string("number"), "description": .string("REQUIRED. Start X coordinate."),
@@ -559,7 +579,7 @@ func setupAndStartServer() async throws -> Server {
             ]),
         ]),
         "required": .array([
-            .string("pid"), .string("startX"), .string("startY"), .string("endX"), .string("endY"),
+            .string("startX"), .string("startY"), .string("endX"), .string("endY"),
         ]),
     ])
     let dragDropTool = Tool(
@@ -568,13 +588,13 @@ func setupAndStartServer() async throws -> Server {
         inputSchema: dragDropSchema
     )
 
-    // *** NEW: Window Management Tool ***
     let windowMgmtSchema: Value = .object([
         "type": .string("object"),
         "properties": .object([
             "pid": .object([
                 "type": .string("number"),
-                "description": .string("REQUIRED. PID of the application."),
+                "description": .string(
+                    "OPTIONAL. PID of the application. Defaults to frontmost app."),
             ]),
             "action": .object([
                 "type": .string("string"),
@@ -594,7 +614,7 @@ func setupAndStartServer() async throws -> Server {
                 "type": .string("number"), "description": .string("Optional Height for resize."),
             ]),
         ]),
-        "required": .array([.string("pid"), .string("action")]),
+        "required": .array([.string("action")]),
     ])
     let windowMgmtTool = Tool(
         name: "macos-use_window_management",
@@ -609,7 +629,15 @@ func setupAndStartServer() async throws -> Server {
             "text": .object([
                 "type": .string("string"),
                 "description": .string("REQUIRED. Text to set to clipboard."),
-            ])
+            ]),
+            "showAnimation": .object([
+                "type": .string("boolean"),
+                "description": .string("OPTIONAL. Show visual focus animation."),
+            ]),
+            "animationDuration": .object([
+                "type": .string("number"),
+                "description": .string("OPTIONAL. Duration of the animation in seconds."),
+            ]),
         ]),
         "required": .array([.string("text")]),
     ])
@@ -714,25 +742,21 @@ func setupAndStartServer() async throws -> Server {
             // --- Determine Action and Options from MCP Params ---
             let primaryAction: PrimaryAction
             var options = ActionOptions()  // Start with default options
+            options.showAnimation = true  // ENABLE ANIMATION BY DEFAULT
+            options.animationDuration = 0.8  // 0.8s for good visibility
 
-            // PID is required for click, type, press, refresh
-            // Optional only for open (where SDK finds it)
+            // PID is optional (defaults to frontmost app if 0, -1 or missing)
             let pidOptionalInt = try getOptionalInt(from: params.arguments, key: "pid")
+            let resolvedPid = resolvePid(pidOptionalInt)
 
-            // Convert Int? to pid_t?
-            let pidForOptions: pid_t?
-            if let unwrappedPid = pidOptionalInt {
-                guard let convertedPid = pid_t(exactly: unwrappedPid) else {
-                    fputs(
-                        "error: handler(CallTool): PID value \(unwrappedPid) is out of range for pid_t (Int32).\n",
-                        stderr)
-                    throw MCPError.invalidParams("PID value \(unwrappedPid) is out of range.")
-                }
-                pidForOptions = convertedPid
-            } else {
-                pidForOptions = nil
+            // Convert to pid_t
+            guard let convertedPid = pid_t(exactly: resolvedPid) else {
+                fputs(
+                    "error: handler(CallTool): Resolved PID value \(resolvedPid) is out of range for pid_t.\n",
+                    stderr)
+                throw MCPError.invalidParams("Resolved PID value \(resolvedPid) is out of range.")
             }
-            options.pidForTraversal = pidForOptions
+            options.pidForTraversal = convertedPid
 
             // Potentially allow overriding default options from params
             options.traverseBefore =
@@ -765,40 +789,28 @@ func setupAndStartServer() async throws -> Server {
                 primaryAction = .open(identifier: identifier)
 
             case clickTool.name:
-                guard let reqPid = pidForOptions else {
-                    throw MCPError.invalidParams("Missing required 'pid' for click tool")
-                }
                 let x = try getRequiredDouble(from: params.arguments, key: "x")
                 let y = try getRequiredDouble(from: params.arguments, key: "y")
                 primaryAction = .input(action: .click(point: CGPoint(x: x, y: y)))
-                options.pidForTraversal = reqPid  // Re-affirm
+                options.pidForTraversal = convertedPid  // Re-affirm
 
             case typeTool.name:
-                guard let reqPid = pidForOptions else {
-                    throw MCPError.invalidParams("Missing required 'pid' for type tool")
-                }
                 let text = try getRequiredString(from: params.arguments, key: "text")
                 primaryAction = .input(action: .type(text: text))
-                options.pidForTraversal = reqPid  // Re-affirm
+                options.pidForTraversal = convertedPid  // Re-affirm
 
             // *** NEW CASE for Press Key ***
             case pressKeyTool.name:
-                guard let reqPid = pidForOptions else {
-                    throw MCPError.invalidParams("Missing required 'pid' for press key tool")
-                }
                 let keyName = try getRequiredString(from: params.arguments, key: "keyName")
                 // Parse optional flags using the new helper
                 let flags = try parseFlags(from: params.arguments?["modifierFlags"])
                 fputs("log: handler(CallTool): parsed modifierFlags: \(flags)\n", stderr)
                 primaryAction = .input(action: .press(keyName: keyName, flags: flags))
-                options.pidForTraversal = reqPid  // Re-affirm
+                options.pidForTraversal = convertedPid  // Re-affirm
 
             case refreshTool.name:
-                guard let reqPid = pidForOptions else {
-                    throw MCPError.invalidParams("Missing required 'pid' for refresh tool")
-                }
                 primaryAction = .traverseOnly
-                options.pidForTraversal = reqPid  // Re-affirm
+                options.pidForTraversal = convertedPid  // Re-affirm
 
             case executeCommandTool.name, terminalTool.name:
                 let command = try getRequiredString(from: params.arguments, key: "command")
@@ -865,9 +877,6 @@ func setupAndStartServer() async throws -> Server {
                 return .init(content: [.text(jsonString)], isError: false)
 
             case scrollTool.name:
-                guard pidForOptions != nil else {
-                    throw MCPError.invalidParams("Missing required 'pid' for scroll tool")
-                }
                 let direction = try getRequiredString(from: params.arguments, key: "direction")
                 let amount = (params.arguments?["amount"] as? NSNumber)?.intValue ?? 3
 
@@ -884,12 +893,9 @@ func setupAndStartServer() async throws -> Server {
                 scrollEvent?.post(tap: .cghidEventTap)
 
                 primaryAction = .traverseOnly
-                options.pidForTraversal = pidForOptions
+                options.pidForTraversal = convertedPid
 
             case rightClickTool.name:
-                guard pidForOptions != nil else {
-                    throw MCPError.invalidParams("Missing required 'pid' for right click tool")
-                }
                 let x = try getRequiredDouble(from: params.arguments, key: "x")
                 let y = try getRequiredDouble(from: params.arguments, key: "y")
 
@@ -905,12 +911,9 @@ func setupAndStartServer() async throws -> Server {
                 mouseUp?.post(tap: .cghidEventTap)
 
                 primaryAction = .traverseOnly
-                options.pidForTraversal = pidForOptions
+                options.pidForTraversal = convertedPid
 
             case doubleClickTool.name:
-                guard pidForOptions != nil else {
-                    throw MCPError.invalidParams("Missing required 'pid' for double click tool")
-                }
                 let x = try getRequiredDouble(from: params.arguments, key: "x")
                 let y = try getRequiredDouble(from: params.arguments, key: "y")
 
@@ -940,10 +943,9 @@ func setupAndStartServer() async throws -> Server {
                 mouseUp2?.post(tap: .cghidEventTap)
 
                 primaryAction = .traverseOnly
-                options.pidForTraversal = pidForOptions
+                options.pidForTraversal = convertedPid
 
             case dragDropTool.name:
-                guard pidForOptions != nil else { throw MCPError.invalidParams("Missing pid") }
                 let startX = try getRequiredDouble(from: params.arguments, key: "startX")
                 let startY = try getRequiredDouble(from: params.arguments, key: "startY")
                 let endX = try getRequiredDouble(from: params.arguments, key: "endX")
@@ -969,15 +971,12 @@ func setupAndStartServer() async throws -> Server {
                 mouseUp?.post(tap: .cghidEventTap)
 
                 primaryAction = .traverseOnly
-                options.pidForTraversal = pidForOptions
+                options.pidForTraversal = convertedPid
 
             case windowMgmtTool.name:
-                guard let reqPid = pidForOptions else {
-                    throw MCPError.invalidParams("Missing pid")
-                }
                 let action = try getRequiredString(from: params.arguments, key: "action")
 
-                let appRef = AXUIElementCreateApplication(pid_t(reqPid))
+                let appRef = AXUIElementCreateApplication(pid_t(convertedPid))
                 var windowValue: AnyObject?
                 let result = AXUIElementCopyAttributeValue(
                     appRef, kAXFocusedWindowAttribute as CFString, &windowValue)
@@ -991,7 +990,7 @@ func setupAndStartServer() async throws -> Server {
                         AXUIElementSetAttributeValue(
                             window, kAXMainAttribute as CFString, kCFBooleanTrue)
                     case "make_front":
-                        let app = NSRunningApplication(processIdentifier: pid_t(reqPid))
+                        let app = NSRunningApplication(processIdentifier: pid_t(convertedPid))
                         app?.activate(options: .activateIgnoringOtherApps)
                     case "move":
                         let x = try getRequiredDouble(from: params.arguments, key: "x")
@@ -1027,7 +1026,7 @@ func setupAndStartServer() async throws -> Server {
 
                     let resultData = WindowActionResult(
                         action: action,
-                        pid: Int(reqPid),
+                        pid: Int(convertedPid),
                         actualX: Double(pos.x),
                         actualY: Double(pos.y),
                         actualWidth: Double(sz.width),
@@ -1041,7 +1040,7 @@ func setupAndStartServer() async throws -> Server {
                 }
 
                 primaryAction = .traverseOnly
-                options.pidForTraversal = reqPid
+                options.pidForTraversal = convertedPid
 
             case setClipboardTool.name:
                 let text = try getRequiredString(from: params.arguments, key: "text")

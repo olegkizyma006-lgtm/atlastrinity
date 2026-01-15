@@ -85,20 +85,23 @@ class Tetyana:
             "types": {"identifier": str},
         },
         "macos-use_click_and_traverse": {
-            "required": ["pid", "x", "y"],
-            "types": {"pid": int, "x": (int, float), "y": (int, float)},
+            "required": ["x", "y"],
+            "optional": ["pid", "showAnimation", "animationDuration"],
+            "types": {"pid": int, "x": (int, float), "y": (int, float), "showAnimation": bool, "animationDuration": (int, float)},
         },
         "macos-use_type_and_traverse": {
-            "required": ["pid", "text"],
-            "types": {"pid": int, "text": str},
+            "required": ["text"],
+            "optional": ["pid", "showAnimation", "animationDuration"],
+            "types": {"pid": int, "text": str, "showAnimation": bool, "animationDuration": (int, float)},
         },
         "macos-use_press_key_and_traverse": {
-            "required": ["pid", "keyName"],
-            "optional": ["modifierFlags"],
-            "types": {"pid": int, "keyName": str, "modifierFlags": list},
+            "required": ["keyName"],
+            "optional": ["pid", "modifierFlags", "showAnimation", "animationDuration"],
+            "types": {"pid": int, "keyName": str, "modifierFlags": list, "showAnimation": bool, "animationDuration": (int, float)},
         },
         "macos-use_refresh_traversal": {
-            "required": ["pid"],
+            "required": [],
+            "optional": ["pid"],
             "types": {"pid": int},
         },
         "execute_command": {
@@ -138,47 +141,53 @@ class Tetyana:
             "types": {"command": str},
         },
         "macos-use_scroll_and_traverse": {
-            "required": ["pid", "direction"],
-            "optional": ["amount"],
-            "types": {"pid": int, "direction": str, "amount": (int, float)},
+            "required": ["direction"],
+            "optional": ["pid", "amount", "showAnimation", "animationDuration"],
+            "types": {"pid": int, "direction": str, "amount": (int, float), "showAnimation": bool, "animationDuration": (int, float)},
         },
         "macos-use_right_click_and_traverse": {
-            "required": ["pid", "x", "y"],
-            "types": {"pid": int, "x": (int, float), "y": (int, float)},
+            "required": ["x", "y"],
+            "optional": ["pid", "showAnimation", "animationDuration"],
+            "types": {"pid": int, "x": (int, float), "y": (int, float), "showAnimation": bool, "animationDuration": (int, float)},
         },
         "macos-use_double_click_and_traverse": {
-            "required": ["pid", "x", "y"],
-            "types": {"pid": int, "x": (int, float), "y": (int, float)},
+            "required": ["x", "y"],
+            "optional": ["pid", "showAnimation", "animationDuration"],
+            "types": {"pid": int, "x": (int, float), "y": (int, float), "showAnimation": bool, "animationDuration": (int, float)},
         },
         "macos-use_drag_and_drop_and_traverse": {
-            "required": ["pid", "startX", "startY", "endX", "endY"],
-            "types": {"pid": int, "startX": (int, float), "startY": (int, float), "endX": (int, float), "endY": (int, float)},
+            "required": ["startX", "startY", "endX", "endY"],
+            "optional": ["pid", "showAnimation", "animationDuration"],
+            "types": {"pid": int, "startX": (int, float), "startY": (int, float), "endX": (int, float), "endY": (int, float), "showAnimation": bool, "animationDuration": (int, float)},
         },
         "macos-use_window_management": {
-            "required": ["pid", "action"],
-            "optional": ["x", "y", "width", "height"],
+            "required": ["action"],
+            "optional": ["pid", "x", "y", "width", "height"],
             "types": {"pid": int, "action": str, "x": (int, float), "y": (int, float), "width": (int, float), "height": (int, float)},
         },
         "scroll": {
-            "required": ["pid", "direction"],
-            "optional": ["amount"],
+            "required": ["direction"],
+            "optional": ["pid", "amount"],
             "types": {"pid": int, "direction": str, "amount": (int, float)},
         },
         "right_click": {
-            "required": ["pid", "x", "y"],
+            "required": ["x", "y"],
+            "optional": ["pid"],
             "types": {"pid": int, "x": (int, float), "y": (int, float)},
         },
         "double_click": {
-            "required": ["pid", "x", "y"],
+            "required": ["x", "y"],
+            "optional": ["pid"],
             "types": {"pid": int, "x": (int, float), "y": (int, float)},
         },
         "drag_drop": {
-            "required": ["pid", "startX", "startY", "endX", "endY"],
+            "required": ["startX", "startY", "endX", "endY"],
+            "optional": ["pid"],
             "types": {"pid": int, "startX": (int, float), "startY": (int, float), "endX": (int, float), "endY": (int, float)},
         },
         "window_mgmt": {
-            "required": ["pid", "action"],
-            "optional": ["x", "y", "width", "height"],
+            "required": ["action"],
+            "optional": ["pid", "x", "y", "width", "height"],
             "types": {"pid": int, "action": str, "x": (int, float), "y": (int, float), "width": (int, float), "height": (int, float)},
         },
         "macos-use_set_clipboard": {
@@ -1455,13 +1464,20 @@ Please type your response below and press Enter:
                 raise ValueError(f"Invalid pid value: {validated['pid']}") from e
 
         # Type coercion for coordinates (must be float)
-        for coord in ["x", "y"]:
+        for coord in ["x", "y", "animationDuration"]:
             if coord in validated:
                 try:
                     validated[coord] = float(validated[coord])
                     logger.info(f"[TETYANA] Type coercion: {coord} -> float ({validated[coord]})")
                 except (ValueError, TypeError) as e:
                     raise ValueError(f"Invalid {coord} value: {validated[coord]}") from e
+
+        # Type coercion for showAnimation (must be bool)
+        if "showAnimation" in validated:
+            if isinstance(validated["showAnimation"], str):
+                validated["showAnimation"] = validated["showAnimation"].lower() == "true"
+            else:
+                validated["showAnimation"] = bool(validated["showAnimation"])
 
         # Ensure modifierFlags is a list of strings
         if "modifierFlags" in validated:

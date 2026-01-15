@@ -40,7 +40,7 @@ async def run_autonomous_google_reg():
         result = await asyncio.wait_for(orchestrator.run(data_prompt), timeout=600)
         print("\n🏁 Demo result status:", result)
                  
-    except asyncio.TimeoutExpired:
+    except asyncio.TimeoutError:
         print("\n⏳ Demo timed out after 10 minutes.")
     except Exception as e:
         print(f"\n❌ Unexpected error in demo: {e}")

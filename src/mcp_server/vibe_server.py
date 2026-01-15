@@ -97,13 +97,13 @@ def _resolve_vibe_binary() -> Optional[str]:
     return shutil.which(VIBE_BINARY)
 
 
-def _run_vibe(
+async def _run_vibe(
     argv: List[str],
     cwd: Optional[str],
     timeout_s: float,
     extra_env: Optional[Dict[str, str]],
 ) -> Dict[str, Any]:
-    """Execute Vibe CLI command and return structured result."""
+    """Execute Vibe CLI command and return structured result with real-time logging."""
     env = os.environ.copy()
     if extra_env:
         env.update({k: str(v) for k, v in extra_env.items()})
@@ -111,57 +111,83 @@ def _run_vibe(
     logger.info(f"[VIBE] Executing: {' '.join(argv)}")
 
     try:
-        p = subprocess.run(
-            argv,
+        process = await asyncio.create_subprocess_exec(
+            *argv,
             cwd=cwd,
             env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=float(timeout_s),
-            check=False,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
         )
-    except FileNotFoundError:
-        error_msg = f"Vibe CLI not found: '{argv[0]}'. Ensure it is installed and on PATH."
-        logger.error(f"[VIBE] {error_msg}")
-        return {"error": error_msg}
-    except subprocess.TimeoutExpired:
-        error_msg = f"Vibe CLI timed out after {timeout_s}s"
-        logger.error(f"[VIBE] {error_msg}")
-        return {"error": error_msg, "command": argv}
-    except Exception as e:
-        error_msg = f"Vibe CLI execution failed: {e}"
-        logger.error(f"[VIBE] {error_msg}")
-        return {"error": error_msg, "command": argv}
 
-    stdout = _truncate(p.stdout or "")
-    stderr = _truncate(p.stderr or "")
+        stdout_chunks = []
+        stderr_chunks = []
 
-    logger.info(f"[VIBE] Exit code: {p.returncode}")
-    if stdout:
-        logger.debug(f"[VIBE] stdout: {stdout[:500]}...")
-    if stderr:
-        logger.warning(f"[VIBE] stderr: {stderr[:500]}...")
+        async def read_stream(stream, chunks, prefix):
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                text = line.decode().rstrip()
+                chunks.append(text + "\n")
+                # Log in real-time for UI visibility
+                if "error" in prefix.lower() or "stderr" in prefix.lower():
+                    logger.warning(f"[{prefix}] {text}")
+                else:
+                    # Filter out some common vibe noise if needed, or just show all
+                    logger.info(f"[{prefix}] {text}")
 
-    if p.returncode != 0:
+        # Run reading tasks concurrently with a timeout
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(
+                    read_stream(process.stdout, stdout_chunks, "VIBE-OUT"),
+                    read_stream(process.stderr, stderr_chunks, "VIBE-ERR"),
+                    process.wait()
+                ),
+                timeout=float(timeout_s)
+            )
+        except asyncio.TimeoutError:
+            try:
+                process.terminate()
+                await process.wait()
+            except:
+                pass
+            error_msg = f"Vibe CLI timed out after {timeout_s}s"
+            logger.error(f"[VIBE] {error_msg}")
+            return {"error": error_msg, "command": argv}
+
+        stdout = "".join(stdout_chunks)
+        stderr = "".join(stderr_chunks)
+
+        logger.info(f"[VIBE] Exit code: {process.returncode}")
+        
+        if process.returncode != 0 and not stdout:
+            return {
+                "error": "Vibe CLI returned non-zero exit code",
+                "returncode": process.returncode,
+                "stdout": stdout,
+                "stderr": stderr,
+                "command": argv,
+            }
+
         return {
-            "error": "Vibe CLI returned non-zero exit code",
-            "returncode": p.returncode,
+            "success": True,
+            "returncode": process.returncode,
             "stdout": stdout,
             "stderr": stderr,
             "command": argv,
         }
 
-    return {
-        "success": True,
-        "returncode": p.returncode,
-        "stdout": stdout,
-        "stderr": stderr,
-        "command": argv,
-    }
+    except FileNotFoundError:
+        error_msg = f"Vibe CLI not found: '{argv[0]}'. Ensure it is installed and on PATH."
+        logger.error(f"[VIBE] {error_msg}")
+        return {"error": error_msg}
+    except Exception as e:
+        error_msg = f"Vibe CLI execution failed: {e}"
+        logger.error(f"[VIBE] {error_msg}")
+        return {"error": error_msg, "command": argv}
 
-
-def _run_vibe_programmatic(
+async def _run_vibe_programmatic(
     prompt: str,
     cwd: Optional[str],
     timeout_s: float,
@@ -210,7 +236,7 @@ def _run_vibe_programmatic(
 
     logger.info(f"[VIBE PROGRAMMATIC] Prompt: {prompt[:100]}...")
 
-    result = _run_vibe(
+    result = await _run_vibe(
         argv=argv,
         cwd=cwd,
         timeout_s=timeout_s,
@@ -232,7 +258,7 @@ def _run_vibe_programmatic(
 
 
 @server.tool()
-def vibe_which() -> Dict[str, Any]:
+async def vibe_which() -> Dict[str, Any]:
     """
     Locate the Vibe CLI binary path and version.
 
@@ -245,10 +271,13 @@ def vibe_which() -> Dict[str, Any]:
 
     # Get version
     try:
-        result = subprocess.run(
-            [vibe_path, "--version"], capture_output=True, text=True, timeout=5.0
+        process = await asyncio.create_subprocess_exec(
+            vibe_path, "--version",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
         )
-        version = result.stdout.strip() if result.returncode == 0 else "unknown"
+        stdout, _ = await process.communicate()
+        version = stdout.decode().strip() if process.returncode == 0 else "unknown"
     except Exception:
         version = "unknown"
 
@@ -256,7 +285,7 @@ def vibe_which() -> Dict[str, Any]:
 
 
 @server.tool()
-def vibe_prompt(
+async def vibe_prompt(
     prompt: str,
     cwd: Optional[str] = None,
     timeout_s: Optional[float] = None,
@@ -292,7 +321,7 @@ def vibe_prompt(
 
     logger.info(f"[VIBE] Processing prompt: {prompt[:100]}...")
 
-    return _run_vibe_programmatic(
+    return await _run_vibe_programmatic(
         prompt=prompt,
         cwd=cwd,
         timeout_s=eff_timeout,
@@ -303,7 +332,7 @@ def vibe_prompt(
 
 
 @server.tool()
-def vibe_analyze_error(
+async def vibe_analyze_error(
     error_message: str,
     log_context: Optional[str] = None,
     file_path: Optional[str] = None,
@@ -377,7 +406,7 @@ def vibe_analyze_error(
 
     logger.info(f"[VIBE] Starting error analysis (auto_fix={auto_fix})")
 
-    return _run_vibe_programmatic(
+    return await _run_vibe_programmatic(
         prompt=prompt,
         cwd=cwd,
         timeout_s=eff_timeout,
@@ -388,7 +417,7 @@ def vibe_analyze_error(
 
 
 @server.tool()
-def vibe_code_review(
+async def vibe_code_review(
     file_path: str,
     focus_areas: Optional[str] = None,
     cwd: Optional[str] = None,
@@ -425,7 +454,7 @@ def vibe_code_review(
 
     logger.info(f"[VIBE] Starting code review for: {file_path}")
 
-    return _run_vibe_programmatic(
+    return await _run_vibe_programmatic(
         prompt=prompt,
         cwd=cwd,
         timeout_s=eff_timeout,
@@ -436,7 +465,7 @@ def vibe_code_review(
 
 
 @server.tool()
-def vibe_smart_plan(
+async def vibe_smart_plan(
     objective: str,
     context: Optional[str] = None,
     cwd: Optional[str] = None,
@@ -482,7 +511,7 @@ def vibe_smart_plan(
 
     logger.info(f"[VIBE] Generating smart plan for: {objective[:50]}...")
 
-    return _run_vibe_programmatic(
+    return await _run_vibe_programmatic(
         prompt=prompt,
         cwd=cwd,
         timeout_s=eff_timeout,
@@ -493,7 +522,7 @@ def vibe_smart_plan(
 
 
 @server.tool()
-def vibe_execute_subcommand(
+async def vibe_execute_subcommand(
     subcommand: str,
     args: Optional[List[str]] = None,
     cwd: Optional[str] = None,
@@ -547,11 +576,11 @@ def vibe_execute_subcommand(
 
     eff_timeout = timeout_s if timeout_s is not None else DEFAULT_TIMEOUT_S
 
-    return _run_vibe(argv=argv, cwd=cwd, timeout_s=eff_timeout, extra_env=env)
+    return await _run_vibe(argv=argv, cwd=cwd, timeout_s=eff_timeout, extra_env=env)
 
 
 @server.tool()
-def vibe_ask(
+async def vibe_ask(
     question: str,
     cwd: Optional[str] = None,
     timeout_s: Optional[float] = None,
@@ -579,7 +608,7 @@ def vibe_ask(
 
     logger.info(f"[VIBE] Asking question: {question[:50]}...")
 
-    result = _run_vibe(argv=argv, cwd=cwd, timeout_s=eff_timeout, extra_env=None)
+    result = await _run_vibe(argv=argv, cwd=cwd, timeout_s=eff_timeout, extra_env=None)
 
     # Parse JSON if possible
     if result.get("success") and result.get("stdout"):
