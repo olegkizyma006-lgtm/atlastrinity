@@ -1449,31 +1449,7 @@ Please type your response below and press Enter:
                 if mcp_tool in ["window_management", "window_mgmt"]:
                     mcp_tool = "macos-use_window_management"
 
-            # Vibe Fixes
-            if server_name == "vibe":
-                if mcp_tool in ["vibe", "prompt", "chat", "ask_vibe"]:
-                    mcp_tool = "vibe_prompt"
-                if mcp_tool in ["analyze_error", "debug", "self-healing", "fix"]:
-                    mcp_tool = "vibe_analyze_error"
-                if mcp_tool in ["smart_plan", "design"]:
-                    mcp_tool = "vibe_smart_plan"
-                if mcp_tool in ["code_review", "review"]:
-                    mcp_tool = "vibe_code_review"
-                if mcp_tool in ["ask", "question"]:
-                    mcp_tool = "vibe_ask"
-
-                # Argument Normalization for Vibe
-                if mcp_tool == "vibe_prompt":
-                    if "objective" in args and "prompt" not in args:
-                        args["prompt"] = args.pop("objective")
-                    if "question" in args and "prompt" not in args:
-                        args["prompt"] = args.pop("question")
-                elif mcp_tool == "vibe_smart_plan":
-                    if "prompt" in args and "objective" not in args:
-                        args["objective"] = args.pop("prompt")
-                elif mcp_tool == "vibe_ask":
-                    if "prompt" in args and "question" not in args:
-                        args["question"] = args.pop("prompt")
+                # No Vibe fixes here anymore, moved to _call_mcp_direct
 
                 if mcp_tool in ["set_clipboard", "clipboard_set", "copy"]:
                     mcp_tool = "macos-use_set_clipboard"
@@ -1651,6 +1627,62 @@ Please type your response below and press Enter:
                 if tool in tool_map:
                     logger.info(f"[TETYANA] Auto-mapping tool '{tool}' -> '{tool_map[tool]}'")
                     tool = tool_map[tool]
+
+            # VIBE VALIDATION & MAPPING
+            if server == "vibe":
+                # If tool is generic 'vibe' or missing, try to infer from args
+                if tool == "vibe":
+                    if "objective" in args or "plan" in args:
+                        tool = "vibe_smart_plan"
+                    elif "question" in args:
+                        tool = "vibe_ask"
+                    elif "error_message" in args:
+                        tool = "vibe_analyze_error"
+                    else:
+                        tool = "vibe_prompt"
+
+                # Map common aliases/hallucinations for tool names
+                vibe_tools = {
+                    "vibe": "vibe_prompt",
+                    "prompt": "vibe_prompt",
+                    "chat": "vibe_prompt",
+                    "ask_vibe": "vibe_prompt",
+                    "smart_plan": "vibe_smart_plan",
+                    "design": "vibe_smart_plan",
+                    "plan": "vibe_smart_plan",
+                    "analyze_error": "vibe_analyze_error",
+                    "debug": "vibe_analyze_error",
+                    "self-healing": "vibe_analyze_error",
+                    "fix": "vibe_analyze_error",
+                    "code_review": "vibe_code_review",
+                    "review": "vibe_code_review",
+                    "ask": "vibe_ask",
+                    "question": "vibe_ask"
+                }
+                if tool in vibe_tools:
+                    tool = vibe_tools[tool]
+
+                # Normalize arguments based on tool name
+                if tool == "vibe_prompt":
+                    if "objective" in args and "prompt" not in args:
+                        args["prompt"] = args.pop("objective")
+                    if "question" in args and "prompt" not in args:
+                        args["prompt"] = args.pop("question")
+                elif tool == "vibe_smart_plan":
+                    if "prompt" in args and "objective" not in args:
+                        args["objective"] = args.pop("prompt")
+                    if "question" in args and "objective" not in args:
+                        args["objective"] = args.pop("question")
+                elif tool == "vibe_ask":
+                    if "prompt" in args and "question" not in args:
+                        args["question"] = args.pop("prompt")
+                    if "objective" in args and "question" not in args:
+                        args["question"] = args.pop("objective")
+                elif tool == "vibe_analyze_error":
+                    if "prompt" in args and "error_message" not in args:
+                        args["error_message"] = args.pop("prompt")
+
+                logger.info(f"[TETYANA] Vibe-map: final tool={tool}, args={list(args.keys())}")
 
                 try:
                     args = self._validate_macos_use_args(tool, args)
