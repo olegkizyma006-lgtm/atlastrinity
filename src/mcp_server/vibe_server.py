@@ -508,7 +508,7 @@ async def vibe_smart_plan(
     )
 
     prompt = "\n".join(prompt_parts)
-    eff_timeout = timeout_s if timeout_s is not None else 60.0
+    eff_timeout = timeout_s if timeout_s is not None else DEFAULT_TIMEOUT_S
 
     logger.info(f"[VIBE] Generating smart plan for: {objective[:50]}...")
 

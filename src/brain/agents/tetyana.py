@@ -738,7 +738,29 @@ Please type your response below and press Enter:
                 )
 
                 if not tool_call.get("name"):
-                    logger.warning("[TETYANA] LLM monologue missing 'proposed_action'. Using fallback step info.")
+                    # Enhanced fallback: Try to infer tool name from step metadata
+                    inferred_name = (
+                        step.get("tool") or
+                        step.get("server") or
+                        step.get("realm")
+                    )
+                    # Try action-based inference
+                    if not inferred_name:
+                        action_text = str(step.get("action", "")).lower()
+                        if "vibe" in action_text:
+                            inferred_name = "vibe_prompt"
+                        elif any(kw in action_text for kw in ["click", "type", "press", "scroll", "open app"]):
+                            inferred_name = "macos-use"
+                        elif any(kw in action_text for kw in ["file", "read", "write", "create", "save"]):
+                            inferred_name = "filesystem"
+                        elif any(kw in action_text for kw in ["run", "execute", "command", "terminal", "bash"]):
+                            inferred_name = "terminal"
+                    
+                    if inferred_name:
+                        tool_call["name"] = inferred_name
+                        logger.info(f"[TETYANA] Inferred tool name from step metadata: {inferred_name}")
+                    else:
+                        logger.warning("[TETYANA] LLM monologue missing 'proposed_action'. Could not infer tool name.")
                 
                 # VISION OVERRIDE: If Vision found the element with high confidence, use its suggestion
                 if vision_result and vision_result.get("found") and vision_result.get("suggested_action"):
@@ -773,6 +795,16 @@ Please type your response below and press Enter:
                 tool_call["args"]["step_id"] = step.get("id")
         except Exception:
             pass
+
+        # --- AUTO-FILL PID FOR MACOS-USE TOOLS ---
+        # If this is a macos-use tool and pid is missing, use tracked _current_pid
+        tool_name_lower = str(tool_call.get("name", "")).lower()
+        tool_server = tool_call.get("server", "")
+        if tool_name_lower.startswith("macos-use") or tool_server == "macos-use":
+            args = tool_call.get("args", {})
+            if isinstance(args, dict) and not args.get("pid") and self._current_pid:
+                tool_call.setdefault("args", {})["pid"] = self._current_pid
+                logger.info(f"[TETYANA] Auto-filled pid from tracked state: {self._current_pid}")
 
         # --- PHASE 2: TOOL EXECUTION ---
         tool_result = await self._execute_tool(tool_call)

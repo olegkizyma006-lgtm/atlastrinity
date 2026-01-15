@@ -71,6 +71,32 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("AtlasTrinity Brain is waking up...")
 
+    # Dev mode: Auto-sync configs (project → global)
+    # This ensures configs are always up-to-date on dev startup
+    try:
+        import subprocess
+        from pathlib import Path
+        
+        project_root = Path(__file__).parent.parent.parent
+        sync_script = project_root / "config" / "config_sync.py"
+        venv_python = project_root / ".venv" / "bin" / "python"
+        
+        if sync_script.exists() and venv_python.exists():
+            logger.info("[LifeSpan] Syncing configurations...")
+            result = subprocess.run(
+                [str(venv_python), str(sync_script), "push"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                cwd=str(project_root)
+            )
+            if result.returncode == 0:
+                logger.info("[LifeSpan] ✓ Configs synchronized")
+            else:
+                logger.warning(f"[LifeSpan] Config sync issue: {result.stderr[:200]}")
+    except Exception as e:
+        logger.warning(f"[LifeSpan] Config sync skipped: {e}")
+
     # Initialize services in background
     asyncio.create_task(ensure_all_services())
 

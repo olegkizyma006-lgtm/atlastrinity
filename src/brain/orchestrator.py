@@ -703,8 +703,22 @@ class Trinity:
         Supports hierarchical numbering (e.g. 3.1, 3.2) and deep recovery.
         """
         MAX_RECURSION_DEPTH = 5
+        BACKOFF_BASE_MS = 500  # Exponential backoff between depths
+
         if depth > MAX_RECURSION_DEPTH:
             raise RecursionError("Max task recursion depth reached. Failing task.")
+
+        # Exponential backoff on deeper recursion to prevent overwhelming the system
+        if depth > 1:
+            backoff_ms = BACKOFF_BASE_MS * (2 ** (depth - 1))
+            await self._log(
+                f"Recursion depth {depth}: applying {backoff_ms}ms backoff",
+                "orchestrator"
+            )
+            await asyncio.sleep(backoff_ms / 1000)
+
+        # Track recursion metrics for analytics
+        metrics_collector.record("recursion_depth", depth, tags={"parent": parent_prefix or "root"})
 
         for i, step in enumerate(steps):
             # Generate hierarchical ID: "1", "2" or "3.1", "3.2"

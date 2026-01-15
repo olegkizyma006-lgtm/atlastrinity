@@ -118,3 +118,39 @@ class KGEdge(Base):
     relation: Mapped[str] = mapped_column(String(50))  # CREATED, MODIFIED, READ, USED
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+# Agent Message Bus - Typed inter-agent communication
+class AgentMessage(Base):
+    """Typed messages between agents for reliable communication"""
+    __tablename__ = "agent_messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("sessions.id"))
+
+    from_agent: Mapped[str] = mapped_column(String(20))  # atlas, tetyana, grisha
+    to_agent: Mapped[str] = mapped_column(String(20))
+    message_type: Mapped[str] = mapped_column(String(50))  # rejection, help_request, feedback
+    step_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    payload: Mapped[Dict[str, Any]] = mapped_column(JSONB)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+# Recovery Attempt Tracking - Analytics for recursive healing
+class RecoveryAttempt(Base):
+    """Track recursive healing attempts for analytics"""
+    __tablename__ = "recovery_attempts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    step_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("task_steps.id"))
+
+    depth: Mapped[int] = mapped_column(Integer)  # recursion depth
+    recovery_method: Mapped[str] = mapped_column(String(50))  # vibe, atlas_help, retry
+    success: Mapped[bool] = mapped_column(Boolean)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    error_before: Mapped[str] = mapped_column(Text)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+

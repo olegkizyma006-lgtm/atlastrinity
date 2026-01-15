@@ -49,3 +49,7 @@ psutil>=5.9.0
 sqlalchemy>=2.0.0
 asyncpg>=0.29.0
 greenlet>=3.0.0
+
+# === Structured Logging ===
+structlog>=24.1.0
+# Note: asyncio is stdlib in Python 3.12+, no external package needed
