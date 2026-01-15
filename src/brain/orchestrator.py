@@ -239,10 +239,12 @@ class Trinity:
             relation = "MODIFIED" if "write" in shared_context.last_operation else "ACCESSED"
             await knowledge_graph.add_edge(task_node_id, file_node_id, relation)
 
-        # 3. USER node
-        user_node_id = "user:dev"
-        await knowledge_graph.add_node("USER", user_node_id, {"name": "Developer"})
-        await knowledge_graph.add_edge(task_node_id, user_node_id, "ASSIGNED_BY")
+        # 3. USER node (only create once per session to avoid duplicates)
+        if not getattr(self, "_user_node_created", False):
+            user_node_id = "user:dev"
+            await knowledge_graph.add_node("USER", user_node_id, {"name": "Developer"})
+            await knowledge_graph.add_edge(task_node_id, user_node_id, "ASSIGNED_BY")
+            self._user_node_created = True
 
     async def _verify_db_ids(self):
         """Verify that restored DB IDs exist. If not, clear them."""
@@ -471,10 +473,19 @@ class Trinity:
             await self._speak("atlas", analysis.get("reason", "Аналізую..."))
 
             # Keep-alive logger to show activity in UI during long LLM calls
+            # Added rate limiting to prevent log spam
+            _keep_alive_last_log = [0.0]  # Use list for mutable closure
+
             async def keep_alive_logging():
+                import time
+
                 while True:
-                    await asyncio.sleep(15)  # Log every 15 seconds instead of 4
-                    await self._log("Atlas is thinking... (Planning logic flow)", "system")
+                    await asyncio.sleep(15)  # Wait 15 seconds
+                    current_time = time.time()
+                    # Rate limit: don't log if less than 10 seconds since last log
+                    if current_time - _keep_alive_last_log[0] >= 10:
+                        _keep_alive_last_log[0] = current_time
+                        await self._log("Atlas is thinking... (Planning logic flow)", "system")
 
             planning_task = asyncio.create_task(self.atlas.create_plan(analysis))
             logger_task = asyncio.create_task(keep_alive_logging())

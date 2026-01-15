@@ -663,7 +663,35 @@ Please type your response below and press Enter:
             elif server == "terminal":
                 tool_name = "terminal"
                 args["command"] = args.get("command") or args.get("cmd") or action
+            elif server == "macos-use":
+                # macos-use.tool_name -> dispatch to macos-use server
+                tool_name = action
+                tool_call["server"] = "macos-use"
+                logger.info(f"[TETYANA] macOS-use Dot-map: macos-use.{action}")
             logger.info(f"[TETYANA] Dot-map: {server}.{action} -> {tool_name}")
+
+        # --- MACOS-USE TOOL MAPPING ---
+        # Handle hallucinated tool names like 'macos-use_open_application_and_traverse'
+        # These should be dispatched to macos-use server with proper tool name
+        macos_use_tools = [
+            "macos-use_open_application_and_traverse",
+            "macos-use_click_and_traverse",
+            "macos-use_type_and_traverse",
+            "macos-use_press_key_and_traverse",
+            "macos-use_refresh_traversal",
+        ]
+        if tool_name in macos_use_tools or any(
+            tool_name.startswith(prefix) for prefix in ["macos-use_", "macos_use_"]
+        ):
+            # Extract actual tool name and set server
+            actual_tool = tool_name
+            if tool_name.startswith("macos-use_"):
+                actual_tool = tool_name  # Keep as is, it's the correct format
+            elif tool_name.startswith("macos_use_"):
+                actual_tool = tool_name.replace("macos_use_", "macos-use_")
+            tool_call["server"] = "macos-use"
+            tool_name = actual_tool
+            logger.info(f"[TETYANA] macOS-use map: {tool_name} -> macos-use.{actual_tool}")
 
         # PATH EXPANSION using SharedContext
         if "path" in args and isinstance(args["path"], str):
