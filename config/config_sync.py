@@ -18,13 +18,15 @@ AtlasTrinity Configuration Synchronization
     python config/config_sync.py status    # Показати різницю
 """
 
-import os
-import sys
-import shutil
+import fcntl
 import json
-from pathlib import Path
+import os
+import shutil
+import sys
+import tempfile
 from datetime import datetime
-from typing import Dict, Any, Optional
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 # Спробуємо імпортувати yaml
 try:
@@ -134,33 +136,76 @@ def load_yaml(path: Path) -> Optional[Dict]:
 
 
 def save_yaml(path: Path, data: Dict, comment: str = None):
-    """Зберігає YAML файл з коментарем"""
+    """
+    Зберігає YAML файл з коментарем.
+    Використовує атомарний запис через тимчасовий файл для безпеки.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     
-    with open(path, 'w', encoding='utf-8') as f:
-        if comment:
-            f.write(f"# {comment}\n")
-            f.write(f"# Синхронізовано: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-        yaml.dump(data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+    # Create temp file in same directory for atomic rename
+    fd, temp_path = tempfile.mkstemp(suffix='.yaml.tmp', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            # Acquire exclusive lock
+            fcntl.flock(f, fcntl.LOCK_EX)
+            try:
+                if comment:
+                    f.write(f"# {comment}\n")
+                    f.write(f"# Синхронізовано: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                yaml.dump(data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)
+        
+        # Atomic rename (safe on POSIX systems)
+        os.replace(temp_path, path)
+    except Exception:
+        # Clean up temp file on error
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+        raise
 
 
 def load_json(path: Path) -> Optional[Dict]:
-    """Завантажує JSON файл"""
+    """Завантажує JSON файл з shared lock для безпечного читання."""
     if not path.exists():
         return None
     try:
         with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            fcntl.flock(f, fcntl.LOCK_SH)
+            try:
+                return json.load(f)
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)
     except Exception as e:
         print_error(f"Помилка читання {path}: {e}")
         return None
 
 
 def save_json(path: Path, data: Dict):
-    """Зберігає JSON файл"""
+    """
+    Зберігає JSON файл.
+    Використовує атомарний запис через тимчасовий файл для безпеки.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
+    
+    # Create temp file in same directory for atomic rename
+    fd, temp_path = tempfile.mkstemp(suffix='.json.tmp', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            # Acquire exclusive lock
+            fcntl.flock(f, fcntl.LOCK_EX)
+            try:
+                json.dump(data, f, indent=4, ensure_ascii=False)
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)
+        
+        # Atomic rename (safe on POSIX systems)
+        os.replace(temp_path, path)
+    except Exception:
+        # Clean up temp file on error
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+        raise
 
 
 def backup_file(path: Path):

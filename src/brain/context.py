@@ -26,6 +26,7 @@ class SharedContext:
     - Recent file tracking
     - Last successful path memory
     - Project context
+    - Goal tracking for agent coordination
     """
 
     # Core path context - uses actual user home directory
@@ -52,6 +53,15 @@ class SharedContext:
     last_operation: str = ""
     last_update: Optional[datetime] = None
     available_tools_summary: str = ""
+
+    # Goal tracking for agent coordination
+    current_goal: str = ""
+    parent_goal: Optional[str] = None
+    goal_stack: List[str] = field(default_factory=list)
+    recursive_depth: int = 0
+    max_recursive_depth: int = 5
+    current_step_id: Optional[int] = None
+    total_steps: int = 0
 
     def __post_init__(self):
         # Detect if application is packaged (binary/app mode)
@@ -169,7 +179,74 @@ class SharedContext:
             "is_packaged": self.is_packaged,
             "operation_count": self.operation_count,
             "last_op": self.last_operation,
+            # Goal tracking
+            "current_goal": self.current_goal,
+            "parent_goal": self.parent_goal,
+            "goal_depth": len(self.goal_stack),
+            "recursive_depth": self.recursive_depth,
+            "step_progress": f"{self.current_step_id}/{self.total_steps}" if self.total_steps else "—",
         }
+
+    def push_goal(self, goal: str, total_steps: int = 0) -> None:
+        """
+        Push a new goal onto the stack (entering a sub-task).
+        Called by Atlas when creating a new plan.
+        """
+        if self.current_goal:
+            self.goal_stack.append(self.current_goal)
+            self.parent_goal = self.current_goal
+        self.current_goal = goal
+        self.total_steps = total_steps
+        self.current_step_id = 0
+        self.recursive_depth = len(self.goal_stack)
+
+    def pop_goal(self) -> str:
+        """
+        Pop the current goal from the stack (leaving a sub-task).
+        Returns the goal that was popped.
+        """
+        completed_goal = self.current_goal
+        if self.goal_stack:
+            self.current_goal = self.goal_stack.pop()
+            self.parent_goal = self.goal_stack[-1] if self.goal_stack else None
+        else:
+            self.current_goal = ""
+            self.parent_goal = None
+        self.recursive_depth = len(self.goal_stack)
+        self.total_steps = 0
+        self.current_step_id = None
+        return completed_goal
+
+    def advance_step(self) -> None:
+        """Advance the current step counter."""
+        if self.current_step_id is not None:
+            self.current_step_id += 1
+
+    def get_goal_context(self) -> str:
+        """
+        Get formatted goal context string for agent prompts.
+        This helps agents understand the current task hierarchy.
+        """
+        if not self.current_goal:
+            return ""
+
+        lines = []
+        lines.append(f"🎯 Current Goal: {self.current_goal}")
+        
+        if self.parent_goal:
+            lines.append(f"📎 Parent Goal: {self.parent_goal}")
+        
+        if self.goal_stack:
+            lines.append(f"📊 Goal Depth: {len(self.goal_stack) + 1} (max: {self.max_recursive_depth})")
+        
+        if self.total_steps > 0:
+            lines.append(f"📝 Progress: Step {self.current_step_id}/{self.total_steps}")
+
+        return "\n".join(lines)
+
+    def is_at_max_depth(self) -> bool:
+        """Check if we've reached maximum recursion depth."""
+        return self.recursive_depth >= self.max_recursive_depth
 
 
 # Singleton instance - import this in other modules

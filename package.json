@@ -27,7 +27,10 @@
     "lint:py": "flake8 src tests scripts --exclude=dist_venv,node_modules,.venv",
     "lint:ts": "eslint 'src/**/*.{ts,tsx}' --max-warnings=0",
     "format:check": "prettier --check 'src/**/*.{ts,tsx,json}'",
-    "format:write": "prettier --write 'src/**/*.{ts,tsx,json}'"
+    "format:write": "prettier --write 'src/**/*.{ts,tsx,json}'",
+    "mcp:status": "python scripts/check_mcp_health.py",
+    "mcp:status:json": "python scripts/check_mcp_health.py --json",
+    "mcp:validate": "python -c \"from src.brain.config_validator import config_validator; results = config_validator.validate_all(); config_validator.log_results(results)\""
   },
   "author": "AtlasTrinity Team",
   "license": "MIT",
