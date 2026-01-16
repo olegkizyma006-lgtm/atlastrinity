@@ -1744,7 +1744,9 @@ Please type your response below and press Enter:
 
                 # ENFORCE DYNAMIC TIMEOUT (User request: Don't let it loop at 300s)
                 # If agent provides a timeout smaller than config, override it.
-                config_timeout = config.get("vibe", "timeout_s", 600)
+                vibe_config = config.get("vibe", {})
+                config_timeout = vibe_config.get("timeout_s", 600) if isinstance(vibe_config, dict) else 600
+                
                 if args.get("timeout_s", 0) < config_timeout:
                     logger.info(f"[TETYANA] Auto-extending timeout_s from {args.get('timeout_s')} to {config_timeout} (based on global config)")
                     args["timeout_s"] = config_timeout
