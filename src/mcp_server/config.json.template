@@ -4,7 +4,7 @@
     "macos-use": {
       "command": "${PROJECT_ROOT}/vendor/mcp-server-macos-use/.build/release/mcp-server-macos-use",
       "connect_timeout": 60,
-      "description": "Native macOS control: mouse, keyboard, UI automation, screenshots, Vision (OCR), and terminal command execution (Replaces 'terminal')",
+      "description": "Native macOS control: mouse, keyboard, UI automation, screenshots, Vision (OCR), Fetch URL, Time, AppleScript, and terminal command execution (Replaces 'terminal', 'fetch', 'time', 'applescript')",
       "permissions": {
         "accessibility": true,
         "screen_recording": true
@@ -15,7 +15,7 @@
         "tetyana",
         "grisha"
       ],
-      "note": "Requires swift build in vendor/mcp-server-macos-use. Acts as the original MCP for system control."
+      "note": "Requires swift build in vendor/mcp-server-macos-use. Acts as the original MCP for system control. Now includes Fetch URL, Time, and AppleScript functionality."
     },
     "filesystem": {
       "command": "npx",
@@ -144,8 +144,8 @@
         "--no-cache",
         "apple-mcp@latest"
       ],
-      "description": "Integration with Apple apps (Calendar, Reminders, etc.)",
-      "disabled": false,
+      "description": "Integration with Apple apps - MIGRATED TO MACOS-USE",
+      "disabled": true,
       "tier": 3,
       "agents": [
         "tetyana"
