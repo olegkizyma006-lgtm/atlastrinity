@@ -16,24 +16,44 @@ from ..config import CONFIG_ROOT
 from ..config_loader import config
 from ..logger import logger
 
-# Try to import faster-whisper
-try:
-    from faster_whisper import WhisperModel
+# Lazy import to avoid loading heavy dependencies at startup
+WHISPER_AVAILABLE = None
+WhisperModel = None
 
-    WHISPER_AVAILABLE = True
-except ImportError:
-    WHISPER_AVAILABLE = False
-    print("[STT] Warning: faster-whisper not installed. Run: pip install faster-whisper")
+def _check_whisper_available():
+    global WHISPER_AVAILABLE, WhisperModel
+    if WHISPER_AVAILABLE is not None:
+        return WHISPER_AVAILABLE
+        
+    try:
+        from faster_whisper import WhisperModel as _WhisperModel
+        WhisperModel = _WhisperModel
+        WHISPER_AVAILABLE = True
+    except ImportError:
+        WHISPER_AVAILABLE = False
+        print("[STT] Warning: faster-whisper not installed. Run: pip install faster-whisper")
+    return WHISPER_AVAILABLE
 
-# Try to import audio recording
-try:
-    import sounddevice as sd
-    import soundfile as sf
+# Lazy import for audio recording
+AUDIO_AVAILABLE = None
+sd = None
+sf = None
 
-    AUDIO_AVAILABLE = True
-except ImportError:
-    AUDIO_AVAILABLE = False
-    print("[STT] Warning: sounddevice/soundfile not installed. Audio recording disabled.")
+def _check_audio_available():
+    global AUDIO_AVAILABLE, sd, sf
+    if AUDIO_AVAILABLE is not None:
+        return AUDIO_AVAILABLE
+        
+    try:
+        import sounddevice as _sd
+        import soundfile as _sf
+        sd = _sd
+        sf = _sf
+        AUDIO_AVAILABLE = True
+    except ImportError:
+        AUDIO_AVAILABLE = False
+        print("[STT] Warning: sounddevice/soundfile not installed. Audio recording disabled.")
+    return AUDIO_AVAILABLE
 
 
 class SpeechType(str, Enum):
@@ -127,7 +147,7 @@ class WhisperSTT:
     async def get_model(self):
         """Lazy-load Faster Whisper model non-blockingly"""
         if self._model is None:
-            if not WHISPER_AVAILABLE:
+            if not _check_whisper_available():
                 logger.error("[STT] faster-whisper is not installed. Cannot load WhisperModel.")
                 return None
 
@@ -149,7 +169,7 @@ class WhisperSTT:
     async def transcribe_file(self, audio_path: str, language: str = None) -> TranscriptionResult:
         language = language or self.language
 
-        if not WHISPER_AVAILABLE:
+        if not _check_whisper_available():
             return TranscriptionResult(text="", language="uk", confidence=0, segments=[])
 
         model = await self.get_model()
@@ -370,7 +390,7 @@ class WhisperSTT:
             return f"{prev} {new}"
 
     def list_audio_devices(self) -> list:
-        if not AUDIO_AVAILABLE:
+        if not _check_audio_available():
             return []
         devices = sd.query_devices()
         return [
@@ -383,7 +403,7 @@ class WhisperSTT:
         self, duration: float = 5.0, language: str = None
     ) -> TranscriptionResult:
         """Record audio and transcribe it"""
-        if not AUDIO_AVAILABLE:
+        if not _check_audio_available():
             return TranscriptionResult(
                 text="Audio recording not available",
                 language="uk",

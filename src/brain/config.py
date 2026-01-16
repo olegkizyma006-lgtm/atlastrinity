@@ -39,9 +39,18 @@ MEMORY_DIR = CONFIG_ROOT / "memory"
 SCREENSHOTS_DIR = CONFIG_ROOT / "screenshots"
 MODELS_DIR = CONFIG_ROOT / "models" / "tts"
 WHISPER_DIR = CONFIG_ROOT / "models" / "faster-whisper"
+STANZA_DIR = CONFIG_ROOT / "models" / "stanza"
+NLTK_DIR = CONFIG_ROOT / "models" / "nltk"
+VPN_DIR = CONFIG_ROOT / "models" / "vpn"  # For potentially other models
 MCP_DIR = CONFIG_ROOT / "mcp"
 WORKSPACE_DIR = CONFIG_ROOT / "workspace"
 VIBE_WORKSPACE = CONFIG_ROOT / "vibe_workspace"
+
+# Force libraries to use our global config paths
+os.environ["STANZA_RESOURCES_DIR"] = str(STANZA_DIR)
+os.environ["NLTK_DATA"] = str(NLTK_DIR)
+os.environ["HF_HOME"] = str(CONFIG_ROOT / "models" / "huggingface")
+os.environ["XDG_CACHE_HOME"] = str(CONFIG_ROOT / "cache")
 
 
 def ensure_dirs():
@@ -53,6 +62,11 @@ def ensure_dirs():
         SCREENSHOTS_DIR,
         MODELS_DIR,
         WHISPER_DIR,
+        STANZA_DIR,
+        NLTK_DIR,
+        VPN_DIR,
+        CONFIG_ROOT / "models" / "huggingface",
+        CONFIG_ROOT / "cache",
         MCP_DIR,
     ]:
         d.mkdir(parents=True, exist_ok=True)

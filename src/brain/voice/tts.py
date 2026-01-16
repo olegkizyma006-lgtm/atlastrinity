@@ -11,6 +11,7 @@ NOTE: TTS models must be set up before first use via setup_dev.py
 
 import os
 import tempfile
+import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -18,18 +19,24 @@ from typing import Optional
 from ..config import CONFIG_ROOT, MODELS_DIR
 from ..config_loader import config
 
-# Try to import ukrainian_tts properly
-try:
-    import ukrainian_tts
+# Lazy import to avoid loading heavy dependencies at startup
+TTS_AVAILABLE = None
 
-    # Lazy import to avoid loading Stanza at startup
-    TTS_AVAILABLE = True
-    print("[TTS] Ukrainian TTS available")
-except ImportError:
-    TTS_AVAILABLE = False
-    print(
-        "[TTS] Warning: ukrainian-tts not installed. Run: pip install git+https://github.com/robinhad/ukrainian-tts.git"
-    )
+def _check_tts_available():
+    global TTS_AVAILABLE
+    if TTS_AVAILABLE is not None:
+        return TTS_AVAILABLE
+        
+    try:
+        import ukrainian_tts
+        TTS_AVAILABLE = True
+        print("[TTS] Ukrainian TTS available")
+    except ImportError:
+        TTS_AVAILABLE = False
+        print(
+            "[TTS] Warning: ukrainian-tts not installed. Run: pip install git+https://github.com/robinhad/ukrainian-tts.git"
+        )
+    return TTS_AVAILABLE
 
 
 @dataclass
@@ -86,7 +93,7 @@ class AgentVoice:
         self._voice_enum = None  # Cache enum
 
         # Get voice enum
-        if TTS_AVAILABLE:
+        if _check_tts_available():
             # Lazy import Voices as well
             try:
                 from ukrainian_tts.tts import Voices
@@ -103,7 +110,7 @@ class AgentVoice:
     @property
     def tts(self):
         """Lazy initialize TTS engine"""
-        if self._tts is None and TTS_AVAILABLE:
+        if self._tts is None and _check_tts_available():
             # Import only here to avoid issues during startup
             try:
                 from ukrainian_tts.tts import TTS as UkrainianTTS
@@ -155,7 +162,7 @@ class AgentVoice:
         Returns:
             Path to the generated audio file, or None if TTS not available
         """
-        if not TTS_AVAILABLE:
+        if not _check_tts_available():
             print(f"[TTS] [{self.config.name}]: {text}")
             return None
 
@@ -228,44 +235,73 @@ class VoiceManager:
         self.last_speak_time = 0.0  # End time of the last agent phrase
         self._lock = None  # To be initialized in the loop
 
-    @property
-    def engine(self):
+    async def get_engine(self):
+        """Async version to get engine with lazy initialization"""
         if not self.enabled:
             print("[TTS] TTS is disabled in config")
             return None
 
+        await self._initialize_if_needed_async()
+        return self._tts
+
+    @property
+    def engine(self):
+        """Legacy sync engine access (will block if not already initialized)"""
+        if not self.enabled:
+            return None
         self._initialize_if_needed()
         return self._tts
 
     def _initialize_if_needed(self):
-        if self._tts is None and TTS_AVAILABLE:
-            print(f"[TTS] Initializing engine on {self.device}...")
-            cache_dir = MODELS_DIR  # uses already imported MODELS_DIR
-            cache_dir.mkdir(parents=True, exist_ok=True)
-
-            # Import TTS only here
+        """Synchronous initialization (not recommended for main thread)"""
+        if self._tts is None and _check_tts_available():
+            import asyncio
             try:
-                # IMPORTANT: ukrainian-tts (espnet2) expects to be in the model directory
-                # to find feats_stats.npz and other files, even if cache_folder is passed.
-                import os
-                from contextlib import contextmanager
-
-                from ukrainian_tts.tts import TTS as UkrainianTTS
-
-                @contextmanager
-                def tmp_cwd(path):
-                    old_path = os.getcwd()
-                    os.chdir(path)
-                    try:
-                        yield
-                    finally:
-                        os.chdir(old_path)
-
-                with tmp_cwd(str(cache_dir)):
-                    self._tts = UkrainianTTS(cache_folder=str(cache_dir), device=self.device)
+                # If we are in a loop, try to use the async version? 
+                # No, property must be sync.
+                self._load_engine_sync()
             except Exception as e:
-                print(f"[TTS] Failed to initialize engine: {e}")
-                self._tts = None
+                print(f"[TTS] Sync initialization error: {e}")
+
+    async def _initialize_if_needed_async(self):
+        if self._tts is None:
+            # Check availability in a thread because it involves a heavy import
+            available = await asyncio.to_thread(_check_tts_available)
+            if available:
+                print(f"[TTS] Initializing engine on {self.device} (Async)...")
+                await asyncio.to_thread(self._load_engine_sync)
+            else:
+                print("[TTS] Voice engine skip: ukrainian-tts not installed.")
+
+    def _load_engine_sync(self):
+        if self._tts is not None:
+            return
+            
+        cache_dir = MODELS_DIR
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            print("[TTS] Loading ukrainian-tts and Stanza resources...")
+            import os
+            from contextlib import contextmanager
+            from ukrainian_tts.tts import TTS as UkrainianTTS
+
+            @contextmanager
+            def tmp_cwd(path):
+                old_path = os.getcwd()
+                os.chdir(path)
+                try:
+                    yield
+                finally:
+                    os.chdir(old_path)
+
+            with tmp_cwd(str(cache_dir)):
+                print("[TTS] Downloading/Verifying models in models/tts...")
+                self._tts = UkrainianTTS(cache_folder=str(cache_dir), device=self.device)
+                print("[TTS] Engine object created successfully.")
+        except Exception as e:
+            print(f"[TTS] Failed to initialize engine: {e}")
+            self._tts = None
 
     async def speak(self, agent_id: str, text: str) -> Optional[str]:
         """
@@ -276,7 +312,7 @@ class VoiceManager:
             self._lock = asyncio.Lock()
 
         async with self._lock:
-            if not TTS_AVAILABLE or not text:
+            if not _check_tts_available() or not text:
                 print(f"[TTS] [{agent_id.upper()}] (Text-only): {text}")
                 return None
 

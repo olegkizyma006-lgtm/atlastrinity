@@ -30,8 +30,8 @@ if github_token:
     os.environ["GITHUB_TOKEN"] = github_token
     print("[Server] ✓ GITHUB_TOKEN loaded from global context")
 
-import asyncio  # noqa: E402
-from typing import Any, Dict, Optional  # noqa: E402
+import asyncio
+from typing import Any, Dict, Optional
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
@@ -92,7 +92,9 @@ async def lifespan(app: FastAPI):
             else:
                 logger.warning("[LifeSpan] STT model unavailable - faster-whisper not installed.")
             # Warm up TTS engine
-            _ = trinity.voice.engine
+            logger.info("[LifeSpan] Starting TTS engine initialization (this may take 2-5 mins)...")
+            logger.info("[LifeSpan] SYSTEM IS READY for chat. Voice will be active once initialized.")
+            await trinity.voice.get_engine()
             logger.info("[LifeSpan] Voice engines are ready.")
         except Exception as e:
             logger.error(f"[LifeSpan] Warmup error: {e}")
