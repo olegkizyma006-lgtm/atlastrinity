@@ -163,6 +163,12 @@ class Atlas:
                 "initial_response": None # Force falling back to atlas.chat() for dynamic response
             }
 
+    def _is_simple_greeting(self, text: str) -> bool:
+        """Lightweight check for brief greetings/one-liners"""
+        text = text.strip().lower().rstrip(".!?")
+        greetings = ["привіт", "вітаю", "hi", "hello", "hey", "здоров", "що нового", "як справи"]
+        return len(text) < 20 and any(g == text for g in greetings)
+
     async def chat(self, user_request: str, history: List[Any] = None) -> str:
         """
         Omni-Knowledge Chat Mode.
@@ -172,63 +178,69 @@ class Atlas:
 
         from ..mcp_manager import mcp_manager  # noqa: E402
 
-        # 1. Gather Context from Memory Arsenal
+        # 1. Gather Context from Memory Arsenal (Dynamic Depth)
         graph_context = ""
         vector_context = ""
+        system_status = ""
+        
+        is_greeting = self._is_simple_greeting(user_request)
 
-        # A. Graph Memory (MCP Search)
-        try:
-            # Search for relevant entities in the Knowledge Graph
-            graph_res = await mcp_manager.call_tool(
-                "memory", "search_nodes", {"query": user_request}
-            )
+        if not is_greeting:
+            # A. Graph Memory (MCP Search)
+            try:
+                # Search for relevant entities in the Knowledge Graph
+                graph_res = await mcp_manager.call_tool(
+                    "memory", "search_nodes", {"query": user_request}
+                )
 
-            # Format graph result
-            if isinstance(graph_res, dict) and "entities" in graph_res:
-                entities = graph_res.get("entities", [])
-                if entities:
-                    graph_chunks = []
-                    for e in entities[:3]:  # Top 3 entities
-                        name = e.get("name", "Unknown")
-                        obs = "; ".join(e.get("observations", [])[:2])
-                        graph_chunks.append(f"Entity: {name} | Info: {obs}")
-                    graph_context = "\n".join(graph_chunks)
-            elif hasattr(graph_res, "content"):
-                # Handle FastMCP text content
-                content_list = getattr(graph_res, "content", [])
-                text_content = [getattr(c, "text", "") for c in content_list if hasattr(c, "text")]
-                graph_context = "\n".join(text_content)[:800]
+                # Format graph result
+                if isinstance(graph_res, dict) and "entities" in graph_res:
+                    entities = graph_res.get("entities", [])
+                    if entities:
+                        graph_chunks = []
+                        for e in entities[:3]:  # Top 3 entities
+                            name = e.get("name", "Unknown")
+                            obs = "; ".join(e.get("observations", [])[:2])
+                            graph_chunks.append(f"Entity: {name} | Info: {obs}")
+                        graph_context = "\n".join(graph_chunks)
+                elif hasattr(graph_res, "content"):
+                    # Handle FastMCP text content
+                    content_list = getattr(graph_res, "content", [])
+                    text_content = [getattr(c, "text", "") for c in content_list if hasattr(c, "text")]
+                    graph_context = "\n".join(text_content)[:800]
 
-        except Exception as e:
-            logger.warning(f"[ATLAS] Chat Memory lookup failed: {e}")
+            except Exception as e:
+                logger.warning(f"[ATLAS] Chat Memory lookup failed: {e}")
 
-        # B. Vector Memory (ChromaDB)
-        try:
-            if long_term_memory.available:
-                # Look for similar past successful tasks/conversations
-                similar_tasks = long_term_memory.recall_similar_tasks(user_request, n_results=2)
-                if similar_tasks:
-                    vector_context += "\nRelated Tasks:\n" + "\n".join(
-                        [f"- {s['document'][:200]}..." for s in similar_tasks]
-                    )
+            # B. Vector Memory (ChromaDB)
+            try:
+                if long_term_memory.available:
+                    # Look for similar past successful tasks/conversations
+                    similar_tasks = long_term_memory.recall_similar_tasks(user_request, n_results=2)
+                    if similar_tasks:
+                        vector_context += "\nRelated Tasks:\n" + "\n".join(
+                            [f"- {s['document'][:200]}..." for s in similar_tasks]
+                        )
 
-                # Look for lessons learned (errors) relevant to this topic
-                similar_errors = long_term_memory.recall_similar_errors(user_request, n_results=1)
-                if similar_errors:
-                    vector_context += "\nRelated Lessons:\n" + "\n".join(
-                        [f"- {s['document'][:200]}..." for s in similar_errors]
-                    )
-        except Exception as e:
-            logger.warning(f"[ATLAS] Vector Memory lookup failed: {e}")
+                    # Look for lessons learned (errors) relevant to this topic
+                    similar_errors = long_term_memory.recall_similar_errors(user_request, n_results=1)
+                    if similar_errors:
+                        vector_context += "\nRelated Lessons:\n" + "\n".join(
+                            [f"- {s['document'][:200]}..." for s in similar_errors]
+                        )
+            except Exception as e:
+                logger.warning(f"[ATLAS] Vector Memory lookup failed: {e}")
 
-        # C. System Status
-        try:
-            # Snapshot of shared context
-            ctx_snapshot = shared_context.to_dict()
-            system_status = f"Current Project: {ctx_snapshot.get('project_root', 'Unknown')}\n"
-            system_status += f"Variables: {ctx_snapshot.get('variables', {})}"
-        except Exception:
-            system_status = "System running."
+            # C. System Status
+            try:
+                # Snapshot of shared context
+                ctx_snapshot = shared_context.to_dict()
+                system_status = f"Current Project: {ctx_snapshot.get('project_root', 'Unknown')}\n"
+                system_status += f"Variables: {ctx_snapshot.get('variables', {})}"
+            except Exception:
+                system_status = "System running."
+        else:
+            system_status = "System is idle. Atlas is resting."
 
         # D. Agent Capabilities info
         agent_capabilities = """
@@ -244,6 +256,7 @@ class Atlas:
             vector_context=vector_context,
             system_status=system_status,
             agent_capabilities=agent_capabilities,
+            is_greeting=is_greeting,
         )
 
         # 3. Invoke LLM

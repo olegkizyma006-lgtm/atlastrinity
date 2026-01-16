@@ -33,22 +33,24 @@ async def test_chat_intelligence():
     analysis = await atlas.analyze_request("Створи файл test.txt на робочому столі")
     print(f"Intent detected: {analysis.get('intent')} (Reason: {analysis.get('reason')})")
 
-async def test_chat_execution():
-    print("\n=== Testing Chat Execution Loop (Dry Run/Simulation) ===")
+async def test_chat_brevity():
+    print("\n=== Testing Chat Brevity for Greetings ===")
     atlas = Atlas()
     
-    # We can't easily perform a real search here without live MCP servers networking,
-    # but we can verify the 'chat' method logic by looking at its structure.
-    # For now, let's just ensure it boots up.
+    # Test Greeting
+    print("Sending: 'Привіт Atlas'")
     try:
-        # This might fail in CI if MCP servers aren't running, but we check if it reaches the loop
-        print("Initializing Atlas Chat...")
-        # response = await atlas.chat("Test request")
-        # print(f"Response: {response}")
-        print("✓ Chat logic verified (Structure confirmed in atlas.py)")
+        response = await atlas.chat("Привіт Atlas")
+        print(f"Atlas Response: {response}")
+        word_count = len(response.split())
+        print(f"Response length: {word_count} words.")
+        if word_count < 25:
+             print("✓ Brevity test PASSED (Concise response)")
+        else:
+             print("⚠ Brevity test FAILED (Response too long)")
     except Exception as e:
-        print(f"Execution test error: {e}")
+        print(f"Chat brevity test skipped or failed (likely missing live LLM/Redis context): {e}")
 
 if __name__ == "__main__":
     asyncio.run(test_chat_intelligence())
-    asyncio.run(test_chat_execution())
+    asyncio.run(test_chat_brevity())
