@@ -85,6 +85,12 @@ class Trinity:
 
         # Start MCP health check loop
         mcp_manager.start_health_monitoring(interval=60)
+        
+        # Capture MCP server log notifications for UI visibility
+        async def mcp_log_forwarder(message, source):
+            await self._log(message, source=source)
+            
+        mcp_manager.register_log_callback(mcp_log_forwarder)
         # Initialize DB
         await db_manager.initialize()
 
@@ -747,7 +753,7 @@ class Trinity:
                 try:
                     step_result = await asyncio.wait_for(
                         self.execute_node(self.state, step, step_id, attempt=attempt),
-                        timeout=config.get("orchestrator", {}).get("task_timeout", 1200.0),
+                        timeout=float(config.get("orchestrator", {}).get("task_timeout", 1200.0)) + 60.0,
                     )
                     if step_result.success:
                         step_success = True
@@ -760,7 +766,7 @@ class Trinity:
                         )
 
                 except Exception as e:
-                    last_error = str(e)
+                    last_error = f"{type(e).__name__}: {str(e)}"
                     await self._log(
                         f"Step {step_id} Attempt {attempt} crashed: {last_error}",
                         "error",

@@ -66,6 +66,8 @@ When the user requests SOFTWARE DEVELOPMENT (creating apps, websites, scripts, A
 
 4. **Debugging**: If Tetyana encounters errors, 'vibe_analyze_error' will auto-fix
 
+5. **Workspace Management**: All software projects MUST be created in the dedicated workspace: `~/AtlasProjects`. Never develop inside the Atlas Source Code directory.
+
 EXAMPLE SOFTWARE DEVELOPMENT PLAN:
 {{
   "goal": "Create a REST API with FastAPI",

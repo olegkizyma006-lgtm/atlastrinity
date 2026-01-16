@@ -23,7 +23,8 @@ import shutil
 import subprocess
 from typing import Any, Dict, List, Optional
 from pathlib import Path
-from mcp.server import FastMCP
+from datetime import datetime
+from mcp.server.fastmcp import FastMCP, Context
 
 # Setup logging for visibility in Electron app
 logger = logging.getLogger("vibe_mcp")
@@ -118,14 +119,16 @@ async def _run_vibe(
     cwd: Optional[str],
     timeout_s: float,
     extra_env: Optional[Dict[str, str]],
+    ctx: Any = None,
 ) -> Dict[str, Any]:
     """Execute Vibe CLI command and return structured result with real-time logging."""
     env = os.environ.copy()
     if extra_env:
         env.update({k: str(v) for k, v in extra_env.items()})
 
-    logger.info(f"[VIBE] Executing: {' '.join(argv)}")
-    logger.info(f"⚡ [VIBE-LIVE] Vibe engine initializing architectures... (Max timeout: {timeout_s}s)")
+    msg_start = f"⚡ [VIBE-LIVE] Initializing... (Timeout: {timeout_s}s)"
+    logger.info(msg_start)
+    if ctx: asyncio.create_task(ctx.info(msg_start))
 
     try:
         process = await asyncio.create_subprocess_exec(
@@ -140,26 +143,70 @@ async def _run_vibe(
         stderr_chunks = []
 
         async def read_stream(stream, chunks, prefix):
+            buffer = ""
             while True:
-                line = await stream.readline()
-                if not line:
+                # Read chunks instead of lines for more immediate feedback
+                data = await stream.read(512)
+                if not data:
                     break
-                text = line.decode().rstrip()
-                if not text:
-                    continue
-                chunks.append(text + "\n")
                 
-                # ENHANCED: Real-time logging with LIVE prefix for UI visibility
-                # Detect special actions like file creation
-                if "creating" in text.lower() or "writing" in text.lower() or "file:" in text.lower():
-                    logger.info(f"🚀 [VIBE-LIVE] 📄 {text}")
-                elif "thought" in text.lower() or "thinking" in text.lower():
-                    logger.info(f"🧠 [VIBE-LIVE] {text}")
-                elif prefix == "VIBE-ERR":
-                    logger.warning(f"⚠️ [VIBE-ERR] {text}")
-                else:
-                    # Generic output stream
-                    logger.info(f"📺 [VIBE-LIVE] {text}")
+                text_chunk = data.decode(errors='replace')
+                chunks.append(text_chunk)
+                buffer += text_chunk
+                
+                # Split by newline for processing, but keep the remainder in buffer
+                if "\n" in buffer:
+                    lines = buffer.split("\n")
+                    # Last element might be incomplete line, keep it
+                    buffer = lines.pop()
+                    
+                    for raw_text in lines:
+                        if not raw_text.strip():
+                            continue
+                        
+                        # Check for JSON streaming tokens (vibe --output streaming)
+                        if raw_text.startswith("{") and raw_text.endswith("}"):
+                            try:
+                                data_json = json.loads(raw_text)
+                                thoughts = data_json.get("reasoning_content") or ""
+                                content = data_json.get("content") or ""
+                                tool_calls = data_json.get("tool_calls")
+                                
+                                if thoughts:
+                                    msg = f"🧠 [VIBE-LIVE] {thoughts}"
+                                    logger.info(msg)
+                                    if ctx: asyncio.create_task(ctx.info(msg))
+                                elif tool_calls:
+                                    for tc in tool_calls:
+                                        f_name = tc.get("function", {}).get("name", "tool")
+                                        msg = f"🛠️ [VIBE-LIVE] Calling tool: {f_name}"
+                                        logger.info(msg)
+                                        if ctx: asyncio.create_task(ctx.info(msg))
+                                elif content:
+                                    msg = f"📺 [VIBE-LIVE] {content}"
+                                    logger.info(msg)
+                                    if ctx: asyncio.create_task(ctx.info(msg))
+                                continue
+                            except:
+                                pass
+                        
+                        # LOG RAW text if not JSON or parsing failed
+                        if "creating" in raw_text.lower() or "writing" in raw_text.lower() or "file:" in raw_text.lower():
+                            msg = f"🚀 [VIBE-LIVE] 📄 {raw_text}"
+                            logger.info(msg)
+                            if ctx: asyncio.create_task(ctx.info(msg))
+                        elif prefix == "VIBE-ERR":
+                            msg = f"⚠️ [VIBE-ERR] {raw_text}"
+                            logger.warning(msg)
+                            if ctx: asyncio.create_task(ctx.error(msg))
+                        else:
+                            # Avoid logging huge JSON blocks as plain text if we already parsed them
+                            if not raw_text.startswith('{"role"'):
+                                msg = f"📺 [VIBE-LIVE] {raw_text}"
+                                logger.info(msg)
+                                # Only stream non-boring stuff to UI
+                                if ctx and len(raw_text) < 1000:
+                                     asyncio.create_task(ctx.info(msg))
 
         # Run reading tasks concurrently with a timeout
         # Heartbeat task for deep reasoning phase
@@ -169,7 +216,9 @@ async def _run_vibe(
                 await asyncio.sleep(45)
                 if process.returncode is None:
                     reasoning_ticks += 1
-                    logger.info(f"🧠 [VIBE-LIVE] Vibe is deep-reasoning... (Tick {reasoning_ticks}, API response pending)")
+                    msg = f"🧠 [VIBE-LIVE] Vibe is deep-reasoning... (Tick {reasoning_ticks}, API response pending)"
+                    logger.info(msg)
+                    if ctx: asyncio.create_task(ctx.info(msg))
         
         hb_task = asyncio.create_task(heartbeat_worker())
         try:
@@ -231,7 +280,10 @@ async def _run_vibe_programmatic(
     output_format: str = "json",
     auto_approve: bool = True,
     max_turns: Optional[int] = None,
+    max_price: Optional[float] = None,
+    resume: Optional[str] = None,
     enabled_tools: Optional[List[str]] = None,
+    ctx: Any = None,
 ) -> Dict[str, Any]:
     """
     Execute Vibe in programmatic mode with -p flag.
@@ -255,8 +307,9 @@ async def _run_vibe_programmatic(
     # Build command with programmatic flags
     argv: List[str] = [vibe_path, "-p", prompt]
 
-    # Output format for structured responses
-    argv.extend(["--output", output_format])
+    # Output format for structured responses - use 'streaming' for real-time visibility
+    # even if the final result is parsed as JSON
+    argv.extend(["--output", "streaming"])
 
     # Auto-approve for automation
     if auto_approve:
@@ -265,6 +318,14 @@ async def _run_vibe_programmatic(
     # Max turns limit
     if max_turns:
         argv.extend(["--max-turns", str(max_turns)])
+
+    # Max price limit
+    if max_price:
+        argv.extend(["--max-price", str(max_price)])
+
+    # Resume session
+    if resume:
+        argv.extend(["--resume", str(resume)])
 
     # Specific tools
     if enabled_tools:
@@ -278,18 +339,43 @@ async def _run_vibe_programmatic(
         cwd=cwd,
         timeout_s=timeout_s,
         extra_env=None,
+        ctx=ctx,
     )
 
-    # Parse JSON output if requested
-    if output_format == "json" and result.get("success") and result.get("stdout"):
-        try:
-            parsed = json.loads(result["stdout"])
-            result["parsed_response"] = parsed
-            logger.info("[VIBE] Parsed JSON response successfully")
-        except json.JSONDecodeError:
-            # If not valid JSON, keep raw stdout
-            logger.warning("[VIBE] Output was not valid JSON, keeping raw text")
-            result["parsed_response"] = None
+    # Parse JSON output from stream chunks
+    if result.get("success") and result.get("stdout"):
+        stdout_str = result.get("stdout", "")
+        
+        # If we used streaming, the final result is a concatenation of 'content' fields
+        if "--output streaming" in " ".join(argv):
+            full_content = []
+            for line in stdout_str.splitlines():
+                try:
+                    data = json.loads(line)
+                    if data.get("role") == "assistant" and data.get("content"):
+                        full_content.append(data.get("content"))
+                except:
+                    continue
+            
+            final_text = "".join(full_content)
+            if final_text.strip():
+                # Attempt to parse the reconstructed text as JSON if that was the original intent
+                if output_format == "json":
+                    try:
+                        result["parsed_response"] = json.loads(final_text)
+                        logger.info("[VIBE] Reconstructed and parsed JSON from stream")
+                    except:
+                        result["parsed_response"] = final_text
+                else:
+                    result["parsed_response"] = final_text
+        else:
+            # Fallback for standard non-streaming formats
+            if output_format == "json":
+                try:
+                    result["parsed_response"] = json.loads(stdout_str)
+                    logger.info("[VIBE] Parsed JSON response successfully")
+                except:
+                    result["parsed_response"] = None
 
     return result
 
@@ -324,12 +410,15 @@ async def vibe_which() -> Dict[str, Any]:
 
 @server.tool()
 async def vibe_prompt(
+    ctx: Context,
     prompt: str,
     cwd: Optional[str] = None,
     timeout_s: Optional[float] = None,
     output_format: str = "json",
     auto_approve: bool = True,
     max_turns: Optional[int] = 10,
+    max_price: Optional[float] = None,
+    resume: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Send a prompt to Vibe AI agent in PROGRAMMATIC mode (CLI, not TUI).
@@ -344,6 +433,8 @@ async def vibe_prompt(
         output_format: Response format - 'text', 'json', or 'streaming' (default 'json')
         auto_approve: Auto-approve tool calls without confirmation (default True)
         max_turns: Maximum conversation turns (default 10)
+        max_price: Maximum cost in dollars
+        resume: Session ID to continue from
 
     Returns:
         Dict with 'success', 'stdout', 'parsed_response' (if JSON), 'stderr'
@@ -366,11 +457,15 @@ async def vibe_prompt(
         output_format=output_format,
         auto_approve=auto_approve,
         max_turns=max_turns,
+        max_price=max_price,
+        resume=resume,
+        ctx=ctx,
     )
 
 
 @server.tool()
 async def vibe_analyze_error(
+    ctx: Context,
     error_message: str,
     log_context: Optional[str] = None,
     file_path: Optional[str] = None,
@@ -451,11 +546,13 @@ async def vibe_analyze_error(
         output_format="json",
         auto_approve=auto_fix,  # Only auto-approve if auto_fix is True
         max_turns=15,  # More turns for complex debugging
+        ctx=ctx,
     )
 
 
 @server.tool()
 async def vibe_code_review(
+    ctx: Context,
     file_path: str,
     focus_areas: Optional[str] = None,
     cwd: Optional[str] = None,
@@ -499,11 +596,13 @@ async def vibe_code_review(
         output_format="json",
         auto_approve=False,  # Read-only mode for reviews
         max_turns=5,
+        ctx=ctx,
     )
 
 
 @server.tool()
 async def vibe_smart_plan(
+    ctx: Context,
     objective: str,
     context: Optional[str] = None,
     cwd: Optional[str] = None,
@@ -556,11 +655,13 @@ async def vibe_smart_plan(
         output_format="json",
         auto_approve=False,  # Planning mode, no actions
         max_turns=3,
+        ctx=ctx,
     )
 
 
 @server.tool()
 async def vibe_execute_subcommand(
+    ctx: Context,
     subcommand: str,
     args: Optional[List[str]] = None,
     cwd: Optional[str] = None,
@@ -614,11 +715,12 @@ async def vibe_execute_subcommand(
 
     eff_timeout = timeout_s if timeout_s is not None else DEFAULT_TIMEOUT_S
 
-    return await _run_vibe(argv=argv, cwd=cwd, timeout_s=eff_timeout, extra_env=env)
+    return await _run_vibe(argv=argv, cwd=cwd, timeout_s=eff_timeout, extra_env=env, ctx=ctx)
 
 
 @server.tool()
 async def vibe_ask(
+    ctx: Context,
     question: str,
     cwd: Optional[str] = None,
     timeout_s: Optional[float] = None,
@@ -646,7 +748,7 @@ async def vibe_ask(
 
     logger.info(f"[VIBE] Asking question: {question[:50]}...")
 
-    result = await _run_vibe(argv=argv, cwd=cwd, timeout_s=eff_timeout, extra_env=None)
+    result = await _run_vibe(argv=argv, cwd=cwd, timeout_s=eff_timeout, extra_env=None, ctx=ctx)
 
     # Parse JSON if possible
     if result.get("success") and result.get("stdout"):
@@ -656,6 +758,87 @@ async def vibe_ask(
             result["parsed_response"] = None
 
     return result
+
+
+@server.tool()
+async def vibe_list_sessions(limit: int = 10) -> Dict[str, Any]:
+    """
+    List recent Vibe session logs with token usage and metrics.
+    Useful for tracking costs, context size, and session IDs for resuming.
+    """
+    session_dir = Path.home() / ".vibe" / "logs" / "session"
+    if not session_dir.exists():
+        return {"error": "Session logs directory not found"}
+    
+    # Get all json files in the session directory
+    files = list(session_dir.glob("session_*.json"))
+    # Sort by modification time (newest first)
+    files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+    
+    sessions = []
+    for f in files[:limit]:
+        try:
+            with open(f, 'r', encoding='utf-8') as jf:
+                data = json.load(jf)
+                meta = data.get("metadata", {})
+                stats = meta.get("stats", {})
+                
+                # Extract some preview content
+                messages = data.get("messages", [])
+                preview = ""
+                if messages:
+                    # Find first user message for a better summary
+                    for msg in messages:
+                        if msg.get("role") == "user":
+                            preview = msg.get("content", "")[:100]
+                            break
+                
+                sessions.append({
+                    "session_id": meta.get("session_id"),
+                    "timestamp": meta.get("start_time"),
+                    "working_directory": meta.get("environment", {}).get("working_directory", "unknown"),
+                    "steps": stats.get("steps", 0),
+                    "prompt_tokens": stats.get("session_prompt_tokens", 0),
+                    "completion_tokens": stats.get("session_completion_tokens", 0),
+                    "summary": preview,
+                    "file_name": f.name
+                })
+        except Exception as e:
+            logger.debug(f"Failed to parse session file {f.name}: {e}")
+            continue
+    
+    return {"sessions": sessions, "count": len(sessions)}
+
+
+@server.tool()
+async def vibe_session_details(session_id_or_file: str) -> Dict[str, Any]:
+    """
+    Get full details of a specific Vibe session including history and exact token counts.
+    """
+    session_dir = Path.home() / ".vibe" / "logs" / "session"
+    target_path = None
+    
+    # Check if it's an absolute path
+    if os.path.isabs(session_id_or_file) and os.path.exists(session_id_or_file):
+        target_path = Path(session_id_or_file)
+    # Check if it's just a filename in the session dir
+    elif (session_dir / session_id_or_file).exists():
+        target_path = session_dir / session_id_or_file
+    # Search by session_id
+    else:
+        # Try to find file containing the session_id
+        files = list(session_dir.glob(f"*session*{session_id_or_file}*.json"))
+        if files:
+            target_path = files[0]
+            
+    if not target_path:
+        return {"error": f"Session '{session_id_or_file}' not found."}
+        
+    try:
+        with open(target_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        return {"error": f"Failed to read session details: {str(e)}"}
 
 
 if __name__ == "__main__":

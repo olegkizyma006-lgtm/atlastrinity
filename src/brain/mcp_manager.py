@@ -17,8 +17,9 @@ def _import_mcp_sdk():
         from mcp.client.session import ClientSession as _ClientSession  # noqa: E402
         from mcp.client.stdio import StdioServerParameters as _StdioServerParameters  # noqa: E402
         from mcp.client.stdio import stdio_client as _stdio_client  # noqa: E402
+        from mcp.types import LogMessageNotification as _LogMessageNotification  # noqa: E402
 
-        return _ClientSession, _StdioServerParameters, _stdio_client
+        return _ClientSession, _StdioServerParameters, _stdio_client, _LogMessageNotification
     finally:
         sys.path = original_sys_path
 
@@ -33,11 +34,12 @@ except Exception:
 
 
 try:
-    ClientSession, StdioServerParameters, stdio_client = _import_mcp_sdk()
+    ClientSession, StdioServerParameters, stdio_client, LogMessageNotification = _import_mcp_sdk()
 except ImportError:  # pragma: no cover
     ClientSession = None  # type: ignore
     StdioServerParameters = None  # type: ignore
     stdio_client = None  # type: ignore
+    LogMessageNotification = None  # type: ignore
 from .config import MCP_DIR  # noqa: E402
 from .config_loader import config  # noqa: E402
 from .logger import logger  # noqa: E402
@@ -66,6 +68,7 @@ class MCPManager:
         self._session_futures: Dict[str, asyncio.Future] = {}
         self.config = self._load_config()
         self._lock = asyncio.Lock()
+        self._log_callbacks = []
         # Controls for restart concurrency and retry/backoff
         # Limit number of concurrent restarts to avoid forking storms
         self._restart_semaphore = asyncio.Semaphore(4)
@@ -301,6 +304,22 @@ class MCPManager:
                 async with stdio_client(server_params) as (read, write):
                     async with ClientSession(read, write) as session:
                         await session.initialize()
+                        
+                        # Handle log notifications from server
+                        if LogMessageNotification:
+                            async def handle_log(notification: Any):
+                                msg = f"[{server_name}] {notification.params.data}"
+                                for cb in self._log_callbacks:
+                                    try:
+                                        if asyncio.iscoroutinefunction(cb):
+                                            await cb(msg, server_name)
+                                        else:
+                                            cb(msg, server_name)
+                                    except Exception as e:
+                                        logger.error(f"[MCP] Log callback error: {e}")
+                            
+                            session.on_notification(LogMessageNotification, handle_log)
+
                         # store session usable by other tasks
                         self.sessions[server_name] = session
                         if not session_future.done():
@@ -572,6 +591,16 @@ class MCPManager:
             "configured_servers": list(self.config.get("mcpServers", {}).keys()),
             "session_count": len(self.sessions),
         }
+
+    def register_log_callback(self, callback):
+        """Register a callback to receive log notifications from servers."""
+        if callback not in self._log_callbacks:
+            self._log_callbacks.append(callback)
+
+    def unregister_log_callback(self, callback):
+        """Unregister a log callback."""
+        if callback in self._log_callbacks:
+            self._log_callbacks.remove(callback)
 
     async def get_mcp_catalog(self) -> str:
         """

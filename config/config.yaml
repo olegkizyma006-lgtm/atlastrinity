@@ -1,5 +1,7 @@
-# AtlasTrinity System Configuration
-# Синхронізовано: 2026-01-15 18:38:14
+# Синхронізовано: 2026-01-16 15:10:00
+# System Workspace Configuration
+system:
+  workspace_path: '~/AtlasProjects'
 
 agents:
   grisha:

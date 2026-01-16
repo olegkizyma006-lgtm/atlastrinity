@@ -13,6 +13,7 @@ import os
 # Robust path handling for both Dev and Production (Packaged)
 import sys
 import time
+from pathlib import Path
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -220,8 +221,8 @@ class Tetyana:
         },
         "vibe_prompt": {
             "required": ["prompt"],
-            "optional": ["cwd", "timeout_s", "output_format", "auto_approve", "max_turns"],
-            "types": {"prompt": str, "cwd": str, "timeout_s": (int, float), "output_format": str, "auto_approve": bool, "max_turns": int},
+            "optional": ["cwd", "timeout_s", "output_format", "auto_approve", "max_turns", "max_price", "resume"],
+            "types": {"prompt": str, "cwd": str, "timeout_s": (int, float), "output_format": str, "auto_approve": bool, "max_turns": int, "max_price": (int, float), "resume": str},
         },
         "vibe_analyze_error": {
             "required": ["error_message"],
@@ -242,6 +243,14 @@ class Tetyana:
             "required": ["question"],
             "optional": ["cwd", "timeout_s"],
             "types": {"question": str, "cwd": str, "timeout_s": (int, float)},
+        },
+        "vibe_list_sessions": {
+            "optional": ["limit"],
+            "types": {"limit": int},
+        },
+        "vibe_session_details": {
+            "required": ["session_id_or_file"],
+            "types": {"session_id_or_file": str},
         },
         "restart_mcp_server": {
             "required": ["server_name"],
@@ -1715,7 +1724,12 @@ Please type your response below and press Enter:
                     "code_review": "vibe_code_review",
                     "review": "vibe_code_review",
                     "ask": "vibe_ask",
-                    "question": "vibe_ask"
+                    "question": "vibe_ask",
+                    "list_sessions": "vibe_list_sessions",
+                    "history": "vibe_list_sessions",
+                    "session_details": "vibe_session_details",
+                    "session_info": "vibe_session_details",
+                    "resume": "vibe_prompt"
                 }
                 if tool in vibe_tools:
                     tool = vibe_tools[tool]
@@ -1751,16 +1765,56 @@ Please type your response below and press Enter:
                     logger.info(f"[TETYANA] Auto-extending timeout_s from {args.get('timeout_s')} to {config_timeout} (based on global config)")
                     args["timeout_s"] = config_timeout
 
+                # ENFORCE ABSOLUTE CWD & WORKSPACE
+                system_config = config.get("system", {})
+                workspace_path = system_config.get("workspace_path", "~/AtlasProjects")
+                abs_workspace = Path(workspace_path).expanduser().absolute()
+
+                if args.get("cwd"):
+                    current_cwd = Path(args["cwd"]).absolute()
+                    # If vibe is trying to work inside Atlas repo root, move it to workspace
+                    if server == "vibe" and current_cwd == Path.cwd().absolute():
+                        args["cwd"] = str(abs_workspace)
+                        logger.info(f"[TETYANA] Re-routing Vibe from repo root to workspace: {args['cwd']}")
+                    else:
+                        args["cwd"] = str(current_cwd)
+                else:
+                    # Default for Vibe is always workspace, others is current dir
+                    if server == "vibe":
+                        args["cwd"] = str(abs_workspace)
+                        logger.info(f"[TETYANA] Defaulting Vibe to workspace: {args['cwd']}")
+                    else:
+                        args["cwd"] = str(Path.cwd().absolute())
+                
+                # Ensure the workspace directory exists
+                if server == "vibe":
+                    Path(args["cwd"]).mkdir(parents=True, exist_ok=True)
+
                 try:
                     args = self._validate_macos_use_args(tool, args)
                     logger.info(f"[TETYANA] Validated macos-use args: {args}")
                 except ValueError as ve:
                     return {"success": False, "error": f"Argument validation failed: {ve}"}
 
-            res = await mcp_manager.call_tool(server, tool, args)
-            return self._format_mcp_result(res)
+            # ENFORCE BUFFER: Tetyana waits slightly longer than the tool's internal timeout
+            # This ensures we get the tool's error if possible, but don't hang forever
+            vibe_timeout = float(args.get("timeout_s", 1200.0))
+            try:
+                if server == "vibe":
+                    res = await asyncio.wait_for(
+                        mcp_manager.call_tool(server, tool, args),
+                        timeout=vibe_timeout + 30.0
+                    )
+                else:
+                    res = await mcp_manager.call_tool(server, tool, args)
+                return self._format_mcp_result(res)
+            except asyncio.TimeoutError:
+                return {"success": False, "error": f"Vibe tool call timed out at dispatch level (>{vibe_timeout+30}s)"}
+            except Exception as e:
+                return {"success": False, "error": f"Tetyana tool execution error: {str(e)}"}
         except Exception as e:
-            return {"success": False, "error": str(e)}
+             logger.error(f"[TETYANA] Fatal error in _call_mcp_direct: {e}")
+             return {"success": False, "error": f"Fatal dispatch error: {str(e)}"}
 
     async def _run_terminal_command(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """Executes a bash command using Terminal MCP"""
