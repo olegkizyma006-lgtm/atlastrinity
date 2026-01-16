@@ -63,47 +63,10 @@ async def main():
         }).encode() + b"\n")
         await process.stdin.drain()
 
-        # 1. Test Spotlight
-        print("\n[Test 1] Spotlight Search (checking for this file)...")
+        # 1. Test Dynamic Help
+        print("\n[Test 1] Dynamic Help...")
         rid = await send_request("tools/call", {
-            "name": "macos-use_spotlight_search",
-            "arguments": {"query": "test_macos_use_universal.py"}
-        })
-        while True:
-            line = await process.stdout.readline()
-            try:
-                resp = json.loads(line.decode())
-                if resp.get("id") == rid:
-                    if "error" in resp:
-                        print(f"✗ Spotlight failed: {resp['error']}")
-                    else:
-                        content = resp["result"]["content"][0]["text"]
-                        print(f"✓ Spotlight result count: {len(content.splitlines())}")
-                        if "test_macos_use_universal.py" in content:
-                             print("  Found self!")
-                    break
-            except: pass
-
-        # 2. Test Notification
-        print("\n[Test 2] Send Notification...")
-        rid = await send_request("tools/call", {
-            "name": "macos-use_send_notification",
-            "arguments": {"title": "Test from Script", "message": "Universal MCP is working!"}
-        })
-        while True:
-            line = await process.stdout.readline()
-            try:
-                resp = json.loads(line.decode())
-                if resp.get("id") == rid:
-                     if "error" in resp: print(f"✗ Notification failed: {resp['error']}")
-                     else: print("✓ Notification sent")
-                     break
-            except: pass
-
-        # 3. Test Reminders (List unavailable without auth, but tool should run)
-        print("\n[Test 3] Fetch Reminders...")
-        rid = await send_request("tools/call", {
-            "name": "macos-use_reminders",
+            "name": "macos-use_list_tools_dynamic",
             "arguments": {}
         })
         while True:
@@ -111,10 +74,47 @@ async def main():
             try:
                 resp = json.loads(line.decode())
                 if resp.get("id") == rid:
-                    if "error" in resp: print(f"✗ Reminders failed: {resp['error']}")
+                    if "error" in resp: print(f"✗ Help failed: {resp['error']}")
+                    else:
+                        content = resp["result"]["content"][0]["text"]
+                        print(f"✓ Help received ({len(content)} chars)")
+                        # print(content[:200])
+                    break
+            except: pass
+
+        # 2. Test Notes List Folders
+        print("\n[Test 2] Notes: List Folders...")
+        rid = await send_request("tools/call", {
+            "name": "macos-use_notes_list_folders",
+            "arguments": {}
+        })
+        while True:
+            line = await process.stdout.readline()
+            try:
+                resp = json.loads(line.decode())
+                if resp.get("id") == rid:
+                     if "error" in resp: print(f"✗ Notes failed: {resp['error']}")
+                     else: 
+                        content = resp['result']['content'][0]['text']
+                        print(f"✓ Notes folders: {content}")
+                     break
+            except: pass
+
+        # 3. Test Mail Inbox Read
+        print("\n[Test 3] Mail: Read Inbox...")
+        rid = await send_request("tools/call", {
+            "name": "macos-use_mail_read_inbox",
+            "arguments": {"limit": 3}
+        })
+        while True:
+            line = await process.stdout.readline()
+            try:
+                resp = json.loads(line.decode())
+                if resp.get("id") == rid:
+                    if "error" in resp: print(f"✗ Mail failed: {resp['error']}")
                     else: 
                         content = resp['result']['content'][0]['text']
-                        print(f"✓ Reminders returned: {content[:50]}...")
+                        print(f"✓ Mail Inbox (top 3): {content[:100]}...")
                     break
             except: pass
 

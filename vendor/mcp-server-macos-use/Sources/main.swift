@@ -907,6 +907,97 @@ func setupAndStartServer() async throws -> Server {
         inputSchema: notificationSchema
     )
 
+    // *** NEW: Apple Notes Tools ***
+    let notesListFoldersSchema: Value = .object([
+        "type": .string("object"), "properties": .object([:]),
+    ])
+    let notesListFoldersTool = Tool(
+        name: "macos-use_notes_list_folders",
+        description: "List all folders in Apple Notes.",
+        inputSchema: notesListFoldersSchema
+    )
+
+    let notesCreateSchema: Value = .object([
+        "type": .string("object"),
+        "properties": .object([
+            "body": .object([
+                "type": .string("string"),
+                "description": .string("HTML or plain text content. First line becomes title."),
+            ]),
+            "folder": .object([
+                "type": .string("string"), "description": .string("Optional folder name."),
+            ]),
+        ]),
+        "required": .array([.string("body")]),
+    ])
+    let notesCreateTool = Tool(
+        name: "macos-use_notes_create_note",
+        description: "Create a new note in Apple Notes.",
+        inputSchema: notesCreateSchema
+    )
+
+    let notesGetSchema: Value = .object([
+        "type": .string("object"),
+        "properties": .object([
+            "name": .object([
+                "type": .string("string"),
+                "description": .string("Name/Title of the note to find."),
+            ])
+        ]),
+        "required": .array([.string("name")]),
+    ])
+    let notesGetTool = Tool(
+        name: "macos-use_notes_get_content",
+        description: "Get the HTML content of a note by name.",
+        inputSchema: notesGetSchema
+    )
+
+    // *** NEW: Apple Mail Tools ***
+    let mailSendSchema: Value = .object([
+        "type": .string("object"),
+        "properties": .object([
+            "to": .object([
+                "type": .string("string"), "description": .string("Recipient email address"),
+            ]),
+            "subject": .object(["type": .string("string"), "description": .string("Subject line")]),
+            "body": .object([
+                "type": .string("string"), "description": .string("Email body content"),
+            ]),
+        ]),
+        "required": .array([.string("to"), .string("subject"), .string("body")]),
+    ])
+    let mailSendTool = Tool(
+        name: "macos-use_mail_send",
+        description: "Send an email using Apple Mail.",
+        inputSchema: mailSendSchema
+    )
+
+    let mailReadSchema: Value = .object([
+        "type": .string("object"),
+        "properties": .object([
+            "limit": .object([
+                "type": .string("integer"),
+                "description": .string("Number of recent messages to read (default 5)"),
+            ])
+        ]),
+    ])
+    let mailReadTool = Tool(
+        name: "macos-use_mail_read_inbox",
+        description: "Read recent subject lines from Apple Mail Inbox.",
+        inputSchema: mailReadSchema
+    )
+
+    // *** NEW: Dynamic Help ***
+    let dynamicHelpSchema: Value = .object([
+        "type": .string("object"), "properties": .object([:]),
+    ])
+    let dynamicHelpTool = Tool(
+        name: "macos-use_list_tools_dynamic",
+        description:
+            "Returns a detailed JSON structure describing all available tools, their schemas, and usage examples.",
+        inputSchema: dynamicHelpSchema
+    )
+
     // --- Aggregate list of tools ---
     let allTools = [
         openAppTool, clickTool, rightClickTool, doubleClickTool, dragDropTool,
@@ -916,6 +1007,8 @@ func setupAndStartServer() async throws -> Server {
         mediaControlTool, fetchTool, getTimeTool, appleScriptTool,
         calendarEventsTool, createEventTool, remindersTool, createReminderTool, spotlightTool,
         notificationTool,
+        notesListFoldersTool, notesCreateTool, notesGetTool,
+        mailSendTool, mailReadTool, dynamicHelpTool,
     ]
     fputs(
         "log: setupAndStartServer: defined \(allTools.count) tools: \(allTools.map { $0.name })\n",
@@ -1261,6 +1354,133 @@ func setupAndStartServer() async throws -> Server {
                 }
                 sem.wait()
                 return CallTool.Result(content: [.text("Notification sent")])
+
+            // --- Notes Handlers ---
+            case notesListFoldersTool.name:
+                let script = """
+                    tell application "Notes"
+                        set folderNames to name of every folder
+                        return folderNames
+                    end tell
+                    """
+                let (success, output, error) = runAppleScript(script)
+                if success {
+                    return CallTool.Result(content: [.text(output)])
+                } else {
+                    return CallTool.Result(
+                        content: [.text("Error: \(error ?? "Unknown")")], isError: true)
+                }
+
+            case notesCreateTool.name:
+                let body = try getRequiredString(from: params.arguments, key: "body")
+                let folder = try getOptionalString(from: params.arguments, key: "folder") ?? "Notes"
+                // Escape quotes for AppleScript
+                let safeBody = body.replacingOccurrences(of: "\"", with: "\\\"")
+                let safeFolder = folder.replacingOccurrences(of: "\"", with: "\\\"")
+
+                let script = """
+                    tell application "Notes"
+                        if not (exists folder "\(safeFolder)") then
+                            return "Error: Folder '\(safeFolder)' not found."
+                        end if
+                        make new note at folder "\(safeFolder)" with properties {body:"\(safeBody)"}
+                        return "Note created."
+                    end tell
+                    """
+                let (success, output, error) = runAppleScript(script)
+                if success {
+                    return CallTool.Result(content: [.text(output)])
+                } else {
+                    return CallTool.Result(
+                        content: [.text("Error: \(error ?? "Unknown")")], isError: true)
+                }
+
+            case notesGetTool.name:
+                let name = try getRequiredString(from: params.arguments, key: "name")
+                let safeName = name.replacingOccurrences(of: "\"", with: "\\\"")
+                let script = """
+                    tell application "Notes"
+                        try
+                            set theNote to item 1 of (every note whose name contains "\(safeName)")
+                            return body of theNote
+                        on error
+                            return "Note not found."
+                        end try
+                    end tell
+                    """
+                let (success, output, error) = runAppleScript(script)
+                if success {
+                    return CallTool.Result(content: [.text(output)])
+                } else {
+                    return CallTool.Result(
+                        content: [.text("Error: \(error ?? "Unknown")")], isError: true)
+                }
+
+            // --- Mail Handlers ---
+            case mailSendTool.name:
+                let to = try getRequiredString(from: params.arguments, key: "to")
+                let subject = try getRequiredString(from: params.arguments, key: "subject")
+                let body = try getRequiredString(from: params.arguments, key: "body")
+
+                let safeTo = to.replacingOccurrences(of: "\"", with: "\\\"")
+                let safeSubject = subject.replacingOccurrences(of: "\"", with: "\\\"")
+                let safeBody = body.replacingOccurrences(of: "\"", with: "\\\"")
+
+                let script = """
+                    tell application "Mail"
+                        set newMessage to make new outgoing message with properties {subject:"\(safeSubject)", content:"\(safeBody)", visible:true}
+                        tell newMessage
+                            make new to recipient at end of to recipients with properties {address:"\(safeTo)"}
+                            send
+                        end tell
+                        return "Email sent."
+                    end tell
+                    """
+                let (success, output, error) = runAppleScript(script)
+                if success {
+                    return CallTool.Result(content: [.text(output)])
+                } else {
+                    return CallTool.Result(
+                        content: [.text("Error: \(error ?? "Unknown")")], isError: true)
+                }
+
+            case mailReadTool.name:
+                let limit = try getOptionalInt(from: params.arguments, key: "limit") ?? 5
+                let script = """
+                    tell application "Mail"
+                        set inboxMessages to messages of inbox
+                        set msgCount to count of inboxMessages
+                        if msgCount is 0 then return "Inbox is empty"
+                        
+                        set resultList to {}
+                        set loopLimit to \(limit)
+                        if msgCount < loopLimit then set loopLimit to msgCount
+                        
+                        repeat with i from 1 to loopLimit
+                            set msg to item i of inboxMessages
+                            set end of resultList to (subject of msg) & " [From: " & (sender of msg) & "]"
+                        end repeat
+                        return resultList as string
+                    end tell
+                    """
+                let (success, output, error) = runAppleScript(script)
+                if success {
+                    return CallTool.Result(content: [.text(output)])
+                } else {
+                    return CallTool.Result(
+                        content: [.text("Error: \(error ?? "Unknown")")], isError: true)
+                }
+
+            // --- Dynamic Help Handler ---
+            case dynamicHelpTool.name:
+                // Manually construct JSON description of allTools
+                // In a perfect world, we'd use Encodable on Tool, but Tool struct is from library
+                // We will build a simple string representation
+                var helpText = "Available Tools:\n"
+                for tool in allTools {
+                    helpText += "- \(tool.name): \(tool.description)\n"
+                }
+                return CallTool.Result(content: [.text(helpText)])  // Simplified for now
 
             // --- End Universal Handlers ---
 

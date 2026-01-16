@@ -4,7 +4,7 @@
     "macos-use": {
       "command": "${PROJECT_ROOT}/vendor/mcp-server-macos-use/.build/release/mcp-server-macos-use",
       "connect_timeout": 60,
-      "description": "Native macOS control: mouse, keyboard, UI automation, screenshots, Vision (OCR), Fetch URL, Time, AppleScript, and terminal command execution (Replaces 'terminal', 'fetch', 'time', 'applescript')",
+      "description": "Native macOS control: mouse, keyboard, UI automation, screenshots, Vision (OCR), Fetch URL, Time, AppleScript, Calendar, Reminders, Spotlight, Notifications, Notes, Mail, Dynamic Help, and terminal command execution (Replaces 'terminal', 'fetch', 'time', 'applescript', 'apple-mcp')",
       "permissions": {
         "accessibility": true,
         "screen_recording": true
