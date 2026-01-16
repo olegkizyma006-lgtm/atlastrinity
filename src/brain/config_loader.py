@@ -32,78 +32,34 @@ class SystemConfig:
 
     def _sync_configs(self):
         """
-        Setup global configuration and apply .env secrets.
-        Configuration is used EXCLUSIVELY from global location.
+        Ensure global configuration directories exist.
+        Config is read ONLY from global location (~/.config/atlastrinity/).
+        User config values have PRIORITY over built-in defaults.
+        No template syncing - user manages global config directly.
         """
         global_path = CONFIG_ROOT / "config.yaml"
-        env_path = CONFIG_ROOT / ".env"  # Use ONLY global .env
+        env_path = CONFIG_ROOT / ".env"
         mcp_global = MCP_DIR / "config.json"
 
         CONFIG_ROOT.mkdir(parents=True, exist_ok=True)
         MCP_DIR.mkdir(parents=True, exist_ok=True)
 
-        # 1. Ensure global config.yaml exists
-        # 1. Ensure global config.yaml exists and is up-to-date with template
-        template_yaml = PROJECT_ROOT / "config" / "config.yaml"
-
+        # 1. Ensure global config.yaml exists (first run only)
         if not global_path.exists():
-            # First run: copy template directly
-            if template_yaml.exists():
-                shutil.copy2(template_yaml, global_path)
-            else:
-                with open(global_path, "w", encoding="utf-8") as f:
-                    yaml.dump(
-                        self._get_defaults(),
-                        f,
-                        default_flow_style=False,
-                        allow_unicode=True,
-                    )
-        else:
-            # Sync: Merge template updates into global config while keeping user overrides
-            # Base = Template (contains new keys), Overlay = User Global (contains custom values)
-            try:
-                if template_yaml.exists():
-                    with open(template_yaml, "r", encoding="utf-8") as f:
-                        template_data = yaml.safe_load(f) or {}
-                    with open(global_path, "r", encoding="utf-8") as f:
-                        user_data = yaml.safe_load(f) or {}
+            with open(global_path, "w", encoding="utf-8") as f:
+                yaml.dump(
+                    self._get_defaults(),
+                    f,
+                    default_flow_style=False,
+                    allow_unicode=True,
+                )
 
-                    # Merge user data ON TOP of template defaults
-                    merged = deep_merge(template_data, user_data)
-
-                    # If there are changes (e.g. new keys from template), update global file
-                    if merged != user_data:
-                        # Create backup before modifying
-                        backup_path = global_path.with_suffix(".yaml.backup")
-                        shutil.copy2(global_path, backup_path)
-
-                        with open(global_path, "w", encoding="utf-8") as f:
-                            yaml.dump(merged, f, default_flow_style=False, allow_unicode=True)
-                        # logger is not initialized yet provided config_loader is imported early,
-                        # but this ensures config is fresh.
-            except Exception as e:
-                # Fallback silently if sync fails to avoid boot loops
-                pass
-
-        # 1b. Ensure global MCP config.json exists (and is synced from bundled template)
-        try:
-            template_mcp = PROJECT_ROOT / "src" / "mcp_server" / "config.json"
+        # 2. Ensure global MCP config.json exists (first run only)
+        if not mcp_global.exists():
+            # Copy from bundled template
+            template_mcp = PROJECT_ROOT / "src" / "mcp_server" / "config.json.template"
             if template_mcp.exists():
-                if not mcp_global.exists():
-                    shutil.copy2(template_mcp, mcp_global)
-                else:
-                    with open(template_mcp, "r", encoding="utf-8") as f:
-                        template_data = json.load(f) or {}
-                    with open(mcp_global, "r", encoding="utf-8") as f:
-                        user_data = json.load(f) or {}
-                    merged = deep_merge(template_data, user_data)
-                    if merged != user_data:
-                        backup_path = mcp_global.with_suffix(".json.backup")
-                        shutil.copy2(mcp_global, backup_path)
-                        with open(mcp_global, "w", encoding="utf-8") as f:
-                            json.dump(merged, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+                shutil.copy2(template_mcp, mcp_global)
 
         # 2. Load .env secrets into process environment (do NOT rewrite config.yaml)
         if env_path.exists():

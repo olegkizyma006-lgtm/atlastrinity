@@ -506,80 +506,60 @@ def install_deps():
 
 
 def sync_configs():
-    """Синхронізує конфіги між проектом та глобальною папкою"""
-    print_step("Синхронізація конфігурацій...")
-    sync_script = PROJECT_ROOT / "config" / "config_sync.py"
-
-    if not sync_script.exists():
-        print_error("Скрипт синхронізації не знайдено!")
-        return False
+    """Copies template configs to global folder if they don't exist (first-time setup only)."""
+    print_step("Setting up global configurations...")
 
     try:
-        # Початковий .env
+        # Initial setup: copy templates if global configs don't exist
+        config_yaml_src = PROJECT_ROOT / "config" / "config.yaml.template"
+        config_yaml_dst = CONFIG_ROOT / "config.yaml"
+        
+        mcp_json_src = PROJECT_ROOT / "src" / "mcp_server" / "config.json.template"
+        mcp_json_dst = CONFIG_ROOT / "mcp" / "config.json"
+
+        # Copy config.yaml template if not exists
+        if not config_yaml_dst.exists():
+            if config_yaml_src.exists():
+                shutil.copy2(config_yaml_src, config_yaml_dst)
+                print_success(f"Created config.yaml from template")
+            else:
+                # Fallback: create minimal config
+                import yaml
+                defaults = {
+                    "agents": {
+                        "atlas": {"model": "gpt-5-mini", "temperature": 0.7},
+                        "tetyana": {"model": "gpt-4.1", "temperature": 0.5},
+                        "grisha": {"vision_model": "gpt-4o", "temperature": 0.3},
+                    },
+                    "mcp": {},
+                    "logging": {"level": "INFO"},
+                }
+                with open(config_yaml_dst, "w", encoding="utf-8") as f:
+                    yaml.dump(defaults, f, allow_unicode=True)
+                print_success(f"Created default config.yaml")
+        else:
+            print_success("config.yaml already exists in global folder")
+
+        # Copy MCP config.json if not exists
+        DIRS["mcp"].mkdir(parents=True, exist_ok=True)
+        if not mcp_json_dst.exists() and mcp_json_src.exists():
+            shutil.copy2(mcp_json_src, mcp_json_dst)
+            print_success(f"Created mcp/config.json from template")
+        else:
+            print_success("mcp/config.json already exists")
+
+        # Copy .env if not exists
         env_src = PROJECT_ROOT / ".env"
         env_dst = CONFIG_ROOT / ".env"
         if env_src.exists() and not env_dst.exists():
             shutil.copy2(env_src, env_dst)
-            print_success(f"Скопійовано .env -> {env_dst}")
-
-        venv_python = str(VENV_PATH / "bin" / "python")
-        subprocess.run([venv_python, str(sync_script), "push"], check=True)
-        print_success("Конфігурації синхронізовано з ~/.config/atlastrinity/")
-
-        # Перевірка та оновлення MCP конфігу для notes сервера
-        mcp_config = CONFIG_ROOT / "mcp" / "config.json"
-        if mcp_config.exists():
-            import json  # noqa: E402
-
-            try:
-                with open(mcp_config, "r") as f:
-                    config = json.load(f)
-
-                # Додаємо notes сервер якщо його немає
-                if "notes" not in config.get("mcpServers", {}):
-                    print_info("Додавання notes MCP сервера до конфігурації...")
-                    config.setdefault("mcpServers", {})["notes"] = {
-                        "command": "python3",
-                        "connect_timeout": 30,
-                        "args": ["-m", "src.mcp_server.notes_server"],
-                        "description": "Text notes and reports storage for agent communication",
-                        "disabled": False,
-                        "tier": 2,
-                        "agents": ["atlas", "tetyana", "grisha"],
-                    }
-
-                    # Додаємо Гріші доступ до memory якщо його там немає
-                    if "memory" in config["mcpServers"]:
-                        agents = config["mcpServers"]["memory"].get("agents", [])
-                        if "grisha" not in agents:
-                            agents.append("grisha")
-                            config["mcpServers"]["memory"]["agents"] = agents
-                            print_info("Додано Grisha до memory сервера")
-
-                    # Додаємо Vibe сервер якщо його немає
-                    if "vibe" not in config.get("mcpServers", {}):
-                        print_info("Додавання vibe MCP сервера до конфігурації...")
-                        config.setdefault("mcpServers", {})["vibe"] = {
-                            "command": "python3",
-                            "args": ["-m", "src.mcp_server.vibe_server"],
-                            "description": "AI Coding Assistant & Self-Healing (Mistral)",
-                            "disabled": False,
-                            "tier": 2,
-                            "agents": ["atlas", "vibe"],  # atlas uses it, vibe is the persona
-                        }
-                        print_success("Vibe MCP сервер додано")
-
-                    with open(mcp_config, "w") as f:
-                        json.dump(config, f, indent=2, ensure_ascii=False)
-                    print_success("MCP конфігурацію оновлено (notes + grisha)")
-                else:
-                    print_success("Notes сервер вже в конфігурації")
-            except Exception as e:
-                print_warning(f"Не вдалося оновити MCP конфіг: {e}")
-
+            print_success(f"Copied .env -> {env_dst}")
+        
+        print_info("All configurations are in ~/.config/atlastrinity/")
+        print_info("Edit configs there directly (no sync needed)")
         return True
     except Exception as e:
-        print_error(f"Помилка синхронізації: {e}")
+        print_error(f"Config setup error: {e}")
         return False
 
 
