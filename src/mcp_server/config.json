@@ -79,7 +79,7 @@
     },
     "vibe": {
       "command": "python3",
-      "connect_timeout": 60,
+      "connect_timeout": 300,
       "args": [
         "-m",
         "src.mcp_server.vibe_server"
@@ -217,7 +217,7 @@
     },
     "docker": {
       "command": "npx",
-      "connect_timeout": 60,
+      "connect_timeout": 300,
       "args": [
         "@thelord/mcp-server-docker-npx@0.4.0"
       ],

@@ -360,7 +360,7 @@ class CopilotLLM(BaseChatModel):
             }
             payload = self._build_payload(messages)
             
-            async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=30.0)) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=30.0)) as client:
                 try:
                     response = await _do_post(client, f"{api_endpoint}/chat/completions", headers, payload)
                 except Exception as e:
@@ -472,7 +472,7 @@ class CopilotLLM(BaseChatModel):
                 f"{api_endpoint}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=120
+                timeout=300
             )
             response.raise_for_status()
             return self._process_json_result(response.json(), messages)
@@ -522,7 +522,7 @@ class CopilotLLM(BaseChatModel):
                             f"{api_endpoint}/chat/completions",
                             headers=headers,
                             json=payload,
-                            timeout=120
+                            timeout=300
                         )
 
                     retry_response = _post_retry()
@@ -632,7 +632,7 @@ class CopilotLLM(BaseChatModel):
                 headers=headers,
                 data=json.dumps(payload),
                 stream=True,
-                timeout=120
+                timeout=300
             )
 
         try:

@@ -493,7 +493,7 @@ class Trinity:
             logger_task = asyncio.create_task(keep_alive_logging())
 
             try:
-                plan = await asyncio.wait_for(planning_task, timeout=120.0)
+                plan = await asyncio.wait_for(planning_task, timeout=300.0)
             finally:
                 logger_task.cancel()
                 try:

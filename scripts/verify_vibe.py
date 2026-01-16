@@ -36,8 +36,8 @@ async def test_vibe_server():
             "vibe_prompt", 
             {
                 "prompt": "Say 'Vibe is working' and nothing else.", 
-                "args": ["--quiet"], # Try to pass quiet if supported, though vibe_prompt schema takes 'prompt'
-                "timeout_s": 30
+                "args": ["--quiet"], 
+                "timeout_s": 300
             }
         )
         
