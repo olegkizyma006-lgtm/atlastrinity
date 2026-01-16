@@ -133,19 +133,26 @@ class MCPManager:
                 or "Resources/app.asar" in result
                 or "/Resources/brain" in result
             ):
-                if "/vendor/" in result and not os.path.exists(result):
-                    # Try resolving to the packaged bin/ directory
-                    parts = result.split("/")
-                    if "vendor" in parts:
-                        binary_name = parts[-1]
-                        from .config import PROJECT_ROOT  # noqa: E402
-
-                        prod_path = PROJECT_ROOT / "bin" / binary_name
-                        if prod_path.exists():
-                            logger.info(
-                                f"[MCP] Redirecting {binary_name} to production bin: {prod_path}"
-                            )
-                            return str(prod_path)
+                if not os.path.exists(result):
+                    # Robust resolution for packaged binary
+                    from .config import PROJECT_ROOT  # noqa: E402
+                    
+                    binary_name = result.split("/")[-1]
+                    
+                    # Search order for binary:
+                    # 1. Directly in bin/
+                    # 2. In Resources/bin/ (Electron specific)
+                    # 3. Path relative to current executable
+                    possible_paths = [
+                        PROJECT_ROOT / "bin" / binary_name,
+                        PROJECT_ROOT / "Resources" / "bin" / binary_name,
+                        Path(sys.executable).parent / binary_name
+                    ]
+                    
+                    for p in possible_paths:
+                        if p.exists():
+                            logger.info(f"[MCP] Redirected {binary_name} -> {p}")
+                            return str(p)
 
             return result
 

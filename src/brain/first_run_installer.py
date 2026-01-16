@@ -45,6 +45,7 @@ class SetupStep(Enum):
     INSTALL_POSTGRES = "install_postgres"
     START_SERVICES = "start_services"
     CREATE_DATABASE = "create_database"
+    INSTALL_MACOS_USE = "install_macos_use"
     DOWNLOAD_TTS = "download_tts"
     DOWNLOAD_STT = "download_stt"
     SETUP_COMPLETE = "setup_complete"
@@ -202,6 +203,19 @@ class FirstRunInstaller:
             f"Accessibility: {'✓' if permissions['accessibility'] else '✗'}, "
             f"Screen Recording: {'✓' if permissions['screen_recording'] else '✗'}",
         )
+        
+        if not permissions["accessibility"] or not permissions["screen_recording"]:
+            print("\n" + "!" * 40)
+            print("⚠️  PERMISSION ACTION REQUIRED:")
+            if not permissions["accessibility"]:
+                print("   1. Open System Settings > Privacy & Security > Accessibility")
+                print("   2. Click [+] and add AtlasTrinity")
+            if not permissions["screen_recording"]:
+                print("   1. Open System Settings > Privacy & Security > Screen Recording")
+                print("   2. Ensure AtlasTrinity is enabled")
+            print("!" * 40 + "\n")
+            # Open the settings pane automatically
+            _run_command(["open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"])
 
         return permissions
 
@@ -378,12 +392,30 @@ class FirstRunInstaller:
 
     # ============ DATABASE ============
 
+    async def _ensure_postgres_role(self, username: str = "dev") -> bool:
+        """Ensure the specified role exists in Postgres."""
+        try:
+            rc, out, _ = _run_command(["psql", "-tAc", f"SELECT 1 FROM pg_roles WHERE rolname='{username}';"])
+            if "1" not in out:
+                self._report(SetupStep.CREATE_DATABASE, 0.1, f"Створення ролі '{username}'...")
+                code, _, stderr = _run_command(["createuser", "-s", username])
+                if code != 0:
+                    logger.warning(f"Failed to create user {username}: {stderr}")
+                    return False
+                return True
+            return True
+        except Exception:
+            return False
+
     async def create_database(self) -> bool:
         """Create PostgreSQL database and tables"""
         self._report(SetupStep.CREATE_DATABASE, 0.0, "Створення бази даних...")
 
         db_name = "atlastrinity_db"
         username = os.environ.get("USER", "dev")
+        
+        # Ensure 'dev' role exists if we are using it
+        await self._ensure_postgres_role("dev")
 
         # Wait for PostgreSQL to be ready
         for attempt in range(10):
@@ -448,6 +480,40 @@ class FirstRunInstaller:
                 success=False,
                 error=str(e)[:100],
             )
+            return False
+
+    # ============ NATIVE BINARIES ============
+
+    def build_macos_use(self) -> bool:
+        """Compile macos-use Swift binary if missing (dev mode)"""
+        self._report(SetupStep.INSTALL_MACOS_USE, 0.0, "Перевірка бінарного файлу macos-use...")
+        
+        from .config import PROJECT_ROOT
+        mcp_path = PROJECT_ROOT / "vendor" / "mcp-server-macos-use"
+        binary_path = mcp_path / ".build" / "release" / "mcp-server-macos-use"
+        
+        # In production, check bundle location fallback if shared code is used
+        if binary_path.exists():
+            self._report(SetupStep.INSTALL_MACOS_USE, 1.0, "macos-use вже скомпільовано ✓")
+            return True
+            
+        if not mcp_path.exists():
+            self._report(SetupStep.INSTALL_MACOS_USE, 1.0, "Source not found, assuming production build will provide binary.")
+            return True # Not an error for installer if running from frozen app
+            
+        self._report(SetupStep.INSTALL_MACOS_USE, 0.2, "Компіляція macos-use (це може зайняти час)...")
+        
+        if not shutil.which("swift"):
+             self._report(SetupStep.INSTALL_MACOS_USE, 1.0, "Swift не знайдено, неможливо скомпільовати!", success=False, error="Swift missing")
+             return False
+
+        code, _, stderr = _run_command(["swift", "build", "-c", "release"], timeout=600)
+        
+        if code == 0 and binary_path.exists():
+            self._report(SetupStep.INSTALL_MACOS_USE, 1.0, "macos-use скомпільовано ✓")
+            return True
+        else:
+            self._report(SetupStep.INSTALL_MACOS_USE, 1.0, "Помилка компіляції", success=False, error=stderr[:100])
             return False
 
     # ============ MODELS ============
@@ -564,8 +630,11 @@ class FirstRunInstaller:
 
         # 6. Database (important)
         await self.create_database()
+        
+        # 7. Native Binaries (macos-use)
+        self.build_macos_use()
 
-        # 7. Models (can be downloaded later)
+        # 8. Models (can be downloaded later)
         self.download_tts_models()
         self.download_stt_models()
 
