@@ -991,6 +991,7 @@ Please type your response below and press Enter:
         if not tool_name:
             action_raw = str(args.get("action", "")).lower()
             command_raw = str(args.get("command", "")).lower()
+            command_arg = args.get("command")
             logger.info(f"[TETYANA] Inferring tool. Action: '{action_raw[:50]}...', Command: '{command_raw[:50]}...'")
             
             # 7. Vibe - Ensure correct tool name and args
@@ -1000,6 +1001,25 @@ Please type your response below and press Enter:
                 # Consolidate prompt
                 prompt_text = args.get("prompt") or args.get("task") or args.get("instruction") or action_raw
                 
+                # Extract prompt from command list if present
+                # Example: ['vibe_prompt', '-p', 'THE PROMPT', '--output', ...]
+                if not prompt_text and isinstance(command_arg, list):
+                    try:
+                        if "-p" in command_arg:
+                            idx = command_arg.index("-p")
+                            if idx + 1 < len(command_arg):
+                                prompt_text = command_arg[idx + 1]
+                        elif "--prompt" in command_arg:
+                             idx = command_arg.index("--prompt")
+                             if idx + 1 < len(command_arg):
+                                prompt_text = command_arg[idx + 1]
+                    except Exception:
+                        pass
+                
+                # If still empty, use the raw command string as fallback
+                if not prompt_text:
+                    prompt_text = str(command_arg)
+
                 # Use valid args for vibe_prompt tool
                 # output_format should be 'text' or 'json', NOT 'markdown' (which caused CLI crash)
                 new_args = {
@@ -1654,6 +1674,15 @@ Please type your response below and press Enter:
                 if tool in tool_map:
                     logger.info(f"[TETYANA] Auto-mapping tool '{tool}' -> '{tool_map[tool]}'")
                     tool = tool_map[tool]
+
+            # Server Name Fixes
+            if server == "sequentialthinking":
+                server = "sequential-thinking"
+            
+            if server == "sequential-thinking":
+                 # Ensure tool name matches what the server expects
+                 if tool == "sequential-thinking":
+                     tool = "sequentialthinking"
 
             # VIBE VALIDATION & MAPPING
             if server == "vibe":
