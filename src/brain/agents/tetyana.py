@@ -586,15 +586,16 @@ IMPORTANT:
         # If the step is about getting user consent/approval/confirmation,
         # we can't automate it fully. Open Terminal and inform the user.
         step_action_lower = str(step.get("action", "")).lower()
-        consent_keywords = [
-            "consent",
-            "approval",
-            "confirm privilege",
-            "request consent",
-            "obtain consent",
-            "ask permission",
-        ]
-        is_consent_request = any(kw in step_action_lower for kw in consent_keywords)
+        
+        # FIX: More strict consent detection to prevent loops
+        # Only treat as consent request if explicitly asked for user interaction
+        is_consent_request = (
+            "ask user" in step_action_lower
+            or "request user consent" in step_action_lower
+            or "await user approval" in step_action_lower
+            or "get user confirmation" in step_action_lower
+            or step.get("requires_consent", False) is True
+        )
 
         if is_consent_request:
             logger.info(
@@ -992,9 +993,23 @@ Please type your response below and press Enter:
             command_raw = str(args.get("command", "")).lower()
             logger.info(f"[TETYANA] Inferring tool. Action: '{action_raw[:50]}...', Command: '{command_raw[:50]}...'")
             
+            # 7. Vibe - Ensure correct tool name and args
             if "vibe" in action_raw or "vibe" in command_raw:
                 tool_name = "vibe_prompt"
-                logger.info("[TETYANA] Inferred tool: vibe_prompt")
+                
+                # Consolidate prompt
+                prompt_text = args.get("prompt") or args.get("task") or args.get("instruction") or action_raw
+                
+                # Use valid args for vibe_prompt tool
+                # output_format should be 'text' or 'json', NOT 'markdown' (which caused CLI crash)
+                new_args = {
+                    "prompt": prompt_text,
+                    "output_format": "text", 
+                    "timeout_s": 600  # Explicitly allow long timeout
+                }
+                
+                logger.info(f"[TETYANA] Inferred tool: vibe_prompt with args: {new_args}")
+                return await self._call_mcp_direct("vibe", "vibe_prompt", new_args)
             elif any(kw in action_raw for kw in ["click", "type", "press", "screenshot"]):
                 tool_name = "macos-use"
                 logger.info("[TETYANA] Inferred tool: macos-use")
@@ -1484,6 +1499,18 @@ Please type your response below and press Enter:
             return await self._perform_gui_action(args)
         elif tool_name == "browser":
             return await self._browser_action(args)
+        # 2. Terminal - Normalize arguments
+        elif tool_name == "execute_command" or tool_name == "run_command":
+            if "actions" in args and isinstance(args["actions"], list):
+                 # Extract the first terminal command from actions list
+                 for action in args["actions"]:
+                     if action.get("type") == "terminal" or action.get("command"):
+                         args["command"] = action.get("command")
+                         break
+            
+            if "command" not in args and "cmd" in args:
+                args["command"] = args.pop("cmd")
+            return await self._run_terminal_command(args)
         elif tool_name == "filesystem" or tool_name == "editor":
             if tool_name == "editor" and "action" not in args:
                 if "content" in args:

@@ -351,6 +351,15 @@ class Grisha:
             or "interface" in expected.lower()
             or "window" in expected.lower()
         )
+        
+        # RELAXATION: Don't demand legal/intent verification for technical tasks
+        # unless keywords are present
+        requires_legal_check = (
+             "legal" in expected.lower()
+             or "intent" in expected.lower()
+             or "compliance" in expected.lower()
+             or "policy" in expected.lower()
+        )
 
         if (
             not visual_verification_needed

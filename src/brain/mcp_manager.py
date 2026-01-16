@@ -407,6 +407,22 @@ class MCPManager:
             result = await session.list_tools()
             return result.tools
         except Exception as e:
+            # FIX: Handle ClosedResourceError by reconnecting
+            if "ClosedResourceError" in str(e) or "Connection closed" in str(e):
+                logger.warning(f"[MCP] Connection lost during list_tools for {server_name}, reconnecting...")
+                async with self._lock:
+                    if server_name in self.sessions:
+                        del self.sessions[server_name]
+                
+                # Try to get fresh session
+                session = await self.get_session(server_name)
+                if session:
+                    try:
+                        result = await session.list_tools()
+                        return result.tools
+                    except Exception as retry_e:
+                        logger.error(f"[MCP] Retry list_tools failed for {server_name}: {retry_e}")
+            
             logger.error(
                 f"Error listing tools for {server_name}: {type(e).__name__}: {e}",
                 exc_info=True,
@@ -662,31 +678,7 @@ class MCPManager:
 
         return summary
 
-    async def restart_server(self, server_name: str) -> bool:
-        """Restart a specific MCP server"""
-        logger.info(f"[MCP] Restarting server: {server_name}")
-        
-        # 1. Stop if running
-        async with self._lock:
-            if server_name in self._close_events:
-                self._close_events[server_name].set()
-            
-            task = self._connection_tasks.get(server_name)
-            if task:
-                try:
-                    await asyncio.wait_for(task, timeout=5.0)
-                except Exception:
-                    task.cancel()
-            
-            # Clear internal state
-            self.sessions.pop(server_name, None)
-            self._connection_tasks.pop(server_name, None)
-            self._close_events.pop(server_name, None)
-            self._session_futures.pop(server_name, None)
 
-        # 2. Reconnect on next use (or immediately)
-        session = await self.get_session(server_name)
-        return session is not None
 
     async def query_db(self, query: str, params: Optional[Dict] = None) -> List[Dict]:
         """Execute a raw SQL query (for debugging/self-healing)"""

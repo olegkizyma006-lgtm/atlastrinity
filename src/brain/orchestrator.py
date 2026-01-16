@@ -818,6 +818,11 @@ class Trinity:
                 except Exception as ve:
                     await self._log(f"Vibe self-healing failed: {ve}", "error")
 
+                # RECURSION SAFEGUARD
+                if depth >= 3:
+                     # Stop infinite recovery loops
+                     raise Exception(f"Max recovery depth ({depth}) reached for {step_id}. Aborting.")
+
                 try:
                     # Ask Atlas for help
                     recovery = await asyncio.wait_for(

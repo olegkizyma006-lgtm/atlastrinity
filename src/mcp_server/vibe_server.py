@@ -34,13 +34,13 @@ try:
     from .config_loader import get_config_value
 
     VIBE_BINARY = get_config_value("vibe", "binary", "vibe")
-    DEFAULT_TIMEOUT_S = float(get_config_value("vibe", "timeout_s", 300))
+    DEFAULT_TIMEOUT_S = float(get_config_value("vibe", "timeout_s", 600))
     # Increased for large log analysis
     MAX_OUTPUT_CHARS = int(get_config_value("vibe", "max_output_chars", 500000))
     DISALLOW_INTERACTIVE = bool(get_config_value("vibe", "disallow_interactive", True))
 except Exception:
     VIBE_BINARY = "vibe"
-    DEFAULT_TIMEOUT_S = 300.0
+    DEFAULT_TIMEOUT_S = 600.0
     MAX_OUTPUT_CHARS = 500000  # 500KB for large logs
     DISALLOW_INTERACTIVE = True
 
