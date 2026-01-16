@@ -14,6 +14,7 @@ class AgentPrompts:
     TETYANA = TETYANA
     GRISHA = GRISHA
 
+    @staticmethod
     def tetyana_reasoning_prompt(
         step: str,
         context: dict,
@@ -22,6 +23,7 @@ class AgentPrompts:
         previous_results: list = None,
         goal_context: str = "",
         bus_messages: list = None,
+        full_plan: str = "",
     ) -> str:
         feedback_section = (
             f"\n        PREVIOUS REJECTION FEEDBACK (from Grisha):\n        {feedback}\n"
@@ -41,14 +43,11 @@ class AgentPrompts:
                 formatted_results.append(res_str)
             results_section = f"\n        RESULTS OF PREVIOUS STEPS (Use this data to fill arguments):\n        {formatted_results}\n"
 
-        goal_section = f"\n        {goal_context}\n" if goal_context else ""
-
-        bus_section = ""
-        if bus_messages:
-            bus_section = f"\n        REAL-TIME MESSAGES FROM OTHER AGENTS (Bus):\n        {bus_messages}\n"
+        plan_section = f"\n        FULL MASTER EXECUTION PLAN (Follow this sequence strictly):\n        {full_plan}\n" if full_plan else ""
 
         return f"""Analyze how to execute this atomic step: {step}.
         {goal_section}
+        {plan_section}
         CONTEXT: {context}
         {results_section}
         {feedback_section}
@@ -56,13 +55,17 @@ class AgentPrompts:
         {tools_summary}
 
         Your task is to choose the BEST tool and arguments.
-        CRITICAL: Follow the 'Schema' provided for each tool EXACTLY. Ensure parameter names and types match.
-        If there is feedback from Grisha or other agents above, ADAPT your strategy to address their concerns.
+        CRITICAL RULES:
+        1. Follow the 'Schema' provided for each tool EXACTLY.
+        2. ADHERE STRICTLY to the plan sequence above. Do not skip or reorder steps.
+        3. If there is feedback from Grisha or other agents above, ADAPT your strategy to address their concerns.
+        4. If you are unsure or need clarification from Atlas to proceed, use the "question_to_atlas" field.
 
         Respond in JSON:
         {{
             "thought": "Internal technical analysis in ENGLISH (Which tool? Which args? Why based on schema?)",
             "proposed_action": {{ "tool": "name", "args": {{...}} }},
+            "question_to_atlas": "Optional technical question if you are stuck or need guidance",
             "voice_message": "Ukrainian message for the user describing the action"
         }}
         """
@@ -85,6 +88,7 @@ class AgentPrompts:
             "analysis": "Technical cause of failure (English)",
             "fix_attempt": {{ "tool": "name", "args": {{...}} }},
             "requires_atlas": true/false,
+            "question_to_atlas": "Optional technical question if you need Atlas's specific help",
             "voice_message": "Ukrainian explanation of why it failed and how you are fixing it"
         }}
         """
@@ -101,6 +105,10 @@ class AgentPrompts:
     }}
     """
 
+    @staticmethod
+    def grisha_strategy_prompt(
+        step_action: str, expected_result: str, context: dict, goal_context: str = ""
+    ) -> str:
         return f"""You are the Verification Strategist. 
         Your task is to create a robust verification plan for the following step:
         

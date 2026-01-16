@@ -867,6 +867,7 @@ Please type your response below and press Enter:
                 previous_results=previous_results,
                 goal_context=shared_context.get_goal_context(),
                 bus_messages=step.get("bus_messages"),
+                full_plan=step.get("full_plan", ""),
             )
 
             try:
@@ -882,6 +883,30 @@ Please type your response below and press Enter:
                 logger.info(
                     f"[TETYANA] Thought (English): {monologue.get('thought', 'No thought')[:200]}..."
                 )
+
+                # Check for proactive help request
+                if monologue.get("question_to_atlas"):
+                    question = monologue["question_to_atlas"]
+                    logger.info(f"[TETYANA] Proactive help request to Atlas: {question}")
+                    
+                    from ..message_bus import AgentMsg, MessageType, message_bus # noqa: E402
+                    msg = AgentMsg(
+                        from_agent="tetyana",
+                        to_agent="atlas",
+                        message_type=MessageType.HELP_REQUEST,
+                        payload={"question": question, "step_id": step.get("id")},
+                        step_id=step.get("id")
+                    )
+                    await message_bus.send(msg)
+                    
+                    return StepResult(
+                        step_id=step.get("id", self.current_step),
+                        success=False,
+                        result=f"Blocked on Atlas: {question}",
+                        voice_message=monologue.get("voice_message") or f"У мене питання до Атласу: {question}",
+                        error="proactive_help_requested",
+                        thought=monologue.get("thought")
+                    )
 
                 tool_call = (
                     monologue.get("proposed_action")

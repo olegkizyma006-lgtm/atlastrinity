@@ -963,28 +963,41 @@ class Trinity:
                 if self.state and "step_results" in self.state:
                     step_copy["previous_results"] = self.state["step_results"][-10:]
                 
-                # Global context
-                step_copy["global_goal"] = self.state["current_plan"].goal if self.state.get("current_plan") else "Achieve the user request"
-                
-                # Intermediate goal (parent action if in recursion)
-                if "." in str(step_id):
-                    # For ID "3.1", we want plan step 3
-                    parent_id = str(step_id).rsplit(".", 1)[0]
-                    # Search for parent action in history or plan
-                    parent_action = "Unknown context"
-                    if self.state.get("current_plan"):
-                        for p_step in self.state["current_plan"].steps:
-                            if str(p_step.get("id")) == parent_id:
-                                parent_action = p_step.get("action")
-                                break
-                    step_copy["parent_action"] = parent_action
-                
+                # Full plan for sequence context
+                plan = self.state.get("current_plan")
+                if plan:
+                    # Convert plan steps to a readable summary
+                    step_list = []
+                    for s in plan.steps:
+                        status = "DONE" if any(res.get("step_id") == str(s.get("id")) and res.get("success") for res in self.state.get("step_results", [])) else "PENDING"
+                        step_list.append(f"Step {s.get('id')}: {s.get('action')} [{status}]")
+                    step_copy["full_plan"] = "\n".join(step_list)
+
                 # Check message bus for specific feedback from other agents
                 bus_messages = await message_bus.receive("tetyana", mark_read=True)
                 if bus_messages:
                     step_copy["bus_messages"] = [m.to_dict() for m in bus_messages]
 
                 result = await self.tetyana.execute_step(step_copy, attempt=attempt)
+                
+                # Handle proactive help requested by Tetyana
+                if result.error == "proactive_help_requested":
+                    await self._log(f"Tetyana requested proactive help: {result.result}", "orchestrator")
+                    # Atlas help logic
+                    help_resp = await self.atlas.help_tetyana(step_copy, result.result)
+                    await self._speak("atlas", help_resp)
+                    # Re-run the step with Atlas's guidance as bus feedback
+                    from ..message_bus import AgentMsg, MessageType, message_bus # noqa: E402
+                    await message_bus.send(AgentMsg(
+                        from_agent="atlas",
+                        to_agent="tetyana",
+                        message_type=MessageType.FEEDBACK,
+                        payload={"guidance": help_resp},
+                        step_id=step.get("id")
+                    ))
+                    # Mark result as "Help pending" so retry loop can pick it up
+                    result.success = False
+                    result.error = "help_pending"
                 
                 # Log interaction to Knowledge Graph if successful
                 if result.success and result.tool_call:
