@@ -808,6 +808,20 @@ class Trinity:
                     # Construct detailed error context for Vibe
                     error_context = f"Step ID: {step_id}\n" f"Action: {step.get('action', '')}\n"
 
+                    # NEW: Fetch technical execution details from DB for the failed step
+                    technical_trace = ""
+                    if db_manager.available:
+                        try:
+                            # We use the step_id (string sequence) to find executions
+                            # Mapping: query tool_executions for this step_id
+                            sql = "SELECT tool_name, arguments, result FROM tool_executions WHERE step_id IN (SELECT id FROM task_steps WHERE sequence_number = :seq) ORDER BY created_at DESC LIMIT 3;"
+                            db_res = await mcp_manager.call_tool("terminal", "query_db", {"query": sql, "params": {"seq": str(step_id)}})
+                            if isinstance(db_res, dict) and db_res.get("rows"):
+                                technical_trace = "\nTECHNICAL EXECUTION TRACE:\n" + json.dumps(db_res["rows"], indent=2)
+                                await self._log(f"Found technical trace for step {step_id}", "system")
+                        except Exception as trace_err:
+                            logger.warning(f"Failed to fetch technical trace: {trace_err}")
+
                     await self._log(
                         f"Engaging Vibe Self-Healing for Step {step_id} (Timeout: {config.get('orchestrator', {}).get('task_timeout', 1200)}s)...",
                         "orchestrator",
@@ -823,7 +837,7 @@ class Trinity:
                             "vibe",
                             "vibe_analyze_error",
                             {
-                                "error_message": f"{error_context}\n{last_error}",
+                                "error_message": f"{error_context}\n{last_error}\n{technical_trace}",
                                 "log_context": log_context,
                                 "cwd": str(PROJECT_ROOT),
                                 "timeout_s": int(config.get("orchestrator", {}).get("task_timeout", 1200)),  # Dynamic timeout

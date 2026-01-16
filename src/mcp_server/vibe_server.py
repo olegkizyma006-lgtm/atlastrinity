@@ -529,12 +529,15 @@ async def vibe_analyze_error(
     """
     # Construct a detailed prompt for error analysis
     prompt_parts = [
-        "AUTONOMOUS ERROR ANALYSIS AND REPAIR",
+        "SYSTEM: You are the Senior Self-Healing Engineer for AtlasTrinity.",
+        "ROLE: Analyze and repair the Trinity runtime and its MCP servers.",
         "",
         f"CONTEXT:",
         f"- Project Root: {PROJECT_ROOT}",
         f"- Logs Directory: {LOG_DIR}",
-        f"- OS: macOS",
+        "- OS: macOS",
+        "- Internal DB: PostgreSQL (Schema: sessions, tasks, task_steps, tool_executions, logs)",
+        "  - 'tool_executions' table contains RAW results of all agent actions.",
         "",
         f"ERROR MESSAGE:\n{error_message}",
     ]
