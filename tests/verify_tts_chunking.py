@@ -22,11 +22,30 @@ async def test_sentence_splitting():
         if len(chunks) % 2 == 1 and chunks[-1]:
              processed_chunks.append(chunks[-1])
         
-        final_chunks = [c.strip() for c in processed_chunks if c.strip()]
+        initial_chunks = [c.strip() for c in processed_chunks if c.strip()]
         
-        print(f"Split into {len(final_chunks)} chunks:")
+        # Merging logic from tts.py
+        min_len = 40
+        refined_chunks = []
+        temp_chunk = ""
+        for chunk in initial_chunks:
+            if temp_chunk:
+                temp_chunk += " " + chunk
+            else:
+                temp_chunk = chunk
+            if len(temp_chunk) >= min_len:
+                refined_chunks.append(temp_chunk)
+                temp_chunk = ""
+        if temp_chunk:
+            if refined_chunks:
+                refined_chunks[-1] += " " + temp_chunk
+            else:
+                refined_chunks.append(temp_chunk)
+        final_chunks = refined_chunks
+        
+        print(f"Refined into {len(final_chunks)} chunks:")
         for idx, chunk in enumerate(final_chunks):
-            print(f"  {idx+1}: {chunk}")
+            print(f"  {idx+1}: {chunk} (Length: {len(chunk)})")
 
 async def simulate_playback():
     print("\n=== Simulating Queued Playback Loop ===")
