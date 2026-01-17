@@ -250,7 +250,7 @@ class Grisha(BaseAgent):
             logger.debug(f"[GRISHA] UI summarization failed (falling back to truncation): {e}")
             return raw_data[:3000]
 
-    async def _fetch_execution_trace(self, step_id: str) -> str:
+    async def _fetch_execution_trace(self, step_id: str, task_id: Optional[str] = None) -> str:
         """
         Fetches the raw tool execution logs from the database for a given step.
         This serves as the 'single source of truth' for verification.
@@ -259,16 +259,28 @@ class Grisha(BaseAgent):
             from ..mcp_manager import mcp_manager
             
             # Query db for tool executions related to this step, including the status from task_steps
-            sql = """
-                SELECT te.tool_name, te.arguments, te.result, ts.status as step_status, te.created_at 
-                FROM tool_executions te
-                JOIN task_steps ts ON te.step_id = ts.id
-                WHERE ts.sequence_number = :seq 
-                ORDER BY te.created_at DESC 
-                LIMIT 5;
-            """
+            if task_id:
+                sql = """
+                    SELECT te.tool_name, te.arguments, te.result, ts.status as step_status, te.created_at 
+                    FROM tool_executions te
+                    JOIN task_steps ts ON te.step_id = ts.id
+                    WHERE ts.sequence_number = :seq AND ts.task_id = :task_id
+                    ORDER BY te.created_at DESC 
+                    LIMIT 5;
+                """
+                params = {"seq": str(step_id), "task_id": task_id}
+            else:
+                sql = """
+                    SELECT te.tool_name, te.arguments, te.result, ts.status as step_status, te.created_at 
+                    FROM tool_executions te
+                    JOIN task_steps ts ON te.step_id = ts.id
+                    WHERE ts.sequence_number = :seq 
+                    ORDER BY te.created_at DESC 
+                    LIMIT 5;
+                """
+                params = {"seq": str(step_id)}
             
-            rows = await mcp_manager.query_db(sql, {"seq": str(step_id)})
+            rows = await mcp_manager.query_db(sql, params)
             
             if not rows:
                 return "No DB records found for this step. (Command might not have been logged yet or step ID mismatch)."
@@ -377,7 +389,7 @@ class Grisha(BaseAgent):
         )
 
         # 2. FETCH TECHNICAL TRACE FROM DB (The "Truth")
-        technical_trace = await self._fetch_execution_trace(str(step_id))
+        technical_trace = await self._fetch_execution_trace(str(step_id), task_id=task_id)
         
         verification_history = []
         max_attempts = 3  # OPTIMIZATION: Reduced from 5 for faster verification

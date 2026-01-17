@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .logger import logger
 from .config_loader import config
+from .config import PROJECT_ROOT, REPOSITORY_ROOT
 from .mcp_registry import TOOL_SCHEMAS, get_tool_schema, get_server_for_tool
 
 class ToolDispatcher:
@@ -142,6 +143,11 @@ class ToolDispatcher:
 
             # 6. Final Dispatch via MCPManager
             logger.info(f"[DISPATCHER] Calling {server}.{resolved_tool} with {list(normalized_args.keys())}")
+            
+            # Ensure args is a dict
+            if not isinstance(normalized_args, dict):
+                normalized_args = {}
+                
             return await self.mcp_manager.call_tool(server, resolved_tool, normalized_args)
 
         except Exception as e:
@@ -152,12 +158,13 @@ class ToolDispatcher:
         """Infers tool name from common argument patterns when missing."""
         action = str(args.get("action", "")).lower()
         command = str(args.get("command", args.get("cmd", ""))).lower()
+        path = str(args.get("path", "")).lower()
         
         if "vibe" in action or "vibe" in command:
             return "vibe"
         if any(kw in action for kw in ["click", "type", "press", "screenshot", "scroll"]):
             return "macos-use"
-        if any(kw in action for kw in ["read", "write", "list", "save", "delete"]):
+        if any(kw in action for kw in ["read", "write", "list", "save", "delete"]) or path:
             return "filesystem"
         if command:
             return "terminal"
@@ -325,6 +332,8 @@ class ToolDispatcher:
             "read": "read_file",
             "cat": "read_file",
             "exists": "get_file_info",
+            "directory_tree": "list_directory",
+            "tree": "list_directory",
         }
         resolved_tool = mapping.get(action, action)
         

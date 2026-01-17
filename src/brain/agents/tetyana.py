@@ -871,7 +871,7 @@ Please type your response below and press Enter:
         # Ensure dispatcher knows about current PID
         mcp_manager.dispatcher.set_pid(self._current_pid)
         
-        tool_name = tool_call.get("name")
+        tool_name = tool_call.get("name") or tool_call.get("tool")
         args = tool_call.get("args") or tool_call.get("arguments") or {}
         explicit_server = tool_call.get("server")
 
