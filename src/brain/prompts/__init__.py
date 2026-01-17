@@ -373,6 +373,7 @@ Do not suggest creating a complex plan, just use your tools autonomously to answ
             "quality_score": 0.0 to 1.0 (float),
             "achieved": true/false,
             "analysis": "Technical critique in ENGLISH",
+            "final_report": "Concluding summary for the USER in UKRAINIAN (e.g., 'Found 5 files in the directory...'). Be specific based on the results.",
             "compressed_strategy": [
                 "Step 1 intent",
                 "Step 2 intent",

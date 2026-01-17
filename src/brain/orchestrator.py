@@ -618,6 +618,14 @@ class Trinity:
                 user_request, self.state["step_results"]
             )
 
+            # Speak Final Report if available and goal achieved
+            final_report = evaluation.get("final_report")
+            if final_report and evaluation.get("achieved"):
+                await self._speak("atlas", final_report)
+            elif evaluation.get("achieved"):
+                # Fallback if no specific report generated
+                await self._speak("atlas", "Завдання успішно виконано.")
+
             if evaluation.get("should_remember") and evaluation.get("quality_score", 0) >= 0.7:
                 await self._log(
                     f"Verification Pass: Score {evaluation.get('quality_score')} ({evaluation.get('analysis')})",
