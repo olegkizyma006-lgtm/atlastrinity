@@ -316,7 +316,24 @@ class MCPManager:
                 async with stdio_client(server_params) as (read, write):
                     # Define logging callback for this server
                     async def handle_log(params: Any):
-                        msg = f"[{server_name}] {params.data}"
+                        # Extract level and data
+                        level_str = getattr(params, "level", "info").lower()
+                        data = getattr(params, "data", "")
+                        
+                        # Format message
+                        msg = f"[{server_name}] {data}"
+                        
+                        # Log to main brain logger
+                        if level_str in ["debug", "trace"]:
+                            logger.debug(msg)
+                        elif level_str in ["warning", "warn"]:
+                            logger.warning(msg)
+                        elif level_str in ["error", "critical", "fatal"]:
+                            logger.error(msg)
+                        else:
+                            logger.info(msg)
+
+                        # Notify callbacks (e.g. for WebSocket limits)
                         for cb in self._log_callbacks:
                             try:
                                 if asyncio.iscoroutinefunction(cb):

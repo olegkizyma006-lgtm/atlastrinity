@@ -138,7 +138,7 @@ class AgentMessage(Base):
     read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
-# Recovery Attempt Tracking - Analytics for recursive healing
+# Analytics for recursive healing
 class RecoveryAttempt(Base):
     """Track recursive healing attempts for analytics"""
     __tablename__ = "recovery_attempts"
@@ -153,4 +153,18 @@ class RecoveryAttempt(Base):
     error_before: Mapped[str] = mapped_column(Text)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class ConversationSummary(Base):
+    """Stores professional summaries of chat sessions for semantic recall"""
+    __tablename__ = "conversation_summaries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(String(100), index=True)
+    
+    summary: Mapped[str] = mapped_column(Text)
+    key_entities: Mapped[List[str]] = mapped_column(JSONB, default=[]) # List of names/concepts
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    metadata_blob: Mapped[Dict[str, Any]] = mapped_column(JSONB, default={})
 

@@ -65,10 +65,15 @@ class LongTermMemory:
                 metadata={"description": "Semantic embedding of Knowledge Graph nodes"},
             )
 
+            self.conversations = self.client.get_or_create_collection(
+                name="conversations",
+                metadata={"description": "Summaries of past chat sessions for semantic recall"},
+            )
+
             self.available = True
             logger.info(f"[MEMORY] ChromaDB initialized at {CHROMA_DIR}")
             logger.info(
-                f"[MEMORY] Lessons: {self.lessons.count()} | Strategies: {self.strategies.count()}"
+                f"[MEMORY] Lessons: {self.lessons.count()} | Strategies: {self.strategies.count()} | Conversations: {self.conversations.count()}"
             )
 
         except Exception as e:
@@ -264,6 +269,54 @@ class LongTermMemory:
             logger.error(f"[MEMORY] Failed to add knowledge node: {e}")
             return False
 
+    def remember_conversation(self, session_id: str, summary: str, metadata: Dict[str, Any] = None) -> bool:
+        """Store a conversation summary in vector memory."""
+        if not self.available:
+            return False
+            
+        try:
+            doc_id = f"conv_{session_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            self.conversations.upsert(
+                ids=[doc_id],
+                documents=[summary],
+                metadatas=[{
+                    "session_id": session_id,
+                    "timestamp": datetime.now().isoformat(),
+                    **(metadata or {})
+                }]
+            )
+            logger.info(f"[MEMORY] Stored conversation summary: {doc_id}")
+            return True
+        except Exception as e:
+            logger.error(f"[MEMORY] Failed to store conversation: {e}")
+            return False
+
+    def recall_similar_conversations(self, query: str, n_results: int = 3) -> List[Dict[str, Any]]:
+        """Find past conversations related to the current query."""
+        if not self.available or self.conversations.count() == 0:
+            return []
+            
+        try:
+            results = self.conversations.query(
+                query_texts=[query],
+                n_results=min(n_results, self.conversations.count()),
+                include=["documents", "metadatas", "distances"]
+            )
+            
+            similar = []
+            if results and results["documents"]:
+                for i, doc in enumerate(results["documents"][0]):
+                    similar.append({
+                        "summary": doc,
+                        "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
+                        "distance": results["distances"][0][i] if results["distances"] else 1.0
+                    })
+            return similar
+        except Exception as e:
+            logger.error(f"[MEMORY] Failed to recall conversations: {e}")
+            return []
+
     def get_stats(self) -> Dict[str, Any]:
         """Get memory statistics."""
         if not self.available:
@@ -273,6 +326,7 @@ class LongTermMemory:
             "available": True,
             "lessons_count": self.lessons.count(),
             "strategies_count": self.strategies.count(),
+            "conversations_count": self.conversations.count(),
             "path": CHROMA_DIR,
         }
 

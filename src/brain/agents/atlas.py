@@ -194,7 +194,7 @@ class Atlas(BaseAgent):
                 # Use faster text-only lookup for chat context
                 graph_res = await mcp_manager.call_tool("memory", "search_nodes", {"query": user_request})
                 if isinstance(graph_res, dict) and "entities" in graph_res:
-                    entities = graph_res.get("entities", [])
+                    entities = graph_res.get("results", []) # Corrected from 'entities' to 'results' based on memory_server.py
                     if entities:
                         graph_chunks = [f"Entity: {e.get('name')} | Info: {'; '.join(e.get('observations', [])[:2])}" for e in entities[:2]]
                         graph_context = "\n".join(graph_chunks)
@@ -204,11 +204,22 @@ class Atlas(BaseAgent):
             # B. Vector Memory (ChromaDB)
             try:
                 if long_term_memory.available:
+                    # Search similar tasks/plans
                     similar_tasks = long_term_memory.recall_similar_tasks(user_request, n_results=1)
                     if similar_tasks:
-                        vector_context += "\nRelated: " + similar_tasks[0]['document'][:150]
+                        vector_context += "\nPast Strategy: " + similar_tasks[0]['document'][:200]
+                    
+                    # Search past conversations!
+                    similar_convs = long_term_memory.recall_similar_conversations(user_request, n_results=2)
+                    if similar_convs:
+                        conv_texts = [f"Past Discussion Summary: {c['summary']}" for c in similar_convs if c['distance'] < 1.0]
+                        if conv_texts:
+                            vector_context += "\n" + "\n".join(conv_texts)
             except Exception:
                 pass
+
+            # Update Atlas history window from 10 to 25 (handled in Orchestrator call, but we note it here)
+            # history = history[-25:] if len(history) > 25 else history
 
             # C. Dynamic Tool Discovery (With Caching & Safe Spawn)
             now = time.time()
@@ -583,10 +594,51 @@ class Atlas(BaseAgent):
             SystemMessage(content=self.SYSTEM_PROMPT),
             HumanMessage(content=prompt),
         ]
-
         logger.info(f"[ATLAS] Helping Tetyana with context: {context_info}")
         response = await self.llm.ainvoke(messages)
         return self._parse_response(response.content)
+
+    async def summarize_session(self, messages: List[Any]) -> Dict[str, Any]:
+        """Generate a professional summary and extract key entities from a session."""
+        if not messages:
+            return {"summary": "Empty session", "entities": []}
+
+        # Format conversation for LLM
+        conv_text = ""
+        for msg in messages[-50:]:  # Take last 50 messages for summary
+            role = "USER" if "HumanMessage" in str(type(msg)) else "ATLAS"
+            content = msg.content if hasattr(msg, "content") else str(msg)
+            conv_text += f"{role}: {content[:500]}\n"
+
+        prompt = f"""Analyze the following conversation and provide:
+        1. A professional, detailed summary in UKRAINIAN (max 500 chars).
+        2. A list of key entities, names, or concepts mentioned (max 10).
+
+        CONVERSATION:
+        {conv_text}
+
+        Respond in JSON:
+        {{
+            "summary": "...",
+            "entities": ["name1", "concept2", ...]
+        }}
+        """
+
+        try:
+            response = await self.llm.ainvoke([
+                SystemMessage(content="You are a Professional Archivist."),
+                HumanMessage(content=prompt)
+            ])
+            content = response.content if hasattr(response, "content") else str(response)
+            
+            # JSON extraction
+            import json
+            start = content.find("{")
+            end = content.rfind("}") + 1
+            return json.loads(content[start:end])
+        except Exception as e:
+            logger.error(f"Failed to summarize session: {e}")
+            return {"summary": "Summary failed", "entities": []}
 
     async def evaluate_execution(self, goal: str, results: List[Dict[str, Any]]) -> Dict[str, Any]:
         """

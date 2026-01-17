@@ -129,6 +129,37 @@ def _parse_stack_trace(error_msg: str) -> Optional[Dict[str, str]]:
     return None
 
 
+def _prepare_prompt_arg(prompt: str, cwd: Optional[str] = None) -> Tuple[str, Optional[str]]:
+    """
+    Prepare the prompt argument. If too long, offload to a temporary file.
+    Returns (final_prompt_arg, file_path_to_clean).
+    """
+    if len(prompt) <= 2000:
+        return prompt, None
+
+    try:
+        eff_cwd = cwd or VIBE_WORKSPACE
+        if not os.path.exists(eff_cwd):
+            os.makedirs(eff_cwd, exist_ok=True)
+            
+        prompt_file = f"vibe_instructions_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:6]}.md"
+        prompt_path = os.path.join(eff_cwd, prompt_file)
+        
+        with open(prompt_path, "w", encoding="utf-8") as f:
+            f.write("# INSTRUCTIONS FOR VIBE AGENT\n\n")
+            f.write(prompt)
+        
+        logger.info(f"[VIBE] Large prompt ({len(prompt)} chars) offloaded to {prompt_path}")
+        return f"Please read and execute the instructions detailed in the file: {prompt_file}", prompt_path
+
+    except Exception as e:
+        logger.warning(f"[VIBE] Failed to write prompt file: {e}")
+        # Fallback
+        if len(prompt) > 10000:
+             return prompt[:10000] + "\n...[TRUNCATED]", None
+        return prompt, None
+
+
 
 async def _run_vibe(
     argv: List[str],
@@ -348,106 +379,94 @@ async def _run_vibe_programmatic(
     if not vibe_path:
         return {"error": f"Vibe CLI not found on PATH (binary='{VIBE_BINARY}')"}
 
-    # Handle long prompts by writing to file mechanism to avoid ARG_MAX issues
-    final_prompt = prompt
-    # Shell limits are often around 130kb but some are lower, 2000 is safe strict limit for flags
-    if len(prompt) > 2000:
-        try:
-             # Ensure workspace
-             eff_cwd = cwd or VIBE_WORKSPACE
-             if not os.path.exists(eff_cwd):
-                 os.makedirs(eff_cwd, exist_ok=True)
-                 
-             prompt_file = f"vibe_instructions_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:6]}.md"
-             prompt_path = os.path.join(eff_cwd, prompt_file)
-             
-             with open(prompt_path, "w", encoding="utf-8") as f:
-                f.write("# INSTRUCTIONS FOR VIBE AGENT\n\n")
-                f.write(prompt)
-             
-             # The new prompt directs Vibe to the file
-             final_prompt = f"Please read and execute the instructions detailed in the file: {prompt_file}"
-             logger.info(f"[VIBE] Large prompt ({len(prompt)} chars) offloaded to {prompt_path}")
-        except Exception as e:
-            logger.warning(f"[VIBE] Failed to write prompt file: {e}")
-            # Fallback not to clip immediately, let it try or clip if HUGE
-            if len(prompt) > 10000:
-                final_prompt = prompt[:10000] + "\n...[TRUNCATED]"
+    prompt_path_to_clean = None
 
-    # Build command with programmatic flags
-    argv: List[str] = [vibe_path, "-p", final_prompt]
+    # Handle long prompts
+    final_prompt, prompt_path_to_clean = _prepare_prompt_arg(prompt, cwd)
 
-    # Output format for structured responses - use 'streaming' for real-time visibility
-    # even if the final result is parsed as JSON
-    argv.extend(["--output", "streaming"])
+    try:
+        # Build command with programmatic flags
+        argv: List[str] = [vibe_path, "-p", final_prompt]
 
-    # Auto-approve for automation
-    if auto_approve:
-        argv.append("--auto-approve")
+        # Output format for structured responses - use 'streaming' for real-time visibility
+        # even if the final result is parsed as JSON
+        argv.extend(["--output", "streaming"])
 
-    # Max turns limit
-    if max_turns:
-        argv.extend(["--max-turns", str(max_turns)])
+        # Auto-approve for automation
+        if auto_approve:
+            argv.append("--auto-approve")
 
-    # Max price limit
-    if max_price:
-        argv.extend(["--max-price", str(max_price)])
+        # Max turns limit
+        if max_turns:
+            argv.extend(["--max-turns", str(max_turns)])
 
-    # Resume session
-    if resume:
-        argv.extend(["--resume", str(resume)])
+        # Max price limit
+        if max_price:
+            argv.extend(["--max-price", str(max_price)])
 
-    # Specific tools
-    if enabled_tools:
-        for tool in enabled_tools:
-            argv.extend(["--enabled-tools", tool])
+        # Resume session
+        if resume:
+            argv.extend(["--resume", str(resume)])
 
-    logger.info(f"[VIBE PROGRAMMATIC] Prompt: {prompt[:100]}...")
+        # Specific tools
+        if enabled_tools:
+            for tool in enabled_tools:
+                argv.extend(["--enabled-tools", tool])
 
-    result = await _run_vibe(
-        argv=argv,
-        cwd=cwd,
-        timeout_s=timeout_s,
-        extra_env=None,
-        ctx=ctx,
-    )
+        logger.info(f"[VIBE PROGRAMMATIC] Prompt: {prompt[:100]}...")
 
-    # Parse JSON output from stream chunks
-    if result.get("success") and result.get("stdout"):
-        stdout_str = result.get("stdout", "")
-        
-        # If we used streaming, the final result is a concatenation of 'content' fields
-        if "--output streaming" in " ".join(argv):
-            full_content = []
-            for line in stdout_str.splitlines():
-                try:
-                    data = json.loads(line)
-                    if data.get("role") == "assistant" and data.get("content"):
-                        full_content.append(data.get("content"))
-                except:
-                    continue
+        result = await _run_vibe(
+            argv=argv,
+            cwd=cwd,
+            timeout_s=timeout_s,
+            extra_env=None,
+            ctx=ctx,
+        )
+
+        # Parse JSON output from stream chunks
+        if result.get("success") and result.get("stdout"):
+            stdout_str = result.get("stdout", "")
             
-            final_text = "".join(full_content)
-            if final_text.strip():
-                # Attempt to parse the reconstructed text as JSON if that was the original intent
+            # If we used streaming, the final result is a concatenation of 'content' fields
+            if "--output streaming" in " ".join(argv):
+                full_content = []
+                for line in stdout_str.splitlines():
+                    try:
+                        data = json.loads(line)
+                        if data.get("role") == "assistant" and data.get("content"):
+                            full_content.append(data.get("content"))
+                    except:
+                        continue
+                
+                final_text = "".join(full_content)
+                if final_text.strip():
+                    # Attempt to parse the reconstructed text as JSON if that was the original intent
+                    if output_format == "json":
+                        try:
+                            result["parsed_response"] = json.loads(final_text)
+                            logger.info("[VIBE] Reconstructed and parsed JSON from stream")
+                        except:
+                            result["parsed_response"] = final_text
+                    else:
+                        result["parsed_response"] = final_text
+            else:
+                # Fallback for standard non-streaming formats
                 if output_format == "json":
                     try:
-                        result["parsed_response"] = json.loads(final_text)
-                        logger.info("[VIBE] Reconstructed and parsed JSON from stream")
+                        result["parsed_response"] = json.loads(stdout_str)
+                        logger.info("[VIBE] Parsed JSON response successfully")
                     except:
-                        result["parsed_response"] = final_text
-                else:
-                    result["parsed_response"] = final_text
-        else:
-            # Fallback for standard non-streaming formats
-            if output_format == "json":
-                try:
-                    result["parsed_response"] = json.loads(stdout_str)
-                    logger.info("[VIBE] Parsed JSON response successfully")
-                except:
-                    result["parsed_response"] = None
+                        result["parsed_response"] = None
 
-    return result
+        return result
+    finally:
+        # Cleanup temporary prompt file
+        if prompt_path_to_clean and os.path.exists(prompt_path_to_clean):
+            try:
+                os.remove(prompt_path_to_clean)
+                logger.info(f"[VIBE] Cleaned up prompt file: {prompt_path_to_clean}")
+            except Exception as e:
+                logger.warning(f"[VIBE] Failed to cleanup prompt file: {e}")
 
 
 @server.tool()
@@ -844,22 +863,34 @@ async def vibe_ask(
     if not vibe_path:
         return {"error": f"Vibe CLI not found on PATH (binary='{VIBE_BINARY}')"}
 
-    argv = [vibe_path, "-p", question, "--output", "json", "--plan"]
+    # Use helper to handle large prompts
+    final_question, prompt_path_to_clean = _prepare_prompt_arg(question, cwd)
+
+    argv = [vibe_path, "-p", final_question, "--output", "json", "--plan"]
 
     eff_timeout = timeout_s if timeout_s is not None else 120.0  # 2 minutes for warmup
 
     logger.info(f"[VIBE] Asking question: {question[:50]}...")
 
-    result = await _run_vibe(argv=argv, cwd=cwd, timeout_s=eff_timeout, extra_env=None, ctx=ctx)
+    try:
+        result = await _run_vibe(argv=argv, cwd=cwd, timeout_s=eff_timeout, extra_env=None, ctx=ctx)
 
-    # Parse JSON if possible
-    if result.get("success") and result.get("stdout"):
-        try:
-            result["parsed_response"] = json.loads(result["stdout"])
-        except json.JSONDecodeError:
-            result["parsed_response"] = None
+        # Parse JSON if possible
+        if result.get("success") and result.get("stdout"):
+            try:
+                result["parsed_response"] = json.loads(result["stdout"])
+            except json.JSONDecodeError:
+                result["parsed_response"] = None
 
-    return result
+        return result
+    finally:
+         # Cleanup temporary prompt file
+        if prompt_path_to_clean and os.path.exists(prompt_path_to_clean):
+            try:
+                os.remove(prompt_path_to_clean)
+                logger.info(f"[VIBE] Cleaned up prompt file: {prompt_path_to_clean}")
+            except Exception as e:
+                logger.warning(f"[VIBE] Failed to cleanup prompt file: {e}")
 
 
 @server.tool()

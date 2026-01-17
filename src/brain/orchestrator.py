@@ -459,8 +459,8 @@ class Trinity:
             state_manager.publish_event(
                 "tasks", {"type": "planning_started", "request": user_request}
             )
-            # Pass history to Atlas for context (Last 10 messages to avoid context pollution)
-            history = self.state.get("messages", [])[-10:-1]
+            # Pass history to Atlas for context (Last 25 messages for better contextual depth)
+            history = self.state.get("messages", [])[-25:-1]
 
             analysis = await self.atlas.analyze_request(user_request, history=history)
 
@@ -656,6 +656,10 @@ class Trinity:
 
         self.state["system_state"] = SystemState.COMPLETED.value
         
+        # 4. Pro-Memory: Summarize and persist session context for semantic search
+        if not is_subtask and len(self.state.get("messages", [])) > 2:
+             asyncio.create_task(self._persist_session_summary(session_id))
+
         # Pop Global Goal
         shared_context.pop_goal()
         
@@ -668,6 +672,51 @@ class Trinity:
         )
 
         return {"status": "completed", "result": self.state["step_results"]}
+
+    async def _persist_session_summary(self, session_id: str):
+        """Generates a professional summary and stores it in DB and Vector memory."""
+        try:
+            messages = self.state.get("messages", [])
+            if not messages:
+                return
+
+            summary_data = await self.atlas.summarize_session(messages)
+            summary = summary_data.get("summary", "No summary generated")
+            entities = summary_data.get("entities", [])
+
+            # A. Store in Vector Memory (ChromaDB)
+            long_term_memory.remember_conversation(
+                session_id=session_id,
+                summary=summary,
+                metadata={"entities": entities}
+            )
+
+            # B. Store in Structured DB (Postgres)
+            if db_manager.available:
+                async with await db_manager.get_session() as db_sess:
+                    from .db.schema import ConversationSummary as DBConvSummary
+                    
+                    new_summary = DBConvSummary(
+                        session_id=session_id,
+                        summary=summary,
+                        key_entities=entities
+                    )
+                    db_sess.add(new_summary)
+                    await db_sess.commit()
+            
+            # C. Add entities to Knowledge Graph
+            for ent_name in entities:
+                await knowledge_graph.add_node(
+                    node_type="CONCEPT",
+                    node_id=f"concept:{ent_name.lower().replace(' ', '_')}",
+                    attributes={"description": f"Entity mentioned in session {session_id}", "source": "session_summary"}
+                )
+
+            logger.info(f"[ORCHESTRATOR] Persisted professional session summary for {session_id}")
+
+        except Exception as e:
+            logger.error(f"[ORCHESTRATOR] Failed to persist session summary: {e}")
+
 
     def _extract_golden_path(self, raw_results: List[Dict[str, Any]]) -> List[str]:
         """
