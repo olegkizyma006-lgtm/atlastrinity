@@ -257,9 +257,15 @@ class Grisha:
         try:
             from ..mcp_manager import mcp_manager
             
-            # Query db for tool executions related to this step
-            # We assume sequence_number maps to step_id which is stored as string in DB
-            sql = "SELECT tool_name, arguments, result, created_at FROM tool_executions WHERE step_id IN (SELECT id FROM task_steps WHERE sequence_number = :seq) ORDER BY created_at DESC LIMIT 5;"
+            # Query db for tool executions related to this step, including the status from task_steps
+            sql = """
+                SELECT te.tool_name, te.arguments, te.result, ts.status as step_status, te.created_at 
+                FROM tool_executions te
+                JOIN task_steps ts ON te.step_id = ts.id
+                WHERE ts.sequence_number = :seq 
+                ORDER BY te.created_at DESC 
+                LIMIT 5;
+            """
             
             rows = await mcp_manager.query_db(sql, {"seq": str(step_id)})
             
@@ -271,11 +277,13 @@ class Grisha:
                 tool = row.get("tool_name", "unknown")
                 args = row.get("arguments", {})
                 res = str(row.get("result", ""))
+                status = row.get("step_status", "unknown")
+                
                 # Truncate result for token saving
                 if len(res) > 2000:
                     res = res[:2000] + "...(truncated)"
                 
-                trace += f"Tool: {tool}\nArgs: {args}\nResult: {res}\n-----------------------------------\n"
+                trace += f"Tool: {tool}\nArgs: {args}\nStep Status (from Tetyana): {status}\nResult: {res or '(No output - Silent Success)'}\n-----------------------------------\n"
             
             return trace
 

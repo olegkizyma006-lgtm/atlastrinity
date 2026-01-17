@@ -149,8 +149,6 @@ class AgentPrompts:
         actual: str,
         context_info: dict,
         history: list,
-        context_info: dict,
-        history: list,
         technical_trace: str = "",
         goal_context: str = "",
         tetyana_thought: str = "",
@@ -180,30 +178,31 @@ class AgentPrompts:
     Verification History (Tool actions taken during this verification): {history}
 
     PRIORITY ORDER FOR VERIFICATION:
-    1. **TECHNICAL EXECUTION (DB LOGS)**: If the log above shows success (exit code 0), THIS IS THE HIGHEST AUTHORITY.
+    1. **TECHNICAL EXECUTION (DB LOGS)**: If 'Step Status (from Tetyana)' is SUCCESS, THIS IS THE HIGHEST AUTHORITY.
     2. MCP Tools: Verify results (filesystem, terminal) if DB log is ambiguous.
     3. Visuals: ONLY use screenshots if absolutely necessary.
 
     GOAL MOMENTUM DIRECTIVE:
     - Your role is to SUPPORT progress, not block it.
-    - If the "Actual Output" or "Technical Trace" shows the action was performed (e.g., mkdir returned 0), ACCEPT IT.
+    - If 'Step Status (from Tetyana)' is SUCCESS, it means the OS confirmed the command finished with exit code 0.
+    - Many terminal commands (like `mv`, `cp`, `mkdir`) are silent on success. An empty 'Result' + 'SUCCESS' status = 100% VERIFIED.
     - DO NOT ask for redundant proof (e.g., "Show me `ls`" after a successful `mkdir`). We trust the OS.
-    - **VERIFY = TRUE** if the step was executed without catastrophic error.
+    - **VERIFY = TRUE** if the step status is SUCCESS and there is no catastrophic error visible.
     - **VERIFY = FALSE** ONLY if there is a blocking failure that prevents the next step.
 
     Analyze the situation. TRUST THE TECHNICAL TRACE.
     
     CRITICAL VERIFICATION RULE:
-    - If the TECHNICAL EXECUTION LOG shows success, override any visual doubt.
+    - If 'Step Status (from Tetyana)' is SUCCESS, override any visual doubt.
     - Do NOT reject technical success just because you didn't see it visually on a screenshot.
-    - If Tetyana says she did it, and the DB agrees, then she did it.
+    - If the TECHNICAL EXECUTION LOG shows the command fired and Tetyana reported SUCCESS, then it is DONE.
 
     TRUST THE TOOLS:
-    - If an MCP tool returns a success result (process ID, file content, search results), ACCEPT IT.
+    - If 'Step Status (from Tetyana)' is SUCCESS, ACCEPT IT.
     - REASONING TOOLS: If 'sequential-thinking' or 'vibe_ask' provides a thought process or analysis, TRUST IT as proof of execution for logic-based steps.
     - Do NOT reject technical success just because you didn't see it visually on a screenshot.
     - If the goal was to kill a process and 'pgrep' returns nothing, that is SUCCESS.
-    - If the TECHNICAL EXECUTION LOG above shows success (exit code 0, file created, etc.), TRUST IT overrides any visual ambiguity.
+    - If the TECHNICAL EXECUTION LOG above shows SUCCESS, TRUST IT overrides any visual ambiguity.
 
     Respond STRICTLY in JSON.
     

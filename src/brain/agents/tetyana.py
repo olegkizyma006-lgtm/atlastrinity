@@ -679,13 +679,13 @@ Please type your response below and press Enter:
                         if any(kw in action_text for kw in ["vibe", "code", "debug", "analyze error"]):
                             inferred_name = "vibe_prompt"
                         elif any(kw in action_text for kw in ["click", "type", "press", "scroll", "open app"]):
-                            inferred_name = "macos-use"
+                            inferred_name = "macos-use_take_screenshot" # Default to screenshot if UI action
                         elif any(kw in action_text for kw in ["finder", "desktop", "folder", "sort", "trash", "open path"]):
-                            inferred_name = "macos-use"  # Finder ops go to macos-use, NOT filesystem
+                            inferred_name = "macos-use_finder_list_files"
                         elif any(kw in action_text for kw in ["read_file", "write_file", "list_directory"]):
-                            inferred_name = "filesystem"  # Explicit filesystem tool names
+                            inferred_name = "filesystem" 
                         elif any(kw in action_text for kw in ["run", "execute", "command", "terminal", "bash", "mkdir"]):
-                            inferred_name = "macos-use"  # Terminal commands should use macos-use execute_command
+                            inferred_name = "execute_command" 
                     
                     if inferred_name:
                         tool_call["name"] = inferred_name

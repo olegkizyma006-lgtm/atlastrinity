@@ -70,6 +70,10 @@ class ToolDispatcher:
         # Spotlight
         "spotlight": "macos-use_spotlight_search",
         "spotlight_search": "macos-use_spotlight_search",
+        # Explicit Terminal support within macos-use routing
+        "terminal": "execute_command",
+        "execute_command": "execute_command",
+        "shell": "execute_command",
     }
     
     MACOS_USE_PRIORITY = {
@@ -345,6 +349,18 @@ class ToolDispatcher:
             else: clean_name = "screenshot"
 
         resolved_tool = self.MACOS_MAP.get(clean_name, tool_name)
+        
+        # FINAL SAFETY: If we still have 'macos-use' as a method name, it's definitely an error.
+        # Try one last heuristic based on args.
+        if resolved_tool == "macos-use":
+            if "command" in args or "cmd" in args:
+                resolved_tool = "execute_command"
+            elif "path" in args:
+                resolved_tool = "macos-use_finder_open_path"
+            else:
+                resolved_tool = "macos-use_take_screenshot"
+            logger.info(f"[DISPATCHER] Last-resort mapping macos-use -> {resolved_tool}")
+
         if resolved_tool == "macos-use_fetch_url":
             if "urls" in args and "url" not in args:
                 urls = args.get("urls")
