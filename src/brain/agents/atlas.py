@@ -298,7 +298,12 @@ class Atlas:
                 if mcp_server:
                     logger.info(f"[ATLAS CHAT] Executing: {mcp_server}:{mcp_tool}")
                     messages.append(response)
-                    result = await mcp_manager.call_tool(mcp_server, mcp_tool, args)
+                    try:
+                        result = await mcp_manager.call_tool(mcp_server, mcp_tool, args)
+                        logger.info(f"[ATLAS CHAT] Tool result: {str(result)[:200]}...")
+                    except Exception as tool_err:
+                        logger.error(f"[ATLAS CHAT] Tool call failed: {tool_err}")
+                        result = {"error": str(tool_err)}
                     
                     from langchain_core.messages import ToolMessage
                     messages.append(ToolMessage(

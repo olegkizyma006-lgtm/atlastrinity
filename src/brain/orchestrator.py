@@ -813,11 +813,11 @@ class Trinity:
                     if db_manager.available:
                         try:
                             # We use the step_id (string sequence) to find executions
-                            # Mapping: query tool_executions for this step_id
+                            # Use mcp_manager.query_db() internal method
                             sql = "SELECT tool_name, arguments, result FROM tool_executions WHERE step_id IN (SELECT id FROM task_steps WHERE sequence_number = :seq) ORDER BY created_at DESC LIMIT 3;"
-                            db_res = await mcp_manager.call_tool("terminal", "query_db", {"query": sql, "params": {"seq": str(step_id)}})
-                            if isinstance(db_res, dict) and db_res.get("rows"):
-                                technical_trace = "\nTECHNICAL EXECUTION TRACE:\n" + json.dumps(db_res["rows"], indent=2)
+                            db_rows = await mcp_manager.query_db(sql, {"seq": str(step_id)})
+                            if db_rows:
+                                technical_trace = "\nTECHNICAL EXECUTION TRACE:\n" + json.dumps(db_rows, indent=2, default=str)
                                 await self._log(f"Found technical trace for step {step_id}", "system")
                         except Exception as trace_err:
                             logger.warning(f"Failed to fetch technical trace: {trace_err}")

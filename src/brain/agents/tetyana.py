@@ -676,14 +676,16 @@ Please type your response below and press Enter:
                     # Try action-based inference
                     if not inferred_name:
                         action_text = str(step.get("action", "")).lower()
-                        if "vibe" in action_text:
+                        if any(kw in action_text for kw in ["vibe", "code", "debug", "analyze error"]):
                             inferred_name = "vibe_prompt"
                         elif any(kw in action_text for kw in ["click", "type", "press", "scroll", "open app"]):
                             inferred_name = "macos-use"
-                        elif any(kw in action_text for kw in ["file", "read", "write", "create", "save"]):
-                            inferred_name = "filesystem"
-                        elif any(kw in action_text for kw in ["run", "execute", "command", "terminal", "bash"]):
-                            inferred_name = "terminal"
+                        elif any(kw in action_text for kw in ["finder", "desktop", "folder", "sort", "trash", "open path"]):
+                            inferred_name = "macos-use"  # Finder ops go to macos-use, NOT filesystem
+                        elif any(kw in action_text for kw in ["read_file", "write_file", "list_directory"]):
+                            inferred_name = "filesystem"  # Explicit filesystem tool names
+                        elif any(kw in action_text for kw in ["run", "execute", "command", "terminal", "bash", "mkdir"]):
+                            inferred_name = "macos-use"  # Terminal commands should use macos-use execute_command
                     
                     if inferred_name:
                         tool_call["name"] = inferred_name
@@ -871,9 +873,46 @@ Please type your response below and press Enter:
         tool_name = tool_call.get("name")
         args = tool_call.get("args") or tool_call.get("arguments") or {}
         explicit_server = tool_call.get("server")
-        
-        return await mcp_manager.dispatch_tool(tool_name, args, explicit_server)
-        from ..logger import logger  # noqa: E402
+
+        try:
+            # Use unified dispatch_tool
+            result = await mcp_manager.dispatch_tool(tool_name, args, explicit_server)
+            
+            # Normalize Pydantic object to dict
+            if hasattr(result, "model_dump"):
+                result = result.model_dump()
+            elif hasattr(result, "dict"): # Fallback for older Pydantic
+                result = result.dict()
+            elif not isinstance(result, dict):
+                # Handle unexpected types (list, primitive)
+                result = {"content": [{"type": "text", "text": str(result)}], "isError": False}
+
+            # Normalize success/error flags
+            # MCP SDK uses 'isError' (bool), we use 'success' (bool) and 'error' (str)
+            if isinstance(result, dict):
+                if "isError" in result:
+                    result["success"] = not result["isError"]
+                
+                # Ensure 'success' key exists
+                if "success" not in result:
+                    # Assume success if no error field
+                    result["success"] = "error" not in result
+                
+                # If failed, ensure 'error' field exists for feedback loop
+                if not result["success"] and "error" not in result:
+                    # Extract error from content if possible
+                    content_text = ""
+                    if "content" in result and isinstance(result["content"], list):
+                        for item in result["content"]:
+                            if item.get("type") == "text":
+                                content_text += item.get("text", "")
+                    result["error"] = content_text or "Unknown tool execution error"
+
+            return result
+
+        except Exception as e:
+            logger.error(f"[TETYANA] Tool execution failed: {e}")
+            return {"success": False, "error": str(e)}
         logger.info(f"[TETYANA] Dispatching tool: {tool_call.get('name', 'None')} with args: {str(tool_call.get('args', {}))[:200]}")
 
         # Safety check: ensure tool_call is a dict

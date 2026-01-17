@@ -75,8 +75,13 @@ class AgentPrompts:
             "voice_message": "Ukrainian message for the user describing the action"
         }}
         
-        If you need to run a shell command, use tool: "macos-use.execute_command" or "terminal.execute_command".
-        If you need to create folders, use "macos-use.execute_command" with "mkdir -p".
+        TOOL SELECTION GUIDE:
+        - Shell commands: "macos-use.execute_command" with {{"command": "..."}}.
+        - Create folders: "macos-use.execute_command" with {{"command": "mkdir -p /path"}}.
+        - Open Finder at a path: "macos-use.macos-use_finder_open_path" with {{"path": "/Users/.../Desktop"}}.
+        - List files in Finder: "macos-use.macos-use_finder_list_files".
+        - Move to trash: "macos-use.macos-use_finder_move_to_trash" with {{"path": "..."}}.
+        - Screenshot is ONLY for visual verification, NOT for file operations!
         """
 
     @staticmethod
@@ -233,7 +238,8 @@ CRITICAL CLASSIFICATION RULES:
 DEEP PERSONA TRIGGER:
 If the user wants to talk about YOUR identity, purpose, philosophy, the program's soul, existence, our shared history, or "heart-to-heart" topics, set 'use_deep_persona' to true.
 
-If request is 'development' or a high-complexity 'task', set use_vibe to true.
+If request is 'development' (coding/debugging), set 'use_vibe' to true.
+If request is 'task' (even high complexity), set 'use_vibe' to FALSE. Use native tools instead.
 If the user asks a question like "How does this script work?" or "Find me some interesting GitHub projects", CLASSIFY AS 'chat'.
 
 ALL textual responses (reason) MUST be in UKRAINIAN.

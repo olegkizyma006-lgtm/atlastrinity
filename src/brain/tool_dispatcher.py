@@ -44,6 +44,32 @@ class ToolDispatcher:
         "fetch": "macos-use_fetch_url",
         "time": "macos-use_get_time",
         "notification": "macos-use_send_notification",
+        # Notes tools
+        "create_note": "macos-use_notes_create_note",
+        "notes_create": "macos-use_notes_create_note",
+        "list_notes": "macos-use_notes_list_folders",
+        "notes_list": "macos-use_notes_list_folders",
+        "get_note": "macos-use_notes_get_content",
+        # Finder tools
+        "finder_open": "macos-use_finder_open_path",
+        "open_path": "macos-use_finder_open_path",
+        "list_files": "macos-use_finder_list_files",
+        "finder_list": "macos-use_finder_list_files",
+        "trash": "macos-use_finder_move_to_trash",
+        "move_to_trash": "macos-use_finder_move_to_trash",
+        # Calendar/Reminders
+        "calendar_events": "macos-use_calendar_events",
+        "create_event": "macos-use_create_event",
+        "reminders": "macos-use_reminders",
+        "create_reminder": "macos-use_create_reminder",
+        # Mail
+        "send_mail": "macos-use_mail_send",
+        "mail_send": "macos-use_mail_send",
+        "read_inbox": "macos-use_mail_read_inbox",
+        "mail_read": "macos-use_mail_read_inbox",
+        # Spotlight
+        "spotlight": "macos-use_spotlight_search",
+        "spotlight_search": "macos-use_spotlight_search",
     }
     
     MACOS_USE_PRIORITY = {

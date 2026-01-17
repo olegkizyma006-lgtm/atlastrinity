@@ -763,12 +763,10 @@ Timestamp: {timestamp}
             # Save to notes server (for easy text retrieval)
             try:
                 await mcp_manager.dispatch_tool(
-                    "notes.create_note",
+                    "macos-use.macos-use_notes_create_note",
                     {
                         "title": f"Grisha Rejection - Step {step_id}",
-                        "content": report_text,
-                        "category": "verification_report",
-                        "tags": ["grisha", "rejection", f"step_{step_id}", "failed"],
+                        "body": report_text,  # macos-use uses 'body' not 'content'
                     },
                 )
                 logger.info(f"[GRISHA] Rejection report saved to notes for step {step_id}")
