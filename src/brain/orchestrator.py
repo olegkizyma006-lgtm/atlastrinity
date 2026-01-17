@@ -493,7 +493,10 @@ class Trinity:
             # Inject catalog into shared context
             shared_context.available_mcp_catalog = mcp_catalog
 
-            await self._speak("atlas", analysis.get("reason", "Аналізую..."))
+            await self._speak(
+                "atlas", 
+                analysis.get("voice_response") or analysis.get("reason") or "Аналізую..."
+            )
 
             # Keep-alive logger to show activity in UI during long LLM calls
             # Added rate limiting to prevent log spam

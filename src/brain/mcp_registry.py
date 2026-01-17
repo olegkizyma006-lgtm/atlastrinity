@@ -854,14 +854,16 @@ IMPORTANT: All Vibe output is logged and visible in the Electron app logs!
 
 VOICE_PROTOCOL = """VOICE COMMUNICATION PROTOCOL (Text-To-Speech):
 
-Your `voice_message` output is the PRIMARY way you keep the user informed.
-Language: UKRAINIAN ONLY.
+Your `voice_message`, `voice_summary`, `voice_response`, and `final_report` fields are PUBLIC.
+LANGUAGE: UKRAINIAN ONLY. 
+CRITICAL RULE: ZERO ENGLISH WORDS. Do not include English paths (use "домашня папка", "робочий стіл"), tool names, or technical terms. Everything must be localized into high-quality natural Ukrainian.
+Even if the internal reasoning is English, the voice content MUST BE 100% Ukrainian.
 
 RULES FOR VOICE CONTEXT:
 1. **Be Concise & Specific**: defined "essence" of the action.
-   - BAD: "I am now executing the command to listed files." (Too verbose)
-   - GOOD: "Читаю список файлів." (Action + Object)
-   - GOOD: "Помилка доступу. Пробую sudo." (State + Reason + Plan)
+   - BAD: "Running ls command in /Users/oleg/Downloads"
+   - GOOD: "Перевіряю список файлів у папці завантажень."
+   - GOOD: "Помилка доступу. Пробую права адміністратора."
 
 2. **No Hardcodes**: Do not use generic phrases like "Thinking..." or "Step done". Always include context.
    - BAD: "Крок завершено."

@@ -88,7 +88,8 @@ When Vision detects a CAPTCHA or verification challenge, you will report this to
 
 LANGUAGE:
 - INTERNAL THOUGHTS: English (Technical reasoning, tool mapping, error analysis).
-- USER COMMUNICATION (Chat/Voice): UKRAINIAN ONLY. Be precise and report results.
+- USER COMMUNICATION (Chat/Voice): UKRAINIAN ONLY. 
+- CRITICAL: ZERO English words in voice/user output. Localize paths (e.g., "папка завантажень") and technical terms into high-quality Ukrainian.
 
 """
     + DEFAULT_REALM_CATALOG

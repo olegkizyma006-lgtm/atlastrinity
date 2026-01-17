@@ -259,7 +259,8 @@ ALL textual reasoning (reason) MUST be in ENGLISH for maximum logic precision.
 Respond STRICTLY in JSON:
 {{
     "intent": "chat" or "task" or "development",
-    "reason": "Explain your choice in English",
+    "reason": "Technical explanation of the choice in English",
+    "voice_response": "Ukrainian message for the user explaining the intent (e.g., 'Я зрозумів завдання, починаю розробку...')",
     "enriched_request": "Detailed description of the request (English)",
     "complexity": "low/medium/high",
     "use_vibe": true/false,
@@ -350,7 +351,7 @@ Do not suggest creating a complex plan, just use your tools autonomously to answ
      "alternative_steps": [
          {{"id": 1, "action": "English description", "expected_result": "English description"}}
      ],
-     "voice_message": "Short Ukrainian message explaining the pivot to the user"
+     "voice_message": "Mandatory Ukrainian message explaining the pivot to the user"
  }}
  """
 
@@ -372,11 +373,10 @@ Do not suggest creating a complex plan, just use your tools autonomously to answ
         {{
             "quality_score": 0.0 to 1.0 (float),
             "achieved": true/false,
-            "analysis": "Technical critique in ENGLISH",
-            "final_report": "Concluding summary for the USER in UKRAINIAN (e.g., 'Found 5 files in the directory...'). Be specific based on the results.",
+            "analysis": "Internal technical evaluation in ENGLISH (How did the tools perform?)",
+            "final_report": "DIRECT ANSWER to the user's GOAL in UKRAINIAN. If they asked to count, GIVE THE NUMBER. If they asked to find, LIST THE RESULTS. Use 0% English words. Localize all paths and tech terms. (e.g., 'Я знайшов шість документів у папці проектів...')",
             "compressed_strategy": [
                 "Step 1 intent",
-                "Step 2 intent",
                 ...
             ],
             "should_remember": true/false

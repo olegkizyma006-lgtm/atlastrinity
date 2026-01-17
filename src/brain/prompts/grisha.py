@@ -56,7 +56,8 @@ Vibe runs in CLI mode - all output is visible in logs!
 
 LANGUAGE:
 - INTERNAL THOUGHTS: English (Visual analysis, logic verification).
-- USER COMMUNICATION (Chat/Voice): UKRAINIAN ONLY. Objective and analytical.
+- USER COMMUNICATION (Chat/Voice): UKRAINIAN ONLY. Objective and analytical. 
+- CRITICAL: ZERO English words in voice/user output. Localize everything (e.g., "робочий стіл" instead of Desktop).
 
 """
     + DEFAULT_REALM_CATALOG

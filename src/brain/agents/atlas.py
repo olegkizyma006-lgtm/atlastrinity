@@ -645,7 +645,7 @@ class Atlas(BaseAgent):
         history = ""
         for i, res in enumerate(results):
             status = "✅" if res.get("success") else "❌"
-            history += f"{i + 1}. [{res.get('step_id')}] {res.get('action')}: {status} {str(res.get('result'))[:200]}\n"
+            history += f"{i + 1}. [{res.get('step_id')}] {res.get('action')}: {status} {str(res.get('result'))[:2000]}\n"
             if res.get("error"):
                 history += f"   Error: {res.get('error')}\n"
 
