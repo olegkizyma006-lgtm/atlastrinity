@@ -320,8 +320,8 @@ class ToolDispatcher:
 
         # Enforce defaults/timeouts
         if "timeout_s" not in args:
-             vibe_cfg = config.get("vibe", {})
-             args["timeout_s"] = vibe_cfg.get("timeout_s", 1200)
+             vibe_cfg = config.get("mcp.vibe", {})
+             args["timeout_s"] = vibe_cfg.get("timeout_s", 3600)
              
         # Enforce absolute CWD or workspace
         if not args.get("cwd"):
