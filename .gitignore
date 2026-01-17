@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 .venv/
-package-lock.json
+
 
 # Build output
 dist/
@@ -44,7 +44,7 @@ spk_xvector.ark
 feats_stats.npz
 
 # Whisper models cache
-~/.cache/whisper/
+
 
 # ChromaDB data
 data/chroma/
@@ -53,5 +53,5 @@ data/chroma/
 .build/
 .swiftpm/
 DerivedData/
-**/Package.resolved
+
 **/vendor/mcp-server-macos-use/.build/
