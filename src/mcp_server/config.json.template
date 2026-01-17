@@ -63,20 +63,6 @@
         "tetyana"
       ]
     },
-    "git": {
-      "command": "python3",
-      "connect_timeout": 60,
-      "args": [
-        "-m",
-        "src.mcp_server.git_server"
-      ],
-      "description": "Git operations for local repositories",
-      "disabled": false,
-      "tier": 2,
-      "agents": [
-        "tetyana"
-      ]
-    },
     "vibe": {
       "command": "python3",
       "connect_timeout": 1200,
@@ -94,8 +80,6 @@
       ],
       "note": "Runs in programmatic CLI mode (--output json), not interactive TUI. Max output: 500KB."
     },
-    "_comment_fetch": "REMOVED: fetch - use macos-use_fetch_url instead",
-
     "memory": {
       "command": "python3",
       "connect_timeout": 60,
@@ -111,136 +95,6 @@
         "tetyana"
       ]
     },
-    "notes": {
-      "command": "python3",
-      "connect_timeout": 60,
-      "args": [
-        "-m",
-        "src.mcp_server.notes_server"
-      ],
-      "description": "Structured note-taking for agent feedback and reporting",
-      "disabled": false,
-      "tier": 2,
-      "agents": [
-        "tetyana",
-        "grisha"
-      ]
-    },
-    "_comment_tier3": "=== TIER 3: MEDIUM (За потреби) ===",
-    "_comment_apple_mcp": "REMOVED: apple-mcp - use macos-use Calendar/Reminders/Notes/Mail tools instead",
-    "github": {
-      "command": "python3",
-      "connect_timeout": 60,
-      "args": [
-        "-m",
-        "src.mcp_server.github_server"
-      ],
-      "env": {
-        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
-      },
-      "description": "GitHub repository management",
-      "disabled": false,
-      "tier": 3,
-      "agents": [
-        "tetyana"
-      ]
-    },
-    "duckduckgo-search": {
-      "command": "python3",
-      "connect_timeout": 60,
-      "args": [
-        "-m",
-        "src.mcp_server.duckduckgo_search_server"
-      ],
-      "description": "Web search with DuckDuckGo (no API key required)",
-      "disabled": false,
-      "tier": 3,
-      "agents": [
-        "tetyana"
-      ]
-    },
-    "_comment_tier4": "=== TIER 4: OPTIONAL (Вимкнені за замовчуванням) ===",
-    "context7": {
-      "command": "bunx",
-      "connect_timeout": 120,
-      "args": [
-        "@buggyhunter/context7-mcp"
-      ],
-      "description": "Developer documentation access (Enable for coding tasks)",
-      "disabled": false,
-      "tier": 4,
-      "agents": [
-        "tetyana"
-      ]
-    },
-    "whisper-stt": {
-      "command": "python3",
-      "connect_timeout": 120,
-      "args": [
-        "-m",
-        "src.mcp_server.whisper_server"
-      ],
-      "env": {
-        "WHISPER_MODEL": "small",
-        "WHISPER_DEVICE": "mps"
-      },
-      "description": "Speech-to-text using OpenAI Whisper (Enable for voice input)",
-      "disabled": false,
-      "tier": 4,
-      "agents": [
-        "atlas"
-      ],
-      "note": "Use smaller models for local MPS; consider cloud STT for higher accuracy"
-    },
-    "docker": {
-      "command": "npx",
-      "connect_timeout": 600,
-      "args": [
-        "@thelord/mcp-server-docker-npx@0.4.0"
-      ],
-      "env": {
-        "DOCKER_HOST": "unix:///var/run/docker.sock"
-      },
-      "description": "Docker container management (npx-based) — prefer pinned package for reproducibility",
-      "disabled": false,
-      "tier": 4,
-      "agents": [
-        "tetyana"
-      ],
-      "note": "Set DOCKER_HOST for custom setups if not using the default Docker socket"
-    },
-    "postgres": {
-      "command": "bunx",
-      "connect_timeout": 180,
-      "args": [
-        "@modelcontextprotocol/server-postgres",
-        "postgresql://localhost/postgres"
-      ],
-      "description": "PostgreSQL database access (Enable for DB tasks)",
-      "disabled": false,
-      "tier": 4,
-      "agents": [
-        "tetyana"
-      ]
-    },
-    "slack": {
-      "command": "bunx",
-      "connect_timeout": 120,
-      "args": [
-        "@modelcontextprotocol/server-slack"
-      ],
-      "env": {
-        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}",
-        "SLACK_TEAM_ID": "${SLACK_TEAM_ID}"
-      },
-      "description": "Slack integration (Enable for team communication)",
-      "disabled": false,
-      "tier": 4,
-      "agents": [
-        "tetyana"
-      ],
-      "requires_setup": "Configure Slack tokens"
-    },
     "graph": {
       "command": "python3",
       "connect_timeout": 60,
@@ -254,27 +108,17 @@
       "agents": [
         "atlas"
       ]
-    },
-    "_comment_time": "REMOVED: time - use macos-use_get_time instead"
+    }
   },
   "_metadata": {
-    "version": "3.0",
-    "last_updated": "2026-01-11",
-    "description": "Optimized MCP configuration for AtlasTrinity with tier-based priority system",
-    "tier_descriptions": {
-      "tier1": "MUST-HAVE: Core system functionality, always loaded",
-      "tier2": "HIGH: Recommended for most workflows, loaded at startup",
-      "tier3": "MEDIUM: Useful but optional, on-demand loading",
-      "tier4": "OPTIONAL: Specialized servers, disabled by default"
-    },
+    "version": "3.1",
+    "last_updated": "2026-01-17",
+    "description": "Optimized MCP configuration for AtlasTrinity - Consolidated",
     "active_servers": 7,
-    "total_servers": 15,
+    "total_servers": 7,
     "notes": [
       "Servers with 'disabled': true are not loaded by default",
-      "Environment variables use ${VAR_NAME} syntax for substitution",
-      "Custom Python servers use 'python3 -m src.mcp.server_name' convention",
-      "Tier 1-2 servers load at startup, Tier 3-4 on-demand",
-      "Perform preflight checks: ensure 'bunx', 'npx', 'python3' are installed and MPS is available for local models"
+      "Tier 1-2 servers load at startup, Tier 3-4 on-demand"
     ]
   }
 }

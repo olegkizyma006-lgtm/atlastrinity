@@ -34,6 +34,7 @@ from ..logger import logger  # noqa: E402
 from ..memory import long_term_memory  # noqa: E402
 from ..prompts import AgentPrompts  # noqa: E402
 from ..prompts.atlas_chat import generate_atlas_chat_prompt  # noqa: E402
+from .base_agent import BaseAgent  # noqa: E402
 
 
 @dataclass
@@ -48,7 +49,7 @@ class TaskPlan:
     context: Dict[str, Any] = field(default_factory=dict)
 
 
-class Atlas:
+class Atlas(BaseAgent):
     """
     Atlas - The Strategist
 
@@ -492,6 +493,7 @@ class Atlas:
 
         import ast  # noqa: E402
         import json  # noqa: E402
+        import os  # noqa: E402
 
         def _parse_payload(payload: Any) -> Optional[Dict[str, Any]]:
             if isinstance(payload, dict):
@@ -515,34 +517,25 @@ class Atlas:
                                 continue
             return None
 
-        # Try notes first (faster and cleaner)
+        # Try filesystem first (faster and cleaner)
         try:
-            result = await mcp_manager.call_tool(
-                "notes",
-                "search_notes",
-                {
-                    "category": "verification_report",
-                    "tags": [f"step_{step_id}"],
-                    "limit": 1,
-                },
-            )
-            data = _parse_payload(result)
-            if data and data.get("notes"):
-                notes = data.get("notes") or []
-                if notes:
-                    note_id = notes[0].get("id")
-                    if note_id:
-                        note_result = await mcp_manager.call_tool(
-                            "notes", "read_note", {"note_id": note_id}
-                        )
-                        note_data = _parse_payload(note_result)
-                        if note_data and note_data.get("content"):
-                            logger.info(
-                                f"[ATLAS] Retrieved Grisha's report from notes for step {step_id}"
-                            )
-                            return note_data.get("content", "")
+            reports_dir = os.path.expanduser("~/.config/atlastrinity/reports")
+            if os.path.exists(reports_dir):
+                # Find reports for this step
+                candidates = [f for f in os.listdir(reports_dir) if f.startswith(f"rejection_step_{step_id}_") and f.endswith(".md")]
+                
+                if candidates:
+                    # Sort by timestamp (part of filename) descending
+                    candidates.sort(reverse=True)
+                    latest_report = os.path.join(reports_dir, candidates[0])
+                    
+                    with open(latest_report, "r", encoding="utf-8") as f:
+                        content = f.read()
+                        
+                    logger.info(f"[ATLAS] Retrieved Grisha's report from filesystem: {latest_report}")
+                    return content
         except Exception as e:
-            logger.warning(f"[ATLAS] Could not retrieve from notes: {e}")
+            logger.warning(f"[ATLAS] Could not retrieve from filesystem: {e}")
 
         # Fallback to memory
         try:
@@ -661,17 +654,3 @@ class Atlas:
             )
 
         return f"Атлас: {action}"
-
-    def _parse_response(self, content: str) -> Dict[str, Any]:
-        """Parse JSON response from LLM"""
-        import json  # noqa: E402
-
-        try:
-            # Find JSON in response
-            start = content.find("{")
-            end = content.rfind("}") + 1
-            if start >= 0 and end > start:
-                return json.loads(content[start:end])
-        except json.JSONDecodeError:
-            pass
-        return {"raw": content}

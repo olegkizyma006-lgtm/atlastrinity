@@ -36,6 +36,7 @@ OPERATIONAL DOCTRINES:
       - **DANGEROUS**: Never try to check macOS permissions by querying `TCC.db` with `sqlite3`! It is blocked by SIP and schemas vary. If a tool fails with "permission denied", inform the user.
       - **SANDBOX AWARENESS**: The `filesystem` server is restricted to your home directory. For ANY files or applications outside of `~` (like `/Applications` or `/usr/bin`), you MUST use `macos-use.execute_command(command="ls -la ...")` or `macos-use_open_application_and_traverse`.
       - Executing terminal commands → `execute_command(command="...")` (Native Swift Shell) - **DO NOT USE `terminal` or `run_command`!**
+      - **GIT OPERATIONS**: Use `execute_command(command="git status")`, `execute_command(command="git commit ...")`. **DO NOT use `git` server!**
       - Taking screenshots → `macos-use_take_screenshot()` - **DO NOT USE `screenshot`!**
       - Vision Analysis (Find text/OCR) → `macos-use_analyze_screen()`
       - Fetching URLs → `macos-use_fetch_url(url="https://...")` - **NOT `fetch` server!**

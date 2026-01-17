@@ -56,8 +56,6 @@ mcp:
     max_history_size: 1000
 
   # === TIER 2: HIGH (Рекомендовані) ===
-  git:
-    enabled: true
   vibe:
     enabled: true
     binary: vibe
@@ -67,38 +65,10 @@ mcp:
     disallow_interactive: true
   memory:
     enabled: true
-  playwright:
-    model: gpt-4o
-    enabled: true
-    headless: false
-  # === TIER 3: MEDIUM (За потреби) ===
-  applescript:
-    enabled: false
-  github:
-    enabled: true
-  duckduckgo_search:
-    enabled: true
-  fetch:
-    enabled: true
+  
   brave_search:
     enabled: true
-  # === TIER 4: OPTIONAL (Вимкнені) ===
-  docker:
-    enabled: true
-  postgres:
-    enabled: false
-  slack:
-    enabled: false
-  context7:
-    enabled: false
-  whisper:
-    model: large-v3-turbo
-    enabled: false
-    language: uk
-  puppeteer:
-    enabled: false
-  time:
-    enabled: false
+
 orchestrator:
   task_timeout: 300
   max_recursion_depth: 5

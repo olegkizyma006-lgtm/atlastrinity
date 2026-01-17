@@ -99,15 +99,7 @@ SERVER_CATALOG: Dict[str, Dict[str, Any]] = {
     # ─────────────────────────────────────────────────────────────────────────
     # TIER 2 - HIGH PRIORITY SERVERS
     # ─────────────────────────────────────────────────────────────────────────
-    "duckduckgo-search": {
-        "name": "duckduckgo-search",
-        "tier": 2,
-        "category": "search",
-        "description": "Web search via DuckDuckGo",
-        "capabilities": ["Web search", "Get search results with snippets"],
-        "key_tools": ["search"],
-        "when_to_use": "Web searches, finding information online",
-    },
+
     "memory": {
         "name": "memory",
         "tier": 2,
@@ -122,19 +114,7 @@ SERVER_CATALOG: Dict[str, Dict[str, Any]] = {
         "key_tools": ["create_entities", "create_relations", "search_nodes"],
         "when_to_use": "Storing/retrieving long-term knowledge, entity relationships",
     },
-    "notes": {
-        "name": "notes",
-        "tier": 2,
-        "category": "knowledge",
-        "description": "Internal note storage for agent feedback and reports",
-        "capabilities": [
-            "Create notes with categories and tags",
-            "Search notes",
-            "Read note content",
-        ],
-        "key_tools": ["create_note", "search_notes", "read_note"],
-        "when_to_use": "Agent-to-agent communication, storing verification reports, feedback",
-    },
+
     "vibe": {
         "name": "vibe",
         "tier": 2,
@@ -153,73 +133,11 @@ SERVER_CATALOG: Dict[str, Dict[str, Any]] = {
         ],
         "when_to_use": "ONLY for: 1) Writing code/scripts (software dev), 2) Fixing hard errors (self-healing). DO NOT use for general planning or simple file tasks.",
     },
-    "git": {
-        "name": "git",
-        "tier": 2,
-        "category": "development",
-        "description": "Local git repository operations",
-        "capabilities": [
-            "Git status",
-            "Git diff",
-            "Git log",
-            "Commit, push, pull",
-            "Branch management",
-        ],
-        "key_tools": ["git_status", "git_diff", "git_log", "git_commit"],
-        "when_to_use": "Version control operations, repository management",
-    },
+
     # ─────────────────────────────────────────────────────────────────────────
     # TIER 3-4 - OPTIONAL SERVERS
     # ─────────────────────────────────────────────────────────────────────────
-    "github": {
-        "name": "github",
-        "tier": 3,
-        "category": "development",
-        "description": "GitHub API operations",
-        "capabilities": [
-            "Search repositories",
-            "Create issues/PRs",
-            "Read repository content",
-        ],
-        "key_tools": ["search_repositories", "get_file_contents", "create_issue"],
-        "when_to_use": "GitHub-specific operations, remote repository interaction",
-    },
-    "docker": {
-        "name": "docker",
-        "tier": 3,
-        "category": "infrastructure",
-        "description": "Container management",
-        "capabilities": ["List containers", "Start/stop containers", "Build images"],
-        "key_tools": ["list_containers", "run_container", "stop_container"],
-        "when_to_use": "Docker container operations",
-    },
-    "slack": {
-        "name": "slack",
-        "tier": 4,
-        "category": "communication",
-        "description": "Team communication via Slack",
-        "capabilities": ["Send messages", "Read channels", "Search messages"],
-        "key_tools": ["post_message", "list_channels", "search_messages"],
-        "when_to_use": "Slack messaging and channel operations",
-    },
-    "postgres": {
-        "name": "postgres",
-        "tier": 4,
-        "category": "database",
-        "description": "PostgreSQL database access",
-        "capabilities": ["Execute queries", "Describe tables", "List schemas"],
-        "key_tools": ["query", "describe_table"],
-        "when_to_use": "Database queries and schema exploration",
-    },
-    "whisper-stt": {
-        "name": "whisper-stt",
-        "tier": 4,
-        "category": "audio",
-        "description": "Speech-to-text transcription",
-        "capabilities": ["Transcribe audio files", "Real-time transcription"],
-        "key_tools": ["transcribe"],
-        "when_to_use": "Audio transcription tasks",
-    },
+
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -834,9 +752,6 @@ def get_server_catalog_for_prompt(include_key_tools: bool = True) -> str:
                     tools += ", ..."
                 lines.append(f"  Key tools: {tools}")
 
-            if "when_to_use" in server:
-                lines.append(f"  Use when: {server['when_to_use']}")
-
             if "priority_note" in server:
                 lines.append(f"  NOTE: {server['priority_note']}")
 
@@ -846,6 +761,10 @@ def get_server_catalog_for_prompt(include_key_tools: bool = True) -> str:
     lines.append("- fetch → macos-use_fetch_url")
     lines.append("- time → macos-use_get_time")
     lines.append("- apple-mcp → macos-use Calendar/Reminders/Notes/Mail tools")
+    lines.append("- git → macos-use execute_command('git ...')")
+    lines.append("- notes → filesystem or macos-use (Apple Notes)")
+    lines.append("- search → macos-use chrome/brave or fetch_url")
+    lines.append("- docker, postgres, slack → Disabled/Removed")
     lines.append("")
     lines.append("CRITICAL: Do NOT invent high-level tools. Use only the real TOOLS found inside these Realms.")
 
@@ -888,19 +807,19 @@ def get_servers_for_task(task_type: str) -> List[str]:
     if any(x in task_lower for x in ["file", "read", "write", "directory"]):
         return ["filesystem", "macos-use"]
     if any(x in task_lower for x in ["search", "web", "internet", "google"]):
-        return ["duckduckgo-search", "macos-use"]
+        return ["macos-use", "vibe"]  # Use macos-use fetch or vibe web tools
     if any(x in task_lower for x in ["calendar", "event", "meeting"]):
         return ["macos-use"]
     if any(x in task_lower for x in ["reminder", "todo", "task"]):
         return ["macos-use"]
     if any(x in task_lower for x in ["note", "notes"]):
-        return ["macos-use", "notes"]
+        return ["macos-use"]  # Use Apple Notes via macos-use
     if any(x in task_lower for x in ["mail", "email"]):
         return ["macos-use"]
     if any(x in task_lower for x in ["git", "commit", "push", "pull", "branch"]):
-        return ["git"]
+        return ["macos-use"]  # Route git to macos-use (legacy override)
     if any(x in task_lower for x in ["github", "repository", "issue", "pr"]):
-        return ["github"]
+        return ["macos-use"]  # Route github to macos-use (browser/cli)
     if any(x in task_lower for x in ["debug", "error", "fix", "analyze"]):
         return ["vibe", "sequential-thinking"]
     if any(x in task_lower for x in ["code", "review", "refactor"]):

@@ -585,10 +585,7 @@ class Trinity:
             )
             return {"status": "error", "error": str(e)}
 
-        # 3. Execution Loop (Tetyana)
-        self.state["system_state"] = SystemState.EXECUTING.value
-
-        # 3. Execution Loop (Tetyana) - RECURSIVE
+        # 3. Execution Loop (Tetyana) - Recursive Execution
         self.state["system_state"] = SystemState.EXECUTING.value
 
         try:

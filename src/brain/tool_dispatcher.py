@@ -24,9 +24,10 @@ class ToolDispatcher:
     
     FILESYSTEM_SYNONYMS = ["filesystem", "fs", "file", "files", "editor"]
     
-    SEARCH_SYNONYMS = ["duckduckgo-search", "duckduckgo", "search", "google", "bing", "ddg", "duckduckgo_search"]
+    SERACH_SYNONYMS = [] # Deprecated
     
-    VIBE_SYNONYMS = ["vibe", "vibe_prompt", "vibe_ask", "vibe_analyze_error", "vibe_smart_plan", "vibe_code_review"]
+    VIBE_SYNONYMS = ["vibe", "vibe_prompt", "vibe_ask", "vibe_analyze_error", "vibe_smart_plan", "vibe_code_review", "search", "google", "bing"]
+
     
     MACOS_MAP = {
         "click": "macos-use_click_and_traverse",
@@ -228,9 +229,7 @@ class ToolDispatcher:
         if tool_name in self.FILESYSTEM_SYNONYMS or explicit_server == "filesystem":
             return self._handle_filesystem(tool_name, args)
 
-        # --- SEARCH ROUTING ---
-        if tool_name in self.SEARCH_SYNONYMS or explicit_server == "duckduckgo-search":
-            return "duckduckgo-search", "search", args
+
 
         # --- VIBE ROUTING ---
         if tool_name in self.VIBE_SYNONYMS or explicit_server == "vibe":
@@ -247,6 +246,10 @@ class ToolDispatcher:
         if tool_name in ["sequential-thinking", "sequentialthinking", "think"]:
             return "sequential-thinking", "sequentialthinking", args
 
+        # --- GIT LEGACY ROUTING ---
+        if tool_name.startswith("git_") or explicit_server == "git":
+            return self._handle_legacy_git(tool_name, args)
+
         # --- FALLBACK: USE REGISTRY ---
         server = explicit_server or get_server_for_tool(tool_name)
         if not server:
@@ -256,6 +259,38 @@ class ToolDispatcher:
                 server = schema.get("server")
         
         return server, tool_name, args
+
+    def _handle_legacy_git(self, tool_name: str, args: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
+        """Maps legacy git_server tools to macos-use execute_command."""
+        subcommand = tool_name.replace("git_", "").replace("_", "-") # git_status -> status
+        
+        # Base command
+        cmd_parts = ["git", subcommand]
+        
+        # Heuristic argument mapping
+        if "path" in args: # implicit cwd usually, but for git command usually we run IN that dir
+             # We rely on mcp_manager to handle 'cwd' via chaining or just assume '.' is target
+             pass
+        
+        # Simple flags mapping
+        if args.get("porcelain"): cmd_parts.append("--porcelain")
+        if args.get("staged"): cmd_parts.append("--staged")
+        if args.get("message"): cmd_parts.extend(["-m", f"\"{args['message']}\""])
+        if args.get("branch"): cmd_parts.append(args["branch"])
+        if args.get("target"): cmd_parts.append(args["target"])
+        
+        # Construct command
+        full_command = " ".join(cmd_parts)
+        
+        new_args = {"command": full_command}
+        if "path" in args:
+             # git_server used 'path' as cwd. 
+             # execute_command doesn't natively support cwd param in mcp-server-macos-use (it runs in user home usually)
+             # So we chain it: cd path && git ...
+             path = args["path"]
+             new_args["command"] = f"cd {path} && {full_command}"
+             
+        return "macos-use", "execute_command", new_args
 
     def _handle_terminal(self, tool_name: str, args: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
         """Standardizes terminal command execution via macos-use."""

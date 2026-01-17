@@ -32,6 +32,7 @@ from ..config_loader import config  # noqa: E402
 from ..context import shared_context  # noqa: E402
 from ..logger import logger  # noqa: E402
 from ..prompts import AgentPrompts  # noqa: E402
+from .base_agent import BaseAgent  # noqa: E402
 
 
 @dataclass
@@ -52,7 +53,7 @@ class VerificationResult:
             self.timestamp = datetime.now()
 
 
-class Grisha:
+class Grisha(BaseAgent):
     """
     Grisha - The Visor/Auditor
 
@@ -337,36 +338,9 @@ class Grisha:
             screenshot_path = None
 
         # If we don't already have a screenshot path, try to find artifacts saved by Tetyana
+        # (Simplified: Reliance on shared_context or direct params mostly)
         if not screenshot_path:
-            try:
-                # from ..mcp_manager import mcp_manager  # noqa: E402
-
-                notes_search = await mcp_manager.call_tool(
-                    "notes",
-                    "search_notes",
-                    {"tags": [f"step_{step_id}"], "limit": 5},
-                )
-                if isinstance(notes_search, dict) and notes_search.get("result", {}).get("success"):
-                    for n in notes_search["result"].get("notes", []):
-                        note_file = n.get("file")
-                        if note_file and os.path.exists(note_file):
-                            try:
-                                text = open(note_file, "r", encoding="utf-8").read()
-                                import re  # noqa: E402
-
-                                m = re.search(r"(/[^\s']+?\.png)", text)
-                                if m:
-                                    candidate = m.group(1)
-                                    if os.path.exists(candidate):
-                                        screenshot_path = candidate
-                                        logger.info(
-                                            f"[GRISHA] Found screenshot from notes: {candidate}"
-                                        )
-                                        break
-                            except Exception:
-                                pass
-            except Exception as e:
-                logger.warning(f"[GRISHA] Could not search notes for screenshot: {e}")
+             pass
 
         context_info = shared_context.to_dict()
 
@@ -623,44 +597,7 @@ class Grisha:
                                 screenshot_path = new_path
                                 attach_screenshot_next = True
                             else:
-                                # FALLBACK: search notes for verification_artifact notes for this step
-                                try:
-                                    from ..mcp_manager import mcp_manager  # noqa: E402
-
-                                    notes_search = await mcp_manager.call_tool(
-                                        "notes",
-                                        "search_notes",
-                                        {"tags": [f"step_{step_id}"], "limit": 5},
-                                    )
-                                    if isinstance(notes_search, dict) and notes_search.get(
-                                        "result", {}
-                                    ).get("success"):
-                                        for n in notes_search["result"].get("notes", []):
-                                            note_file = n.get("file")
-                                            if note_file and os.path.exists(note_file):
-                                                try:
-                                                    text = open(
-                                                        note_file, "r", encoding="utf-8"
-                                                    ).read()
-                                                    # Find absolute png paths
-                                                    import re  # noqa: E402
-
-                                                    m = re.search(r"(/[^\s']+?\.png)", text)
-                                                    if m:
-                                                        candidate = m.group(1)
-                                                        if os.path.exists(candidate):
-                                                            screenshot_path = candidate
-                                                            attach_screenshot_next = True
-                                                            logger.info(
-                                                                f"[GRISHA] Attached screenshot from note: {candidate}"
-                                                            )
-                                                            break
-                                                except Exception:
-                                                    pass
-                                except Exception as e:
-                                    logger.warning(
-                                        f"[GRISHA] Could not search notes for artifacts: {e}"
-                                    )
+                                pass # No fallback notes search 
                         except Exception as e:
                             logger.warning(f"[GRISHA] Could not attach refreshed screenshot: {e}")
                 except Exception as e:
@@ -778,7 +715,7 @@ class Grisha:
             timestamp = datetime.now().isoformat()
 
             # Prepare detailed report text
-            report_text = """GRISHA VERIFICATION REPORT - REJECTED
+            report_text = f"""GRISHA VERIFICATION REPORT - REJECTED
 
 Step ID: {step_id}
 Action: {step.get('action', '')}
@@ -816,18 +753,20 @@ Timestamp: {timestamp}
             except Exception as e:
                 logger.warning(f"[GRISHA] Failed to save to memory: {e}")
  
-            # Save to notes server (for easy text retrieval)
+            # Save to filesystem (for easy text retrieval)
             try:
-                await mcp_manager.dispatch_tool(
-                    "macos-use.macos-use_notes_create_note",
-                    {
-                        "title": f"Grisha Rejection - Step {step_id}",
-                        "body": report_text,  # macos-use uses 'body' not 'content'
-                    },
-                )
-                logger.info(f"[GRISHA] Rejection report saved to notes for step {step_id}")
+                reports_dir = os.path.expanduser("~/.config/atlastrinity/reports")
+                os.makedirs(reports_dir, exist_ok=True)
+                
+                filename = f"rejection_step_{step_id}_{int(datetime.now().timestamp())}.md"
+                file_path = os.path.join(reports_dir, filename)
+                
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(report_text)
+                    
+                logger.info(f"[GRISHA] Rejection report saved to filesystem: {file_path}")
             except Exception as e:
-                logger.warning(f"[GRISHA] Failed to save to notes: {e}")
+                logger.warning(f"[GRISHA] Failed to save report to filesystem: {e}")
 
             # Save to knowledge graph (Structured Semantic Memory)
             try:
@@ -1164,43 +1103,3 @@ Timestamp: {timestamp}
         }
         return messages.get(action, "")
 
-    def _parse_response(self, content: str) -> Dict[str, Any]:
-        """Parse JSON response from LLM"""
-        import json  # noqa: E402
-
-        try:
-            start = content.find("{")
-            end = content.rfind("}") + 1
-            if start >= 0 and end > start:
-                return json.loads(content[start:end])
-        except json.JSONDecodeError:
-            pass
-
-        # FUZZY PARSING: Handle YAML-like or plain text success responses
-        # Often LLMs return success as key-value pairs instead of JSON
-        try:
-            data = {}
-            lines = content.strip().split("\n")
-            for line in lines:
-                if ":" in line:
-                    key, value = line.split(":", 1)
-                    key = key.strip().lower()
-                    value = value.strip()
-                    # Handle boolean values
-                    if value.lower() == "true":
-                        data[key] = True
-                    elif value.lower() == "false":
-                        data[key] = False
-                    # Handle digits
-                    elif value.replace(".", "", 1).isdigit():
-                        data[key] = float(value)
-                    else:
-                        data[key] = value
-            
-            # If we found at least 'verified', consider it a valid fuzzy parse
-            if "verified" in data:
-                return data
-        except Exception:
-            pass
-
-        return {"raw": content}

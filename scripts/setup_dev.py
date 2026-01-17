@@ -473,19 +473,7 @@ def install_deps():
             capture_output=True,
         )
         # Try to install optional MCP python servers (best-effort). If not available, warn but do not fail setup.
-        try:
-            rc = subprocess.run(
-                [venv_python, "-m", "pip", "install", "mcp_server_docker"],
-                capture_output=True,
-            )
-            if rc.returncode != 0:
-                print_warning(
-                    "Optional package 'mcp_server_docker' not installed automatically; install it if you need the Python Docker MCP (pip install mcp_server_docker)"
-                )
-        except Exception:
-            print_warning(
-                "Failed to check/install optional 'mcp_server_docker' package; install manually if required."
-            )
+
         print_success("Python залежності встановлено")
 
     # 2. NPM & MCP
@@ -729,7 +717,7 @@ def main():
     print("")
     print_info("Доступні MCP сервери:")
     print("  - memory: Граф знань (Atlas, Grisha, Tetyana)")
-    print("  - notes: Текстові нотатки та звіти (Atlas, Grisha, Tetyana)")
+
     print("  - macos-use: Нативний контроль macOS + Термінал (Tetyana, Grisha)")
     print("  - vibe: Coding Agent & Self-Healing (Atlas)")
     print("  - filesystem: Файлові операції (Tetyana, Grisha)")
