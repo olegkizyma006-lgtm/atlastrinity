@@ -57,6 +57,7 @@ SERVER_CATALOG: Dict[str, Dict[str, Any]] = {
             "macos-use_mail_send",
             "macos-use_fetch_url",
             "macos-use_get_time",
+            "macos-use_list_tools_dynamic",
         ],
         "when_to_use": "ANY computer interaction, macOS GUI automation, terminal commands, Apple productivity apps",
         "priority_note": "ALWAYS prefer macos-use for GUI, terminal, fetch, time over other servers",
@@ -145,6 +146,22 @@ SERVER_CATALOG: Dict[str, Dict[str, Any]] = {
         ],
         "key_tools": ["restart_mcp_server"],
         "when_to_use": "Use when an MCP server is unresponsive, returns 'Connection closed', or needs a fresh start.",
+    },
+
+    "puppeteer": {
+        "name": "puppeteer",
+        "tier": 2,
+        "category": "browser",
+        "description": "High-speed Headless Browser (Puppeteer)",
+        "capabilities": [
+            "Web searching (Google/Bing) without API keys",
+            "Navigating complex URLs and SPA applications",
+            "Interacting with elements (click, type, fill)",
+            "Capturing full-page screenshots",
+            "Executing JavaScript on pages",
+        ],
+        "key_tools": ["puppeteer_navigate", "puppeteer_screenshot", "puppeteer_click"],
+        "when_to_use": "ANY web task: searching for info, checking weather, scraping data, or interacting with websites.",
     },
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -484,7 +501,91 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
         "required": [],
         "optional": [],
         "types": {},
-        "description": "Get full tool list with schemas",
+        "description": "ULTIMATE DISCOVERY TOOL: Get the complete, real-time list of ALL 39+ available tools and their schemas from the macos-use server. Use this if a tool seems missing or you need to verify current capabilities.",
+    },
+    # ─────────────────────────────────────────────────────────────────────────
+    # FILESYSTEM: File Operations
+    # ─────────────────────────────────────────────────────────────────────────
+    "read_file": {
+        "server": "filesystem",
+        "required": ["path"],
+        "optional": [],
+        "types": {"path": str},
+        "description": "Read file contents (home directory only)",
+    },
+    "write_file": {
+        "server": "filesystem",
+        "required": ["path", "content"],
+        "optional": [],
+        "types": {"path": str, "content": str},
+        "description": "Write/create file (home directory only)",
+    },
+    "list_directory": {
+        "server": "filesystem",
+        "required": ["path"],
+        "optional": [],
+        "types": {"path": str},
+        "description": "List directory contents",
+    },
+    "search_files": {
+        "server": "filesystem",
+        "required": ["path", "pattern"],
+        "optional": [],
+        "types": {"path": str, "pattern": str},
+        "description": "Search files by name or content",
+    },
+    "get_file_info": {
+        "server": "filesystem",
+        "required": ["path"],
+        "optional": [],
+        "types": {"path": str},
+        "description": "Get file metadata",
+    },
+    # ─────────────────────────────────────────────────────────────────────────
+    # MEMORY: Knowledge Graph
+    # ─────────────────────────────────────────────────────────────────────────
+    "create_entities": {
+        "server": "memory",
+        "required": ["entities"],
+        "optional": [],
+        "types": {"entities": list},
+        "description": "Create entities in knowledge graph",
+    },
+    "create_relations": {
+        "server": "memory",
+        "required": ["relations"],
+        "optional": [],
+        "types": {"relations": list},
+        "description": "Create relations between entities",
+    },
+    "add_observations": {
+        "server": "memory",
+        "required": ["observations"],
+        "optional": [],
+        "types": {"observations": list},
+        "description": "Add observations to entities",
+    },
+    "search_nodes": {
+        "server": "memory",
+        "required": ["query"],
+        "optional": [],
+        "types": {"query": str},
+        "description": "Search entities in knowledge graph",
+    },
+    # ─────────────────────────────────────────────────────────────────────────
+    # SEQUENTIAL THINKING: Reasoning
+    # ─────────────────────────────────────────────────────────────────────────
+    "sequentialthinking": {
+        "server": "sequential-thinking",
+        "required": ["thought", "thoughtNumber", "totalThoughts"],
+        "optional": ["nextThoughtNeeded"],
+        "types": {
+            "thought": str,
+            "thoughtNumber": int,
+            "totalThoughts": int,
+            "nextThoughtNeeded": bool,
+        },
+        "description": "Multi-step sequential reasoning",
     },
     # ─────────────────────────────────────────────────────────────────────────
     # VIBE: AI-Powered Tools
@@ -567,8 +668,14 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
     "vibe_execute_subcommand": {
         "server": "vibe",
         "required": ["subcommand"],
-        "optional": ["args", "cwd"],
-        "types": {"subcommand": str, "args": list, "cwd": str},
+        "optional": ["args", "cwd", "timeout_s", "env"],
+        "types": {
+            "subcommand": str,
+            "args": list,
+            "cwd": str,
+            "timeout_s": (int, float),
+            "env": dict,
+        },
         "description": "Execute Vibe CLI subcommand",
     },
     "vibe_which": {
@@ -577,6 +684,44 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
         "optional": [],
         "types": {},
         "description": "Check Vibe CLI installation",
+    },
+    # ─────────────────────────────────────────────────────────────────────────
+    # BROWSER: Puppeteer
+    # ─────────────────────────────────────────────────────────────────────────
+    "puppeteer_navigate": {
+        "server": "puppeteer",
+        "required": ["url"],
+        "optional": [],
+        "types": {"url": str},
+        "description": "Navigate to a URL",
+    },
+    "puppeteer_screenshot": {
+        "server": "puppeteer",
+        "required": ["name"],
+        "optional": ["width", "height"],
+        "types": {"name": str, "width": int, "height": int},
+        "description": "Take a screenshot of the current page",
+    },
+    "puppeteer_click": {
+        "server": "puppeteer",
+        "required": ["selector"],
+        "optional": [],
+        "types": {"selector": str},
+        "description": "Click an element on the page",
+    },
+    "puppeteer_fill": {
+        "server": "puppeteer",
+        "required": ["selector", "value"],
+        "optional": [],
+        "types": {"selector": str, "value": str},
+        "description": "Fill an input field",
+    },
+    "puppeteer_evaluate": {
+        "server": "puppeteer",
+        "required": ["script"],
+        "optional": [],
+        "types": {"script": str},
+        "description": "Execute JavaScript on the page",
     },
     # ─────────────────────────────────────────────────────────────────────────
     # TRINITY NATIVE: System Tools
@@ -615,6 +760,11 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
     "fetch_url": {"alias_for": "macos-use_fetch_url", "server": "macos-use"},
     "get_time": {"alias_for": "macos-use_get_time", "server": "macos-use"},
     "run_applescript": {"alias_for": "macos-use_run_applescript", "server": "macos-use"},
+    "directory_tree": {"alias_for": "list_directory", "server": "filesystem"},
+    "tree": {"alias_for": "list_directory", "server": "filesystem"},
+    "list_dir": {"alias_for": "list_directory", "server": "filesystem"},
+    "browser_navigate": {"alias_for": "puppeteer_navigate", "server": "puppeteer"},
+    "browser_screenshot": {"alias_for": "puppeteer_screenshot", "server": "puppeteer"},
 }
 
 
@@ -819,8 +969,8 @@ def get_servers_for_task(task_type: str) -> List[str]:
         return ["macos-use"]
     if any(x in task_lower for x in ["file", "read", "write", "directory"]):
         return ["filesystem", "macos-use"]
-    if any(x in task_lower for x in ["search", "web", "internet", "google"]):
-        return ["macos-use", "vibe"]  # Use macos-use fetch or vibe web tools
+    if any(x in task_lower for x in ["search", "web", "internet", "google", "find", "browser", "navigate", "automation", "scrape"]):
+        return ["puppeteer", "macos-use"]
     if any(x in task_lower for x in ["calendar", "event", "meeting"]):
         return ["macos-use"]
     if any(x in task_lower for x in ["reminder", "todo", "task"]):

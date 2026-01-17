@@ -71,6 +71,7 @@ class AgentPrompts:
         2. ADHERE STRICTLY to the plan sequence above. Do not skip or reorder steps.
         3. If there is feedback from Grisha or other agents above, ADAPT your strategy to address their concerns.
         4. If you are unsure or need clarification from Atlas to proceed, use the "question_to_atlas" field.
+        5. DISCOVERY: If you suspect a tool is missing or want to see ALL 39+ available macOS capabilities, use "macos-use.discovery".
 
         Respond STRICTLY in JSON. No preamble.
         {{
@@ -278,6 +279,7 @@ CAPABILITIES:
 - You have access to TOOLS (Search, Web Fetch, Knowledge Graph, Sequential Thinking).
 - USE THEM for factual accuracy (weather, news, script explanation, GitHub research).
 - If the user asks a question you don't know the answer to, SEARCH for it.
+- DISCOVERY: If you are unsure about the system's current capabilities or need to see the full list of tools, use "macos-use.discovery".
 - Mental reasoning (thoughts) should be in English.
 
 Do not suggest creating a complex plan, just use your tools autonomously to answer the user's question directly in chat."""

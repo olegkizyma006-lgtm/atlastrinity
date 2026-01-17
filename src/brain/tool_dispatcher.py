@@ -23,11 +23,13 @@ class ToolDispatcher:
         "ls", "cat", "rm", "mv", "cp", "touch", "sudo"
     ]
     
-    FILESYSTEM_SYNONYMS = ["filesystem", "fs", "file", "files", "editor"]
+    FILESYSTEM_SYNONYMS = ["filesystem", "fs", "file", "files", "editor", "directory_tree", "list_directory", "read_file", "write_file", "tree"]
     
     SERACH_SYNONYMS = [] # Deprecated
     
-    VIBE_SYNONYMS = ["vibe", "vibe_prompt", "vibe_ask", "vibe_analyze_error", "vibe_smart_plan", "vibe_code_review", "search", "google", "bing"]
+    VIBE_SYNONYMS = ["vibe", "vibe_prompt", "vibe_ask", "vibe_analyze_error", "vibe_smart_plan", "vibe_code_review"]
+    
+    BROWSER_SYNONYMS = ["browser", "puppeteer", "navigate", "google", "search", "bing", "web"]
 
     
     MACOS_MAP = {
@@ -76,6 +78,9 @@ class ToolDispatcher:
         "terminal": "execute_command",
         "execute_command": "execute_command",
         "shell": "execute_command",
+        # Discovery
+        "list_tools": "macos-use_list_tools_dynamic",
+        "discovery": "macos-use_list_tools_dynamic",
     }
     
     MACOS_USE_PRIORITY = {
@@ -141,7 +146,7 @@ class ToolDispatcher:
             if server == "macos-use":
                 self._macos_use_calls += 1
 
-            # 6. Final Dispatch via MCPManager
+            # 7. Metrics & Final Dispatch via MCPManager
             logger.info(f"[DISPATCHER] Calling {server}.{resolved_tool} with {list(normalized_args.keys())}")
             
             # Ensure args is a dict
@@ -166,6 +171,8 @@ class ToolDispatcher:
             return "macos-use"
         if any(kw in action for kw in ["read", "write", "list", "save", "delete"]) or path:
             return "filesystem"
+        if any(kw in action for kw in ["browser", "puppeteer", "navigate", "google", "search"]):
+            return "puppeteer"
         if command:
             return "terminal"
         
@@ -239,6 +246,10 @@ class ToolDispatcher:
         # --- FILESYSTEM ROUTING ---
         if tool_name in self.FILESYSTEM_SYNONYMS or explicit_server == "filesystem":
             return self._handle_filesystem(tool_name, args)
+
+        # --- BROWSER ROUTING ---
+        if tool_name in self.BROWSER_SYNONYMS or any(tool_name.startswith(x) for x in ["puppeteer_", "browser_"]) or explicit_server == "puppeteer":
+            return self._handle_browser(tool_name, args)
 
 
 
@@ -342,6 +353,34 @@ class ToolDispatcher:
             resolved_tool = "read_file" # Default
             
         return "filesystem", resolved_tool, args
+
+    def _handle_browser(self, tool_name: str, args: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
+        """Maps browser synonyms to Puppeteer tools."""
+        action = args.get("action") or tool_name
+        
+        mapping = {
+            "search": "puppeteer_navigate",
+            "google": "puppeteer_navigate",
+            "bing": "puppeteer_navigate",
+            "navigate": "puppeteer_navigate",
+            "browse": "puppeteer_navigate",
+            "screenshot": "puppeteer_screenshot",
+            "click": "puppeteer_click",
+            "type": "puppeteer_fill",
+            "fill": "puppeteer_fill",
+        }
+        
+        resolved_tool = mapping.get(action, action)
+        
+        # Ensure 'puppeteer_' prefix if not already present
+        if not resolved_tool.startswith("puppeteer_") and resolved_tool != "puppeteer":
+            resolved_tool = f"puppeteer_{resolved_tool}"
+            
+        # If it was just 'browser' or 'puppeteer'
+        if resolved_tool in ["browser", "puppeteer", "puppeteer_browser", "puppeteer_puppeteer"]:
+            resolved_tool = "puppeteer_navigate"
+            
+        return "puppeteer", resolved_tool, args
 
     def _handle_vibe(self, tool_name: str, args: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
         """Normalizes Vibe AI tool calls and arguments."""
