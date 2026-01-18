@@ -737,12 +737,14 @@ def main():
     print("  2. Запустіть систему: npm run dev")
     print("")
     print_info("Доступні MCP сервери:")
-    print("  - memory: Граф знань (Atlas, Grisha, Tetyana)")
-
+    print("  - memory: Граф знань & Long-term Memory (Atlas, Tetyana)")
     print("  - macos-use: Нативний контроль macOS + Термінал (Tetyana, Grisha)")
-    print("  - vibe: Coding Agent & Self-Healing (Atlas)")
+    print("  - vibe: Coding Agent & Self-Healing (Atlas, Tetyana, Grisha)")
     print("  - filesystem: Файлові операції (Tetyana, Grisha)")
-    print("  - sequential-thinking: Глибоке мислення (Grisha)")
+    print("  - sequential-thinking: Глибоке мислення (Atlas, Tetyana, Grisha)")
+    print("  - chrome-devtools: Автоматизація Chrome (Tetyana)")
+    print("  - puppeteer: Веб-скрейпінг та пошук (Tetyana, Grisha)")
+    print("  - graph: Візуалізація графу знань (Atlas, Grisha)")
     print("=" * 60 + "\n")
 
 
