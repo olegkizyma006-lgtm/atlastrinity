@@ -75,6 +75,9 @@ class ToolExecution(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     step_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("task_steps.id"))
+    
+    # Direct task association for faster audits
+    task_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tasks.id"), nullable=True)
 
     server_name: Mapped[str] = mapped_column(String(100))
     tool_name: Mapped[str] = mapped_column(String(100))

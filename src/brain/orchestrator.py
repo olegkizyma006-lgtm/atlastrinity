@@ -752,40 +752,51 @@ class Trinity:
     def _extract_golden_path(self, raw_results: List[Dict[str, Any]]) -> List[str]:
         """
         Extracts only the successful actions that led to the solution.
-        Filters out:
+        Smartly filters out:
         - Failed attempts
-        - Steps that were retried
         - Steps replaced by recovery actions
+        - Repair loops (e.g. Step 3 failed -> 3.1 fixed -> Step 3 success)
         """
         golden_path = []
-
-        # Create map of step_id to LAST result (overwriting previous attempts)
-        final_outcomes = {}
+        
+        # 1. Deduplicate by step_id, keeping only the LATEST attempt
+        # This handles retries automatically (Attempt 1 fail, Attempt 2 success -> keeps Attempt 2)
+        latest_results = {}
         for res in raw_results:
             step_id = res.get("step_id")
-            # If we retried a step, this overwrite ensures we only keep the latest
-            final_outcomes[step_id] = res
+            latest_results[step_id] = res
 
-        # Sort by step sequence (assuming ID is number or sortable)
-        # Note: IDs might be "1", "2" or "2.1" (if subtasks).
-        # We'll rely on the order they appear in the final_outcomes keys if feasible,
-        # but sorted is safer.
-        try:
-            sorted_keys = sorted(final_outcomes.keys(), key=lambda x: str(x))
-        except Exception:
-            sorted_keys = list(final_outcomes.keys())
+        # 2. Sort by step ID to respect execution order
+        # We need a robust sort for "1", "2", "2.1", "2.2", "3"
+        def parse_step_id(sid):
+            try:
+                return [int(p) for p in str(sid).split('.')]
+            except:
+                return [float('inf')] # Put weird IDs at current level end
 
-        for key in sorted_keys:
-            item = final_outcomes[key]
+        sorted_steps = sorted(latest_results.values(), key=lambda x: parse_step_id(x.get("step_id", "0")))
+
+        # 3. Filter for SUCCESS only
+        # If a step failed but the task continued, it means it was critical to fix it? 
+        # No, if it failed and we moved on, usually means recovery handled it.
+        # We want to capture the recovery steps (e.g. 2.1) if they succeeded.
+        
+        for item in sorted_steps:
             if item.get("success"):
-                # Format: "Action description"
-                # Ideally we want the intent/action name, but result might just contain output.
-                # We need to map back to the Plan if possible, but the 'result' dict here
-                # Use action description if available
-                val = item.get("action")
-                if not val:
-                    val = str(item.get("result", ""))[:200]
-                golden_path.append(val)
+                # Clean up action text
+                action = item.get("action", "")
+                
+                # Remove ID prefix if present for cleaner reading e.g. "[3.1] Fix code" -> "Fix code"
+                if action.startswith("[") and "]" in action:
+                    try:
+                        action = action.split("]", 1)[1].strip()
+                    except:
+                        pass
+                        
+                if not action:
+                    action = str(item.get("result", ""))[:100]
+                    
+                golden_path.append(action)
 
         return golden_path
 
@@ -1080,6 +1091,7 @@ class Trinity:
                         async with await db_manager.get_session() as db_sess:
                             tool_exec = DBToolExecution(
                                 step_id=db_step_id,
+                                task_id=self.state.get("db_task_id"), # Direct link for analytics
                                 server_name=result.tool_call.get("server") or result.tool_call.get("realm") or "unknown",
                                 tool_name=result.tool_call.get("name") or "unknown",
                                 arguments=result.tool_call.get("args") or {},

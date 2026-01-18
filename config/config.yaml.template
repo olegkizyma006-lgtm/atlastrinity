@@ -80,6 +80,13 @@ security:
   - dd if=
   - ':(){ :|:& };:'
   require_confirmation: true
+
+puppeteer:
+  enabled: true
+  headless: true
+
+system:
+  workspace_path: ~/Developer/Trinity
 api:
   timeout: 60
   retry_count: 3
