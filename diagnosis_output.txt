@@ -1,0 +1,63 @@
+2026-01-18 02:27:04,642 - brain - INFO - [MEMORY] ChromaDB initialized at /Users/olegkizyma/.config/atlastrinity/memory/chroma
+2026-01-18 02:27:04,655 - brain - INFO - [MEMORY] Lessons: 0 | Strategies: 4 | Conversations: 0
+2026-01-18 02:27:04,987 - brain - INFO - Loading MCP config from: /Users/olegkizyma/.config/atlastrinity/mcp/config.json
+2026-01-18 02:27:05,050 - brain - INFO - [STATE] Redis connected at localhost:6379
+2026-01-18 02:27:05,108 - brain - INFO - Loading MCP config from: /Users/olegkizyma/.config/atlastrinity/mcp/config.json
+2026-01-18 02:27:05,108 - brain - INFO - Connecting to MCP server: macos-use...
+log: main: starting server (async).
+log: main: calling setupAndStartServer()...
+log: setupAndStartServer: entering function.
+log: setupAndStartServer: defined 39 tools: ["macos-use_open_application_and_traverse", "macos-use_click_and_traverse", "macos-use_right_click_and_traverse", "macos-use_double_click_and_traverse", "macos-use_drag_and_drop_and_traverse", "macos-use_type_and_traverse", "macos-use_press_key_and_traverse", "macos-use_scroll_and_traverse", "macos-use_refresh_traversal", "macos-use_window_management", "execute_command", "terminal", "macos-use_take_screenshot", "screenshot", "macos-use_analyze_screen", "ocr", "analyze", "macos-use_set_clipboard", "macos-use_get_clipboard", "macos-use_system_control", "macos-use_fetch_url", "macos-use_get_time", "macos-use_run_applescript", "macos-use_calendar_events", "macos-use_create_event", "macos-use_reminders", "macos-use_create_reminder", "macos-use_spotlight_search", "macos-use_send_notification", "macos-use_notes_list_folders", "macos-use_notes_create_note", "macos-use_notes_get_content", "macos-use_mail_send", "macos-use_mail_read_inbox", "macos-use_finder_list_files", "macos-use_finder_get_selection", "macos-use_finder_open_path", "macos-use_finder_move_to_trash", "macos-use_list_tools_dynamic"]
+log: setupAndStartServer: server instance created (SwiftMacOSServerDirect) version 1.3.0.
+log: setupAndStartServer: registered ReadResource handler (dummy).
+log: setupAndStartServer: registered ListResources handler (dummy).
+log: setupAndStartServer: registered ListPrompts handler (dummy).
+log: setupAndStartServer: registered ListTools handler.
+log: setupAndStartServer: registered CallTool handler.
+log: setupAndStartServer: created StdioTransport.
+log: setupAndStartServer: calling server.start()...
+log: setupAndStartServer: server.start() completed (background task launched).
+log: setupAndStartServer: returning server instance.
+log: main: setupAndStartServer() successful, server instance obtained.
+log: main: server started, calling server.waitUntilCompleted()...
+2026-01-18 02:27:05,124 - brain - INFO - Connected to macos-use
+2026-01-18 02:27:05,125 - brain - INFO - Connecting to MCP server: filesystem...
+log: handler(ListTools): received request.
+log: handler(ListTools): responding with 39 tools: ["macos-use_open_application_and_traverse", "macos-use_click_and_traverse", "macos-use_right_click_and_traverse", "macos-use_double_click_and_traverse", "macos-use_drag_and_drop_and_traverse", "macos-use_type_and_traverse", "macos-use_press_key_and_traverse", "macos-use_scroll_and_traverse", "macos-use_refresh_traversal", "macos-use_window_management", "execute_command", "terminal", "macos-use_take_screenshot", "screenshot", "macos-use_analyze_screen", "ocr", "analyze", "macos-use_set_clipboard", "macos-use_get_clipboard", "macos-use_system_control", "macos-use_fetch_url", "macos-use_get_time", "macos-use_run_applescript", "macos-use_calendar_events", "macos-use_create_event", "macos-use_reminders", "macos-use_create_reminder", "macos-use_spotlight_search", "macos-use_send_notification", "macos-use_notes_list_folders", "macos-use_notes_create_note", "macos-use_notes_get_content", "macos-use_mail_send", "macos-use_mail_read_inbox", "macos-use_finder_list_files", "macos-use_finder_get_selection", "macos-use_finder_open_path", "macos-use_finder_move_to_trash", "macos-use_list_tools_dynamic"]
+Secure MCP Filesystem Server running on stdio
+2026-01-18 02:27:05,942 - brain - INFO - Connected to filesystem
+2026-01-18 02:27:05,943 - brain - INFO - Connecting to MCP server: sequential-thinking...
+Client does not support MCP Roots, using allowed directories set from server args: [ '/Users/olegkizyma', '/private/tmp' ]
+Resolving dependencies
+Resolved, downloaded and extracted [2]
+Saved lockfile
+Sequential Thinking MCP Server running on stdio
+2026-01-18 02:27:06,424 - brain - INFO - Connected to sequential-thinking
+2026-01-18 02:27:06,425 - brain - INFO - Connecting to MCP server: puppeteer...
+2026-01-18 02:27:06,876 - brain - INFO - Connected to puppeteer
+2026-01-18 02:27:06,877 - brain - INFO - Connecting to MCP server: vibe...
+Puppeteer MCP Server closed
+2026-01-18 02:27:07,117 - brain - INFO - Connection task for vibe exited
+2026-01-18 02:27:07,117 - brain - INFO - Connection task for macos-use exited
+2026-01-18 02:27:07,118 - brain - INFO - Connection task for sequential-thinking exited
+2026-01-18 02:27:07,120 - brain - INFO - Connection task for puppeteer exited
+2026-01-18 02:27:07,121 - brain - INFO - Connection task for filesystem exited
+ === 1. DATABASE DIAGNOSTICS ===
+[DB] Database initialized successfully.
+[OK] Sessions count: 7
+[OK] Tasks count: 48
+[OK] Task Steps count: 152
+[OK] Tool Executions count: 81
+[RECURSION] Found 21 recursive steps in history.
+            Examples: ['4.1', '4.2', '4.2', '4.2', '1.1']
+[MESSAGING] Agent Messages count: 0
+
+ === 2. VECTOR MEMORY DIAGNOSTICS ===
+[OK] ChromaDB is available at /Users/olegkizyma/.config/atlastrinity/memory/chroma
+[OK] Lessons: 0
+[OK] Strategies: 4
+[OK] Conversations: 0
+
+ === 3. BROWSER/MCP DIAGNOSTICS ===
+[OK] Puppeteer server is registered in catalog.
+[OK] macos-use server is registered in catalog.
