@@ -798,10 +798,54 @@ class MCPManager:
 
     def get_available_servers(self) -> List[str]:
         """Get list of all configured (available) server names."""
-        return [
-            name for name in self.config.get("mcpServers", {}).keys()
-            if not name.startswith("_")
-        ]
+        return list(self.config.get("mcpServers", {}).keys())
+
+    async def shutdown(self):
+        """
+        Coordinated shutdown of all MCP server connections.
+        Ensures all tasks are cancelled and orphan processes are killed.
+        """
+        logger.info("[MCP] Initiating shutdown of all server connections...")
+        
+        # 1. Signal all connections to close gracefully
+        async with self._lock:
+            server_names = list(self._close_events.keys())
+            for name in server_names:
+                try:
+                    self._close_events[name].set()
+                except Exception:
+                    pass
+        
+        # 2. Give tasks a moment to exit
+        if self._connection_tasks:
+            await asyncio.sleep(0.5)
+            
+        # 3. Kill lingering tasks and processes
+        async with self._lock:
+             for name, task in list(self._connection_tasks.items()):
+                 if not task.done():
+                     logger.warning(f"[MCP] Force cancelling connection task for {name}")
+                     task.cancel()
+             
+             # Final pkill for any common MCP signatures
+             try:
+                 import subprocess
+                 # Targeted kills for known servers
+                 sigs = ["mcp-server", "macos-use", "vibe_server", "vibe", "npx", "bunx"]
+                 for sig in sigs:
+                     subprocess.run(["pkill", "-9", "-f", sig], capture_output=True)
+             except Exception:
+                 pass
+             
+             self.sessions.clear()
+             self._connection_tasks.clear()
+             self._close_events.clear()
+             self._session_futures.clear()
+
+        logger.info("[MCP] Shutdown complete.")
+
+
+mcp_manager = MCPManager()
 
     def get_connected_servers(self) -> List[str]:
         """Get list of currently connected server names."""

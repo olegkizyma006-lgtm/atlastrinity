@@ -286,25 +286,27 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   if (pythonProcess) {
     console.log('Quitting: Killing Python server...');
+    // Send SIGTERM to allow graceful shutdown via lifespan manager
     pythonProcess.kill('SIGTERM');
     pythonProcess = null;
   }
-  
-  // Force clean up any stray processes in dev mode
-  if (isDev) {
-    console.log('[DEV] Cleaning up stray processes...');
-    const { execSync } = require('child_process');
-    try {
-      // Use semicolons to run all commands independently
-      // Kill all MCP servers and brain processes
-      execSync('pkill -9 -f "vibe_server" || true; pkill -9 -f "brain.server" || true; pkill -9 -f "mcp-server" || true; pkill -9 -f "memory_server" || true; pkill -9 -f "graph_server" || true; pkill -9 -f "macos-use" || true', {
-        stdio: 'ignore',
-        timeout: 5000
-      });
-      console.log('[DEV] Cleanup completed.');
-    } catch (e) {
-      console.log('[DEV] Cleanup finished (some processes may not have existed).');
-    }
+
+  // Clean up any stray processes (dev always aggressive, production as safety net)
+  console.log('Final process cleanup...');
+  const { execSync } = require('child_process');
+  try {
+    // Targeted pkill for core components to avoid "orphans"
+    // brain.server handles its own children, but this is a final fail-safe
+    const targets = "vibe_server brain.server mcp-server memory_server graph_server macos-use";
+    const command = targets.split(' ').map(t => `pkill -9 -f "${t}"`).join('; ') + '; true';
+
+    execSync(command, {
+      stdio: 'ignore',
+      timeout: 5000
+    });
+    console.log('Cleanup completed.');
+  } catch (e) {
+    console.log('Cleanup finished.');
   }
 });
 

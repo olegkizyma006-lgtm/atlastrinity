@@ -1403,3 +1403,13 @@ class Trinity:
 
     def should_verify(self, state: TrinityState):
         return "continue"
+    async def shutdown(self):
+        """Clean shutdown of system components"""
+        logger.info("[ORCHESTRATOR] Shutting down...")
+        # 1. Shutdown MCP Manager (kills child processes)
+        await mcp_manager.shutdown()
+        # 2. Close DB
+        await db_manager.close()
+        # 3. Stop voice engine
+        await self.voice.close()
+        logger.info("[ORCHESTRATOR] Shutdown complete.")

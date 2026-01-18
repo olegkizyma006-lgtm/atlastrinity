@@ -104,6 +104,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
     logger.info("AtlasTrinity Brain is going to sleep...")
+    await trinity.shutdown()
 
 
 app = FastAPI(title="AtlasTrinity Brain", lifespan=lifespan)
