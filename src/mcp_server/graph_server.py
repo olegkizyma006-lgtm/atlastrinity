@@ -3,7 +3,7 @@ import asyncio
 # Setup paths (for standalone run if needed)
 import os
 import sys
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from mcp.server import FastMCP
 
@@ -85,6 +85,8 @@ async def generate_mermaid(node_type: Optional[str] = None) -> str:
 
         if source_id in node_map and target_id in node_map:
             mermaid += f'  {node_map[source_id]} -- "{relation}" --> {node_map[target_id]}\n'
+
+    return mermaid
 
 @server.tool()
 async def get_node_details(node_id: str) -> Dict[str, Any]:
