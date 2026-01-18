@@ -916,9 +916,9 @@ class Trinity:
                             {
                                 "error_message": f"{error_context}\n{last_error}\n{technical_trace}",
                                 "log_context": log_context,
-                                "cwd": str(PROJECT_ROOT),
-                                "timeout_s": int(config.get("orchestrator", {}).get("task_timeout", 1200)),  # Dynamic timeout
-                                "auto_fix": True,  # Enable auto-fixing
+                                # Note: cwd removed - vibe_server stores instructions in global INSTRUCTIONS_DIR
+                                "timeout_s": int(config.get("orchestrator", {}).get("task_timeout", 1200)),
+                                "auto_fix": True,
                             },
                         ),
                         timeout=int(config.get("orchestrator", {}).get("task_timeout", 1200)) + 10,

@@ -58,8 +58,9 @@ try:
     MAX_OUTPUT_CHARS = int(get_config_value("vibe", "max_output_chars", 500000))
     DISALLOW_INTERACTIVE = bool(get_config_value("vibe", "disallow_interactive", True))
     
-    # Resolve global vibe_workspace
-    VIBE_WORKSPACE = get_config_value("vibe", "workspace", str(Path.home() / ".config" / "atlastrinity" / "vibe_workspace"))
+    # Resolve global vibe_workspace - expand ~ to actual home path
+    _raw_workspace = get_config_value("vibe", "workspace", str(Path.home() / ".config" / "atlastrinity" / "vibe_workspace"))
+    VIBE_WORKSPACE = os.path.expanduser(_raw_workspace)
 except Exception:
     VIBE_BINARY = os.path.expanduser("~/.local/bin/vibe") if os.path.exists(os.path.expanduser("~/.local/bin/vibe")) else "vibe"
     DEFAULT_TIMEOUT_S = 1200.0
@@ -86,6 +87,29 @@ except Exception:
     REPOSITORY_ROOT = PROJECT_ROOT
 
 LOG_DIR = str(Path.home() / ".config" / "atlastrinity" / "logs")
+
+# Global instructions directory for large prompts
+INSTRUCTIONS_DIR = str(Path.home() / ".config" / "atlastrinity" / "vibe_workspace" / "instructions")
+
+
+def _cleanup_old_instructions(max_age_hours: int = 24):
+    """Remove instruction files older than max_age_hours."""
+    instructions_path = Path(INSTRUCTIONS_DIR)
+    if not instructions_path.exists():
+        return 0
+    
+    now = datetime.now()
+    cleaned = 0
+    for f in instructions_path.glob("vibe_instructions_*.md"):
+        try:
+            mtime = datetime.fromtimestamp(f.stat().st_mtime)
+            if (now - mtime).total_seconds() > max_age_hours * 3600:
+                f.unlink()
+                logger.info(f"[VIBE] Cleaned up old instruction file: {f.name}")
+                cleaned += 1
+        except Exception as e:
+            logger.debug(f"[VIBE] Cleanup failed for {f.name}: {e}")
+    return cleaned
 
 
 # CLI-only subcommands (no TUI)
@@ -119,6 +143,14 @@ BLOCKED_SUBCOMMANDS = {
 
 
 server = FastMCP("vibe")
+
+# Cleanup old instruction files on startup
+try:
+    _cleaned = _cleanup_old_instructions(max_age_hours=24)
+    if _cleaned > 0:
+        logger.info(f"[VIBE] Cleaned up {_cleaned} old instruction files on startup")
+except Exception:
+    pass
 
 
 def _truncate(text: str) -> str:
@@ -162,24 +194,27 @@ def _prepare_prompt_arg(prompt: str, cwd: Optional[str] = None) -> Tuple[str, Op
     """
     Prepare the prompt argument. If too long, offload to a temporary file.
     Returns (final_prompt_arg, file_path_to_clean).
+    
+    Note: Instruction files are ALWAYS stored in INSTRUCTIONS_DIR (global folder),
+    regardless of the cwd parameter. The cwd only affects where Vibe CLI executes.
     """
     if len(prompt) <= 2000:
         return prompt, None
 
     try:
-        eff_cwd = cwd or VIBE_WORKSPACE
-        if not os.path.exists(eff_cwd):
-            os.makedirs(eff_cwd, exist_ok=True)
+        # Always use global instructions directory, NOT cwd
+        os.makedirs(INSTRUCTIONS_DIR, exist_ok=True)
             
         prompt_file = f"vibe_instructions_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:6]}.md"
-        prompt_path = os.path.join(eff_cwd, prompt_file)
+        prompt_path = os.path.join(INSTRUCTIONS_DIR, prompt_file)
         
         with open(prompt_path, "w", encoding="utf-8") as f:
             f.write("# INSTRUCTIONS FOR VIBE AGENT\n\n")
             f.write(prompt)
         
         logger.info(f"[VIBE] Large prompt ({len(prompt)} chars) offloaded to {prompt_path}")
-        return f"Please read and execute the instructions detailed in the file: {prompt_file}", prompt_path
+        # Return full path so Vibe can find it from any working directory
+        return f"Please read and execute the instructions detailed in the file: {prompt_path}", prompt_path
 
     except Exception as e:
         logger.warning(f"[VIBE] Failed to write prompt file: {e}")
