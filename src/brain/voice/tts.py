@@ -39,6 +39,33 @@ def _check_tts_available():
     return TTS_AVAILABLE
 
 
+def _patch_tts_config(cache_dir: Path):
+    """
+    Ensures config.yaml in cache_dir uses absolute paths for stats_file.
+    This fixes FileNotFoundError in espnet2 on some systems.
+    """
+    config_path = cache_dir / "config.yaml"
+    if not config_path.exists():
+        return
+
+    try:
+        content = config_path.read_text()
+        # If stats_file is a relative filename, replace it with absolute path
+        # Example match: stats_file: feats_stats.npz
+        import re
+
+        pattern = r"(stats_file:\s*)(feats_stats\.npz)"
+        abs_stats_path = str(cache_dir / "feats_stats.npz")
+
+        if "stats_file:" in content and abs_stats_path not in content:
+            new_content = re.sub(pattern, rf"\1{abs_stats_path}", content)
+            if new_content != content:
+                config_path.write_text(new_content)
+                print(f"[TTS] Patched {config_path.name} with absolute stats_file path")
+    except Exception as e:
+        print(f"[TTS] Warning: Failed to patch config.yaml: {e}")
+
+
 @dataclass
 class VoiceConfig:
     """Voice configuration for an agent"""
@@ -140,6 +167,7 @@ class AgentVoice:
                 print(
                     "downloading https://github.com/robinhad/ukrainian-tts/releases/download/v6.0.0"
                 )
+                _patch_tts_config(MODELS_DIR)
                 self._tts = TTS(cache_folder=str(MODELS_DIR))
                 print("downloaded.")
                 print(f"[TTS] ✅ {self.config.name} voice ready on {self.device}")
@@ -293,6 +321,7 @@ class VoiceManager:
 
             with tmp_cwd(str(cache_dir)):
                 print("[TTS] Downloading/Verifying models in models/tts...")
+                _patch_tts_config(cache_dir)
                 self._tts = UkrainianTTS(cache_folder=str(cache_dir), device=self.device)
                 print("[TTS] Engine object created successfully.")
         except Exception as e:
