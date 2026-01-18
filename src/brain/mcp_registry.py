@@ -229,7 +229,7 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
         "types": {
             "prompt": str,
             "cwd": str,
-            "timeout_s": (int, float),
+            "timeout_s": (int, float),  # Timeout in seconds (default 3600)
             "output_format": str,
             "auto_approve": bool,
             "max_turns": int,
@@ -1052,7 +1052,7 @@ AVAILABLE VIBE TOOLS:
    Args:
      - prompt: The message/query (required)
      - cwd: Working directory (optional)
-     - timeout_s: Timeout in seconds (default 300)
+     - timeout_s: Timeout in seconds (default 3600)
      - output_format: 'json', 'text', or 'streaming' (default 'json')
      - auto_approve: Auto-approve tool calls (default True)
      - max_turns: Max conversation turns (default 10)

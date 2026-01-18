@@ -790,7 +790,7 @@ async def vibe_analyze_error(
         )
 
     prompt = "\n".join(prompt_parts)
-    eff_timeout = timeout_s if timeout_s is not None else 300.0
+    eff_timeout = timeout_s if timeout_s is not None else DEFAULT_TIMEOUT_S
     eff_cwd = cwd if cwd is not None else VIBE_WORKSPACE
     
     # Ensure workspace exists
@@ -935,7 +935,7 @@ async def vibe_code_review(
         prompt_parts.append(f"\nFOCUS AREAS: {focus_areas}")
 
     prompt = "\n".join(prompt_parts)
-    eff_timeout = timeout_s if timeout_s is not None else 120.0
+    eff_timeout = timeout_s if timeout_s is not None else DEFAULT_TIMEOUT_S
 
     logger.info(f"[VIBE] Starting code review for: {file_path}")
 
@@ -1097,7 +1097,7 @@ async def vibe_ask(
 
     argv = [vibe_path, "-p", final_question, "--output", "json", "--plan"]
 
-    eff_timeout = timeout_s if timeout_s is not None else 120.0  # 2 minutes for warmup
+    eff_timeout = timeout_s if timeout_s is not None else DEFAULT_TIMEOUT_S  # Follow global config for warmup
 
     logger.info(f"[VIBE] Asking question: {question[:50]}...")
 

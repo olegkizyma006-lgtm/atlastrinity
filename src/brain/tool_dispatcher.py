@@ -489,8 +489,8 @@ class ToolDispatcher:
 
         # Enforce defaults/timeouts - Vibe tasks can be long-running
         if "timeout_s" not in args:
-             # Try mcpServers.vibe config first, then default to 1 hour (3600s)
-             vibe_cfg = config.get("mcpServers", {}).get("vibe", {})
+             # Try mcp.vibe config first, then default to 1 hour (3600s)
+             vibe_cfg = config.get("mcp", {}).get("vibe", {})
              args["timeout_s"] = float(vibe_cfg.get("timeout_s", 3600))
              
         # Enforce absolute CWD or workspace from config
