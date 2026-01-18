@@ -587,12 +587,18 @@ def download_models():
 
     # TTS
     try:
-        print_info("Ініціалізація TTS моделей...")
+        print_info("Ініціалізація TTS моделей (з автоматичним патчингом)...")
         cmd = [
             venv_python,
             "-c",
+            "import os, sys; "
+            "sys.path.append(os.getcwd()); "
+            "from src.brain.voice.tts import _patch_tts_config; "
+            "from pathlib import Path; "
+            f"cache_dir = Path('{DIRS['tts_models']}'); "
             "from ukrainian_tts.tts import TTS; "
-            f"TTS(cache_folder='{DIRS['tts_models']}', device='cpu'); "
+            "TTS(cache_folder=str(cache_dir), device='cpu'); "
+            "_patch_tts_config(cache_dir); "
             "print('TTS OK')",
         ]
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=300)

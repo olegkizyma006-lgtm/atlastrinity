@@ -50,18 +50,27 @@ def _patch_tts_config(cache_dir: Path):
 
     try:
         content = config_path.read_text()
-        # If stats_file is a relative filename, replace it with absolute path
-        # Example match: stats_file: feats_stats.npz
+        # Find stats_file line and check if it matches current path
         import re
 
-        pattern = r"(stats_file:\s*)(feats_stats\.npz)"
+        pattern = r"(\s*stats_file:\s*)(.*)"
+        matches = re.findall(pattern, content)
+        
         abs_stats_path = str(cache_dir / "feats_stats.npz")
-
-        if "stats_file:" in content and abs_stats_path not in content:
-            new_content = re.sub(pattern, rf"\1{abs_stats_path}", content)
-            if new_content != content:
-                config_path.write_text(new_content)
-                print(f"[TTS] Patched {config_path.name} with absolute stats_file path")
+        
+        changed = False
+        if matches:
+            for prefix, current_val in matches:
+                # If it's a relative path just 'feats_stats.npz' or it mentions a different HOME
+                if current_val.strip() != abs_stats_path:
+                    # We need to be careful with substitution if there are multiple matches (unlikely)
+                    # For simplicity, we replace all occurrences if they don't match
+                    content = re.sub(pattern, rf"\1{abs_stats_path}", content)
+                    changed = True
+        
+        if changed:
+            config_path.write_text(content)
+            print(f"[TTS] Patched {config_path.name} with absolute stats_file path: {abs_stats_path}")
     except Exception as e:
         print(f"[TTS] Warning: Failed to patch config.yaml: {e}")
 
