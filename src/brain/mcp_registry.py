@@ -131,6 +131,7 @@ SERVER_CATALOG: Dict[str, Dict[str, Any]] = {
         "key_tools": [
             "vibe_prompt",
             "vibe_analyze_error",
+            "vibe_implement_feature",
             "vibe_code_review",
         ],
         "when_to_use": "ONLY for: 1) Writing code/scripts (software dev), 2) Fixing hard errors (self-healing). DO NOT use for general planning or simple file tasks.",
@@ -610,10 +611,11 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
     "vibe_analyze_error": {
         "server": "vibe",
         "required": ["error_message"],
-        "optional": ["log_context", "file_path", "cwd", "timeout_s", "auto_fix"],
+        "optional": ["log_context", "recovery_history", "file_path", "cwd", "timeout_s", "auto_fix"],
         "types": {
             "error_message": str,
             "log_context": str,
+            "recovery_history": str,
             "file_path": str,
             "cwd": str,
             "timeout_s": (int, float),
@@ -632,6 +634,19 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
             "timeout_s": (int, float),
         },
         "description": "AI code review",
+    },
+    "vibe_implement_feature": {
+        "server": "vibe",
+        "required": ["goal"],
+        "optional": ["context_files", "constraints", "cwd", "timeout_s"],
+        "types": {
+            "goal": str,
+            "context_files": list,
+            "constraints": str,
+            "cwd": str,
+            "timeout_s": (int, float),
+        },
+        "description": "DEEP CODING: Plan and implement complex features across multiple files",
     },
     "vibe_smart_plan": {
         "server": "vibe",

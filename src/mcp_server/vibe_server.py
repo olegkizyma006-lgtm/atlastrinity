@@ -664,6 +664,7 @@ async def vibe_analyze_error(
     ctx: Context,
     error_message: str,
     log_context: Optional[str] = None,
+    recovery_history: Optional[str] = None,
     file_path: Optional[str] = None,
     cwd: Optional[str] = None,
     timeout_s: Optional[float] = None,
@@ -678,6 +679,7 @@ async def vibe_analyze_error(
     Args:
         error_message: The error message or stack trace to analyze
         log_context: Recent log entries for context
+        recovery_history: Summary of past recovery attempts to avoid repeating failures
         file_path: Path to the file with the error (if known)
         cwd: Working directory
         timeout_s: Timeout (default 300s for deep analysis)
@@ -704,6 +706,9 @@ async def vibe_analyze_error(
 
     if log_context:
         prompt_parts.append(f"\nRECENT LOGS:\n{log_context}")
+
+    if recovery_history:
+        prompt_parts.append(f"\nRECOVERY HISTORY (PAST ATTEMPTS):\n{recovery_history}\nIMPORTANT: Do NOT repeat strategies that have already failed unless you have a new insight into why they failed.")
 
     if file_path:
         prompt_parts.append(f"\nFILE PATH: {file_path}")
@@ -732,13 +737,14 @@ async def vibe_analyze_error(
             [
                 "",
                 "INSTRUCTIONS:",
-                "1. Analyze the error thoroughly using logs and source code.",
-                "2. Identify the root cause.",
-                "3. ACTIVELY FIX the issue (edit code, run commands).",
-                "4. If you modify Swift code in 'vendor/mcp-server-macos-use', you MUST recompile it by running 'swift build -c release' in that directory.",
-                "5. After any fix to an MCP server, use 'vibe_restart_mcp_server(server_name)' to apply changes.",
-                "6. Verify the fix works.",
-                "7. Provide a detailed summary.",
+                "1. ROOT CAUSE ANALYSIS (RCA): Before fixing, perform a deep analysis of WHY this error occurred. Use 'grep' or 'read_file' to investigate dependencies and state.",
+                "2. Check the 'RECOVERY HISTORY' above. If past attempts failed, analyze the failures and choose a DIFFERENT approach.",
+                "3. Use 'vibe_code_search' or 'vibe_check_db' if needed to understand the environment.",
+                "4. ACTIVELY FIX the issue (edit code, run commands).",
+                "5. If you modify Swift code in 'vendor/mcp-server-macos-use', you MUST recompile it by running 'swift build -c release' in that directory.",
+                "6. After any fix to an MCP server, use 'vibe_restart_mcp_server(server_name)' to apply changes.",
+                "7. Verify the fix works by running tests or the failing command again.",
+                "8. Provide a detailed summary including the Root Cause found.",
             ]
         )
     else:

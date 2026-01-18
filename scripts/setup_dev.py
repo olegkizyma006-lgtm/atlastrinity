@@ -180,6 +180,15 @@ def ensure_database():
 
         if "1" in result.stdout:
             print_success(f"База даних {db_name} вже існує")
+        
+        # Explicit check for critical tables
+        recovery_check = [
+            "psql", "-U", "dev", "-d", db_name, "-t", "-c", 
+            "SELECT to_regclass('recovery_attempts');"
+        ]
+        res = subprocess.run(recovery_check, capture_output=True, text=True)
+        if "recovery_attempts" in res.stdout:
+             print_success("Таблиця 'recovery_attempts' перевірена.")
         else:
             print_info(f"Створення бази даних {db_name}...")
             # Ensure role 'dev' exists, attempt to create if missing

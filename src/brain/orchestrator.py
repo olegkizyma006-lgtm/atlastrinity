@@ -914,19 +914,33 @@ class Trinity:
                     # Construct detailed error context for Vibe
                     error_context = f"Step ID: {step_id}\n" f"Action: {step.get('action', '')}\n"
 
-                    # NEW: Fetch technical execution details from DB for the failed step
+                    # NEW: Fetch technical execution details and RECOVERY HISTORY from DB for the failed step
                     technical_trace = ""
+                    recovery_history = ""
                     if db_manager.available:
                         try:
-                            # We use the step_id (string sequence) to find executions
-                            # Use mcp_manager.query_db() internal method
-                            sql = "SELECT tool_name, arguments, result FROM tool_executions WHERE step_id IN (SELECT id FROM task_steps WHERE sequence_number = :seq) ORDER BY created_at DESC LIMIT 3;"
-                            db_rows = await mcp_manager.query_db(sql, {"seq": str(step_id)})
+                            # 1. Technical Trace (Actions)
+                            sql_trace = "SELECT tool_name, arguments, result FROM tool_executions WHERE step_id IN (SELECT id FROM task_steps WHERE sequence_number = :seq) ORDER BY created_at DESC LIMIT 3;"
+                            db_rows = await mcp_manager.query_db(sql_trace, {"seq": str(step_id)})
                             if db_rows:
                                 technical_trace = "\nTECHNICAL EXECUTION TRACE:\n" + json.dumps(db_rows, indent=2, default=str)
-                                await self._log(f"Found technical trace for step {step_id}", "system")
+                            
+                            # 2. Recovery History (Attempts)
+                            sql_rec = "SELECT success, duration_ms, vibe_text FROM recovery_attempts WHERE step_id = (SELECT id FROM task_steps WHERE sequence_number = :seq) ORDER BY created_at DESC LIMIT 2;"
+                            rec_rows = await mcp_manager.query_db(sql_rec, {"seq": str(step_id)})
+                            if rec_rows:
+                                recovery_history = "\nPAST RECOVERY ATTEMPTS:\n"
+                                for r in rec_rows:
+                                    status = "Success" if r.get("success") else "Failed"
+                                    recovery_history += f"- Status: {status}, Duration: {r.get('duration_ms')}ms\n"
+                                    # Include report if it failed, to avoid repeating mistakes
+                                    if not r.get("success") and r.get("vibe_text"):
+                                         recovery_history += f"  Report: {r.get('vibe_text')[:500]}...\n"
+                            
+                            if technical_trace or recovery_history:
+                                await self._log(f"Found context for step {step_id} (Trace: {bool(technical_trace)}, Rec: {bool(recovery_history)})", "system")
                         except Exception as trace_err:
-                            logger.warning(f"Failed to fetch technical trace: {trace_err}")
+                            logger.warning(f"Failed to fetch context history: {trace_err}")
 
                     await self._log(
                         f"Engaging Vibe Self-Healing for Step {step_id} (Timeout: {config.get('orchestrator', {}).get('task_timeout', 1200)}s)...",
@@ -947,6 +961,7 @@ class Trinity:
                             {
                                 "error_message": f"{error_context}\n{last_error}\n{technical_trace}",
                                 "log_context": log_context,
+                                "recovery_history": recovery_history,
                                 "timeout_s": int(config.get("orchestrator", {}).get("task_timeout", 1200)),
                                 "auto_fix": True,
                             },

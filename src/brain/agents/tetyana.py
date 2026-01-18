@@ -677,7 +677,9 @@ Please type your response below and press Enter:
                     # Try action-based inference
                     if not inferred_name:
                         action_text = str(step.get("action", "")).lower()
-                        if any(kw in action_text for kw in ["vibe", "code", "debug", "analyze error"]):
+                        if any(kw in action_text for kw in ["implement feature", "deep code", "refactor project"]):
+                            inferred_name = "vibe_implement_feature"
+                        elif any(kw in action_text for kw in ["vibe", "code", "debug", "analyze error"]):
                             inferred_name = "vibe_prompt"
                         elif any(kw in action_text for kw in ["click", "type", "press", "scroll", "open app"]):
                             inferred_name = "macos-use_take_screenshot" # Default to screenshot if UI action
