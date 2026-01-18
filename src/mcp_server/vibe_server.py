@@ -775,6 +775,96 @@ async def vibe_analyze_error(
 
 
 @server.tool()
+async def vibe_implement_feature(
+    ctx: Context,
+    goal: str,
+    context_files: List[str] = [],
+    constraints: Optional[str] = None,
+    cwd: Optional[str] = None,
+    timeout_s: Optional[float] = 1200,
+) -> Dict[str, Any]:
+    """
+    "Deep Coding" mode: Implements a complex feature or refactoring.
+    
+    Acts as a Senior Software Architect to plan, implement, and verify changes across multiple files.
+    
+    Args:
+        goal: The high-level objective (e.g. "Add a user profile page with API and DB support")
+        context_files: List of file paths relevant to the task
+        constraints: Technical constraints or architectural guidelines
+        cwd: Working directory
+        timeout_s: Timeout in seconds (default 1200s for deep work)
+        
+    Returns:
+        Implementation report with changed files and verification status.
+    """
+    
+    # 1. Gather Context Content
+    file_contents = []
+    for fpath in context_files:
+        if os.path.exists(fpath):
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    if len(content) > 12000:
+                         content = content[:12000] + "\n... [TRUNCATED] ..."
+                    file_contents.append(f"File: {fpath}\n```\n{content}\n```")
+            except Exception as e:
+                file_contents.append(f"File: {fpath} (Error reading: {e})")
+        else:
+            file_contents.append(f"File: {fpath} (Not found, will create)")
+            
+    context_str = "\n\n".join(file_contents)
+    
+    # 2. Construct Prompt for "Architect" Persona
+    prompt = f"""
+SYSTEM: You are the Senior Software Architect and Lead Developer for AtlasTrinity.
+ROLE: Implement a complex feature efficiently and robustly.
+
+GOAL: {goal}
+
+CONTEXT FILES:
+{context_str}
+
+CONSTRAINTS:
+{constraints or "Standard project guidelines apply."}
+- Project Root: {REPOSITORY_ROOT}
+- Current Directory: {cwd or VIBE_WORKSPACE}
+
+INSTRUCTIONS:
+1. PLAN: Analyze the goal and files. enhancing existing architecture.
+2. IMPLEMENT: 
+   - Write/Edit the necessary code using file operations.
+   - Handle imports and dependencies.
+   - You can edit multiple files.
+3. VERIFY:
+   - Run simple checks or "python -m" to ensure no syntax errors.
+   - If changes involve UI, describe how they should look.
+4. REPORT:
+   - Report exactly which files were modified.
+   - Confirm success or explain limitations.
+
+EXECUTE NOW. ALLOWED 30 TURNS.
+"""
+
+    eff_cwd = cwd if cwd is not None else VIBE_WORKSPACE
+    if not os.path.exists(eff_cwd):
+        os.makedirs(eff_cwd, exist_ok=True)
+        
+    logger.info(f"[VIBE-DEEP] Starting Implementation: {goal[:100]}...")
+    
+    return await _run_vibe_programmatic(
+        prompt=prompt,
+        cwd=eff_cwd,
+        timeout_s=timeout_s or 1200,
+        output_format="json",
+        auto_approve=True, # Deep coding requires autonomy
+        max_turns=30,      # High turn limit for complex tasks
+        ctx=ctx
+    )
+
+
+@server.tool()
 async def vibe_code_review(
     ctx: Context,
     file_path: str,

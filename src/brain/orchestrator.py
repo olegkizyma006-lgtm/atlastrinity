@@ -874,7 +874,6 @@ class Trinity:
                         "error",
                     )
 
-            if not step_success:
                 # RECOVERY LOGIC
                 notifications.send_stuck_alert(step_id, last_error, max_step_retries)
 
@@ -882,8 +881,27 @@ class Trinity:
                 await self._speak(
                     "atlas", self.atlas.get_voice_message("recovery_started", step_id=step_id)
                 )
-                try:
 
+                # DB: Track Recovery Attempt
+                recovery_id = None
+                if db_manager.available and db_step_id:
+                    try:
+                        async with await db_manager.get_session() as db_sess:
+                            from .db.schema import RecoveryAttempt
+                            rec_attempt = RecoveryAttempt(
+                                step_id=db_step_id,
+                                depth=depth,
+                                recovery_method="vibe",
+                                success=False, # Initial state
+                                error_before=str(last_error)[:5000],
+                            )
+                            db_sess.add(rec_attempt)
+                            await db_sess.commit()
+                            recovery_id = rec_attempt.id
+                    except Exception as e:
+                        logger.error(f"Failed to log recovery attempt start: {e}")
+
+                try:
                     # Collect recent logs for context
                     recent_logs = []
                     if self.state and "logs" in self.state:
@@ -919,6 +937,8 @@ class Trinity:
                         "atlas", self.atlas.get_voice_message("vibe_engaged", step_id=step_id)
                     )
 
+                    start_heal = asyncio.get_event_loop().time()
+                    
                     # Use vibe_analyze_error for programmatic CLI mode with full logging
                     vibe_res = await asyncio.wait_for(
                         mcp_manager.call_tool(
@@ -927,14 +947,39 @@ class Trinity:
                             {
                                 "error_message": f"{error_context}\n{last_error}\n{technical_trace}",
                                 "log_context": log_context,
-                                # Note: cwd removed - vibe_server stores instructions in global INSTRUCTIONS_DIR
                                 "timeout_s": int(config.get("orchestrator", {}).get("task_timeout", 1200)),
                                 "auto_fix": True,
                             },
                         ),
                         timeout=int(config.get("orchestrator", {}).get("task_timeout", 1200)) + 10,
                     )
+                    
+                    heal_duration = int((asyncio.get_event_loop().time() - start_heal) * 1000)
                     vibe_text = self._extract_vibe_payload(self._mcp_result_to_text(vibe_res))
+                    
+                    # DB: Update Recovery Attempt
+                    if db_manager.available and recovery_id:
+                        try:
+                            async with await db_manager.get_session() as db_sess:
+                                from sqlalchemy import update
+                                from .db.schema import RecoveryAttempt
+                                
+                                # Heuristic match for success (did it return text?)
+                                # Ideally Vibe returns structured status, but text length > 50 usually means it did something.
+                                is_success = bool(vibe_text and len(vibe_text) > 50)
+                                
+                                await db_sess.execute(
+                                    update(RecoveryAttempt)
+                                    .where(RecoveryAttempt.id == recovery_id)
+                                    .values(
+                                        success=is_success,
+                                        duration_ms=heal_duration
+                                    )
+                                )
+                                await db_sess.commit()
+                        except Exception as e:
+                            logger.error(f"Failed to update recovery attempt result: {e}")
+
                     if vibe_text:
                         last_error = last_error + "\n\nVIBE_FIX_REPORT:\n" + vibe_text[:4000]
                         await self._log(f"Vibe completed self-healing for step {step_id}", "system")
