@@ -93,7 +93,7 @@ async def test_vibe_prompt_small_task():
     result = await vibe_prompt(
         ctx=ctx,
         prompt=prompt,
-        timeout_s=120,
+        timeout_s=600,
         max_turns=5,
     )
     

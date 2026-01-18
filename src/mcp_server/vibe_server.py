@@ -21,12 +21,22 @@ import logging
 import os
 import shutil
 import subprocess
+import threading
 import uuid
 import re
-from typing import Any, Dict, List, Optional, Tuple
+import pty
+from typing import Any, Dict, List, Optional, Tuple, Pattern
 from pathlib import Path
 from datetime import datetime
 from mcp.server.fastmcp import FastMCP, Context
+
+# ANSI escape code regex
+ANSI_ESCAPE: Pattern = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from text."""
+    return ANSI_ESCAPE.sub('', text)
+
 
 # Setup logging for visibility in Electron app
 logger = logging.getLogger("vibe_mcp")
@@ -242,6 +252,7 @@ async def _run_vibe(
 ) -> Dict[str, Any]:
     """Execute Vibe CLI command and return structured result with real-time logging."""
     env = os.environ.copy()
+    
     if extra_env:
         env.update({k: str(v) for k, v in extra_env.items()})
 
@@ -258,18 +269,30 @@ async def _run_vibe(
         except Exception as e:
             print(f"[VIBE_DEBUG] safe_notify failed: {e}", file=sys.stderr)
             pass
-
+    
+    # Wrapper implementation: Use vibe_runner.py to handle PTY isolation
+    runner_script = os.path.join(os.path.dirname(__file__), "vibe_runner.py")
+    
+    # Prepend python and runner script to argv
+    # argv was [vibe_path, args...] (e.g. /home/user/.local/bin/vibe -p ...)
+    # wrapper takes [vibe_binary, args...] as arguments.
+    wrapper_argv = [sys.executable, runner_script] + argv
+    
     msg_start = f"⚡ [VIBE-LIVE] Initializing... (Timeout: {timeout_s}s)"
     logger.info(msg_start)
     asyncio.create_task(safe_notify(msg_start))
 
     try:
+        print(f"[VIBE_DEBUG] Executing (Wrapper): {wrapper_argv}", file=sys.stderr)
+        
+        # Run the wrapper as a standard subprocess (wrapper handles PTY)
         process = await asyncio.create_subprocess_exec(
-            *argv,
+            *wrapper_argv,
             cwd=cwd,
             env=env,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE, 
+            stdin=asyncio.subprocess.DEVNULL 
         )
 
         stdout_chunks = []
@@ -281,7 +304,7 @@ async def _run_vibe(
         async def read_stream(stream, chunks, prefix):
             buffer = ""
             while True:
-                # Read chunks instead of lines for more immediate feedback
+                # Read chunks
                 data = await stream.read(512)
                 if not data:
                     break
@@ -289,10 +312,11 @@ async def _run_vibe(
                 # Update activity timestamp
                 last_activity[0] = asyncio.get_event_loop().time()
 
-                text_chunk = data.decode(errors='replace')
-                # Debug: log raw chunk reception
-                if text_chunk.strip():
-                    print(f"[VIBE_DEBUG] [{prefix}] Chunk: {len(text_chunk)} bytes", file=sys.stderr)
+                try:
+                    text_chunk = data.decode(errors='replace')
+                except:
+                    text_chunk = str(data)
+                
                 chunks.append(text_chunk)
                 buffer += text_chunk
                 
@@ -305,58 +329,48 @@ async def _run_vibe(
                     if not raw_text.strip():
                         continue
                     
-                    stripped = raw_text.strip()
-                    is_json = False
-                    
-                    if stripped.startswith("{"):
-                        try:
-                            # Try to parse as JSON first (vibe --output streaming / json)
-                            data_json = json.loads(stripped)
-                            is_json = True
-                            
-                            role = data_json.get("role", "")
-                            thoughts = data_json.get("reasoning_content") or data_json.get("thought") or ""
-                            content = data_json.get("content") or ""
-                            tool_calls = data_json.get("tool_calls")
-                            
-                            # Log role-based message
-                            if role:
-                                role_msg = f"📨 [VIBE-MSG] Role: {role}"
-                                logger.info(role_msg)
-                            
-                            if thoughts:
-                                # Truncate very long reasoning
-                                snippet = thoughts[:800] + ("..." if len(thoughts) > 800 else "")
-                                msg = f"🧠 [VIBE-THOUGHT] {snippet}"
+                    # LOGGING LOGIC
+                    # Wrapper ensures mostly clean JSON, but we verify
+                    try:
+                        data_json = json.loads(raw_text)
+                        
+                        role = data_json.get("role", "")
+                        thoughts = data_json.get("reasoning_content") or data_json.get("thought") or ""
+                        content = data_json.get("content") or ""
+                        tool_calls = data_json.get("tool_calls")
+                        
+                        # Log role-based message
+                        if role:
+                            msg = f"📨 [VIBE-MSG] Role: {role}"
+                            logger.info(msg)
+                        
+                        if thoughts:
+                            snippet = thoughts[:800] + ("..." if len(thoughts) > 800 else "")
+                            msg = f"🧠 [VIBE-THOUGHT] {snippet}"
+                            logger.info(msg)
+                            asyncio.create_task(safe_notify(msg))
+                        
+                        if tool_calls:
+                            for tc in tool_calls:
+                                func = tc.get("function", {})
+                                f_name = func.get("name", "unknown_tool")
+                                msg = f"🛠️ [VIBE-ACTION] Using tool: {f_name}"
                                 logger.info(msg)
                                 asyncio.create_task(safe_notify(msg))
-                            
-                            if tool_calls:
-                                for tc in tool_calls:
-                                    func = tc.get("function", {})
-                                    f_name = func.get("name", "unknown_tool")
-                                    msg = f"🛠️ [VIBE-ACTION] Using tool: {f_name}"
-                                    logger.info(msg)
-                                    asyncio.create_task(safe_notify(msg))
-                            
-                            if content:
-                                snippet = content.strip().replace("\n", " ")[:500]
-                                if snippet:
-                                    msg = f"📝 [VIBE-GEN] {snippet}"
-                                    logger.info(msg)
-                                    asyncio.create_task(safe_notify(msg))
-                                    
-                        except json.JSONDecodeError:
-                            is_json = False 
-
-                    if not is_json:
-                        # Raw text support (stderr often has status messages)
-                        if len(stripped) < 1000:
-                            # Log all stderr raw text as potential status
-                            if prefix == "VIBE-ERR" or any(x in stripped.lower() for x in ["downloading", "fetching", "waiting", "connect", "thinking", "processing", "loading", "running"]):
-                                msg = f"⚡ [VIBE-STATUS] {stripped}"
+                        
+                        if content:
+                            snippet = content.strip().replace("\n", " ")[:500]
+                            if snippet:
+                                msg = f"📝 [VIBE-GEN] {snippet}"
                                 logger.info(msg)
                                 asyncio.create_task(safe_notify(msg))
+                                
+                    except json.JSONDecodeError:
+                        # Non-JSON content (wrapper passed it through?)
+                        if len(raw_text) < 1000:
+                             msg = f"⚡ [VIBE-STATUS] {raw_text}"
+                             logger.info(msg)
+                             asyncio.create_task(safe_notify(msg))
 
         # Heartbeat task with informative progress messages
         async def heartbeat_worker():
@@ -410,7 +424,6 @@ async def _run_vibe(
             await asyncio.wait_for(
                 asyncio.gather(
                     read_stream(process.stdout, stdout_chunks, "VIBE-OUT"),
-                    read_stream(process.stderr, stderr_chunks, "VIBE-ERR"),
                     process.wait()
                 ),
                 timeout=float(timeout_s)
@@ -427,8 +440,8 @@ async def _run_vibe(
         finally:
             hb_task.cancel()
 
-        stdout = "".join(stdout_chunks)
-        stderr = "".join(stderr_chunks)
+        stdout = strip_ansi("".join(stdout_chunks))
+        stderr = strip_ansi("".join(stderr_chunks))
 
         logger.info(f"[VIBE] Exit code: {process.returncode}")
         
