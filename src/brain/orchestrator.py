@@ -435,7 +435,26 @@ class Trinity:
                         self.state["logs"] = []
                     if "error" not in self.state:
                         self.state["error"] = None
-                    logger.info("[ORCHESTRATOR] State restored from Redis")
+                    
+                    # Robust Message Restoration: Convert back to LangChain objects if they are dicts,
+                    # or handle if they are strings. Logic: If list of strings/dicts, we normalize.
+                    if "messages" in self.state and isinstance(self.state["messages"], list):
+                        normalized_msgs = []
+                        for m in self.state["messages"]:
+                            if isinstance(m, dict):
+                                # Reconstruct based on type
+                                m_type = m.get("type")
+                                m_content = m.get("content", "")
+                                if m_type == "human": normalized_msgs.append(HumanMessage(content=m_content))
+                                elif m_type == "ai": normalized_msgs.append(AIMessage(content=m_content))
+                                else: normalized_msgs.append(BaseMessage(content=m_content, type=m_type or "system"))
+                            elif isinstance(m, str):
+                                normalized_msgs.append(HumanMessage(content=m))
+                            else:
+                                normalized_msgs.append(m)
+                        self.state["messages"] = normalized_msgs
+
+                    logger.info("[ORCHESTRATOR] State restored and normalized from Redis")
                     # CRITICAL: Verify that the DB IDs in the restored state actually exist
                     await self._verify_db_ids()
 
@@ -1182,6 +1201,9 @@ class Trinity:
                         await self._log(f"User responded: {user_response}", "system")
                         # Add user response to history for context
                         self.state["messages"].append(HumanMessage(content=user_response))
+                        # Save state immediately after user interaction
+                        if state_manager.available:
+                            state_manager.save_session("current_session", self.state)
                         # Retry the step with the user response as feedback
                         await message_bus.send(AgentMsg(
                             from_agent="USER",
@@ -1197,12 +1219,19 @@ class Trinity:
                         await self._log("User silent for 10s. Atlas taking the burden...", "orchestrator", type="warning")
                         await self._speak("atlas", "Ви мовчите, тому я прийму рішення самостійно, щоб не зупиняти процес.")
                         
+                        def _get_msg_content(m):
+                            if hasattr(m, "content"): return m.content
+                            if isinstance(m, dict): return m.get("content", str(m))
+                            return str(m)
+
+                        goal_msg = self.state.get("messages", [HumanMessage(content="Unknown")])[0]
+                        
                         autonomous_decision = await self.atlas.decide_for_user(
                             result.result, # The question text
                             {
-                                "goal": self.state.get("messages", [HumanMessage(content="Unknown")])[0].content,
+                                "goal": _get_msg_content(goal_msg),
                                 "current_step": step.get("action"),
-                                "history": [m.content for m in self.state.get("messages", [])[-5:]]
+                                "history": [_get_msg_content(m) for m in self.state.get("messages", [])[-5:]]
                             }
                         )
                         
