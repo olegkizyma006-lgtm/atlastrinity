@@ -847,6 +847,7 @@ class Trinity:
             last_error = ""
 
             for attempt in range(1, max_step_retries + 1):
+                db_step_id = None
                 await self._log(
                     f"Step {step_id}, Attempt {attempt}: {step.get('action')}",
                     "orchestrator",
@@ -862,6 +863,7 @@ class Trinity:
                         break
                     else:
                         last_error = step_result.error
+                        db_step_id = self.state.get("db_step_id")
                         await self._log(
                             f"Step {step_id} Attempt {attempt} failed: {last_error}",
                             "warning",
@@ -1081,6 +1083,7 @@ class Trinity:
         )
         # DB Step logging
         db_step_id = None
+        self.state["db_step_id"] = None
         if db_manager.available and self.state.get("db_task_id"):
             try:
                 # We try to convert step_id (e.g. "3.2.1") to a sequence number?
@@ -1106,6 +1109,7 @@ class Trinity:
                     db_sess.add(new_step)
                     await db_sess.commit()
                     db_step_id = str(new_step.id)
+                    self.state["db_step_id"] = db_step_id
             except Exception as e:
                 logger.error(f"DB Step creation failed: {e}")
 

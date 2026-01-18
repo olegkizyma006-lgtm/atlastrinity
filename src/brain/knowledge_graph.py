@@ -3,6 +3,7 @@ Knowledge Graph (GraphChain)
 Bridges Structured Data (Postgres) and Semantic Data (ChromaDB)
 """
 
+import json
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -75,14 +76,21 @@ class KnowledgeGraph:
                     if content:
                         text_repr += f"CONTENT:\n{content}\n"
 
+                    # Sanitize metadata for ChromaDB (only allows str, int, float, bool)
+                    sanitized_metadata = {
+                        "type": node_type,
+                        "last_updated": datetime.now().isoformat(),
+                    }
+                    for k, v in attributes.items():
+                        if isinstance(v, (list, dict)):
+                            sanitized_metadata[k] = json.dumps(v, ensure_ascii=False)
+                        else:
+                            sanitized_metadata[k] = v
+
                     long_term_memory.add_knowledge_node(
                         node_id=node_id,
                         text=text_repr,
-                        metadata={
-                            "type": node_type,
-                            "last_updated": datetime.now().isoformat(),
-                            **attributes,
-                        },
+                        metadata=sanitized_metadata,
                     )
 
             logger.info(f"[GRAPH] Node stored: {node_id}")
