@@ -72,8 +72,8 @@ except Exception:
 
 PROJECT_ROOT = str(Path(__file__).parent.parent.parent)
 
-# Repository root for self-healing (where the source code to be fixed lives)
-def _get_repository_root():
+# System root for self-healing (where the AtlasTrinity source code lives)
+def _get_system_root():
     try:
         from .config_loader import load_mcp_config, _substitute_placeholders
         config_path = CONFIG_ROOT / "config.yaml"
@@ -87,8 +87,11 @@ def _get_repository_root():
         pass
     return str(PROJECT_ROOT)
 
-REPOSITORY_ROOT = _get_repository_root()
+SYSTEM_ROOT = _get_system_root()
 LOG_DIR = str(CONFIG_ROOT / "logs")
+
+# Vibe session directory (default CLI location)
+VIBE_SESSION_DIR = Path.home() / ".vibe" / "logs" / "session"
 
 # Global instructions directory for large prompts
 INSTRUCTIONS_DIR = str(Path(VIBE_WORKSPACE) / "instructions")
@@ -696,8 +699,8 @@ async def vibe_analyze_error(
         "ROLE: Analyze and repair the Trinity runtime and its MCP servers.",
         "",
         f"CONTEXT:",
-        f"- Project Root (Runtime): {PROJECT_ROOT}",
-        f"- Repository Root (Source Code): {REPOSITORY_ROOT}",
+        f"- System Root (AtlasTrinity): {SYSTEM_ROOT}",
+        f"- Target Directory (Task): {cwd or VIBE_WORKSPACE}",
         f"- Logs Directory: {LOG_DIR}",
         "- OS: macOS",
         "- Internal DB: PostgreSQL (Schema: sessions, tasks, task_steps, tool_executions, logs)",
@@ -836,8 +839,8 @@ CONTEXT FILES:
 
 CONSTRAINTS:
 {constraints or "Standard project guidelines apply."}
-- Project Root: {REPOSITORY_ROOT}
-- Current Directory: {cwd or VIBE_WORKSPACE}
+- System Root (AtlasTrinity): {SYSTEM_ROOT}
+- Project Root (Current Work): {cwd or VIBE_WORKSPACE}
 
 INSTRUCTIONS:
 1. PLAN: Analyze the goal and files. enhancing existing architecture.
@@ -1100,12 +1103,11 @@ async def vibe_list_sessions(limit: int = 10) -> Dict[str, Any]:
     List recent Vibe session logs with token usage and metrics.
     Useful for tracking costs, context size, and session IDs for resuming.
     """
-    session_dir = Path.home() / ".vibe" / "logs" / "session"
-    if not session_dir.exists():
-        return {"error": "Session logs directory not found"}
+    if not VIBE_SESSION_DIR.exists():
+        return {"error": f"Session logs directory not found at {VIBE_SESSION_DIR}"}
     
     # Get all json files in the session directory
-    files = list(session_dir.glob("session_*.json"))
+    files = list(VIBE_SESSION_DIR.glob("session_*.json"))
     # Sort by modification time (newest first)
     files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
     
@@ -1149,19 +1151,18 @@ async def vibe_session_details(session_id_or_file: str) -> Dict[str, Any]:
     """
     Get full details of a specific Vibe session including history and exact token counts.
     """
-    session_dir = Path.home() / ".vibe" / "logs" / "session"
     target_path = None
     
     # Check if it's an absolute path
     if os.path.isabs(session_id_or_file) and os.path.exists(session_id_or_file):
         target_path = Path(session_id_or_file)
     # Check if it's just a filename in the session dir
-    elif (session_dir / session_id_or_file).exists():
-        target_path = session_dir / session_id_or_file
+    elif (VIBE_SESSION_DIR / session_id_or_file).exists():
+        target_path = VIBE_SESSION_DIR / session_id_or_file
     # Search by session_id
     else:
         # Try to find file containing the session_id
-        files = list(session_dir.glob(f"*session*{session_id_or_file}*.json"))
+        files = list(VIBE_SESSION_DIR.glob(f"*session*{session_id_or_file}*.json"))
         if files:
             target_path = files[0]
             
