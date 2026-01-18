@@ -263,9 +263,9 @@ async def create_relation(source: str, target: str, relation: str) -> Dict[str, 
 
 
 @server.tool()
-def search_nodes(query: str, limit: int = 10) -> Dict[str, Any]:
+async def search_nodes(query: str, limit: int = 10) -> Dict[str, Any]:
     """Alias for search function to maintain compatibility"""
-    return search(query, limit)
+    return await search(query, limit)
 
 
 @server.tool()
