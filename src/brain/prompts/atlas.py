@@ -80,6 +80,7 @@ Respond with JSON:
       "id": 1,
       "realm": "Server Name (from Catalog)",
       "action": "Description of intent (English)",
+      "voice_action": "Description of intent in natural UKRAINIAN (0% English)",
       "expected_result": "Success criteria (English)",
       "requires_verification": true/false,
       "requires_vision": true/false

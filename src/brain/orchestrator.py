@@ -162,6 +162,17 @@ class Trinity:
 
     async def _speak(self, agent_id: str, text: str):
         """Voice wrapper"""
+        import re
+        
+        # ULTIMATE FAILSAFE: Strip any English characters from user-facing voice output
+        sanitized_text = re.sub(r'[a-zA-Z]', '', text)
+        sanitized_text = re.sub(r'\s+', ' ', sanitized_text).strip()
+        
+        # If the message becomes empty after sanitization, use a safe fallback
+        if not sanitized_text or len(sanitized_text) < 2:
+            sanitized_text = "Виконую технічну операцію."
+            
+        text = sanitized_text
         print(f"[{agent_id.upper()}] Speaking: {text}")
 
         # Synchronize with UI chat log (MESSAGES, NOT JUST LOGS)
@@ -493,10 +504,12 @@ class Trinity:
             # Inject catalog into shared context
             shared_context.available_mcp_catalog = mcp_catalog
 
-            await self._speak(
-                "atlas", 
-                analysis.get("voice_response") or analysis.get("reason") or "Аналізую..."
-            )
+            # Priority: voice_response (Human-like) > Falls back to "Аналізую..."
+            spoken_text = analysis.get("voice_response")
+            if not spoken_text or not spoken_text.strip():
+                spoken_text = "Аналізую ваш запит..."
+                
+            await self._speak("atlas", spoken_text)
 
             # Keep-alive logger to show activity in UI during long LLM calls
             # Added rate limiting to prevent log spam
@@ -970,12 +983,14 @@ class Trinity:
         # Starting message logic
         # Simple heuristic: If it's a top level step (no dots) and first attempt
         if "." not in str(step_id) and attempt == 1:
-            # Pass step_id and description to get a meaningful announcement
-            msg = self.tetyana.get_voice_message(
-                "starting", 
-                step=step_id, 
-                description=step.get("action", "")
-            )
+            # Use voice_action from plan if available, else fallback to generic
+            msg = step.get("voice_action")
+            if not msg:
+                msg = self.tetyana.get_voice_message(
+                    "starting", 
+                    step=step_id, 
+                    description=step.get("action", "")
+                )
             await self._speak("tetyana", msg)
         elif "." in str(step_id):
             # It's a sub-step/recovery step

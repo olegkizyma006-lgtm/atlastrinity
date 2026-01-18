@@ -1660,10 +1660,20 @@ Please type your response below and press Enter:
                 translated_words.append(word)
         
         essence = " ".join(translated_words)
+        
+        # SECONDARY FILTER: REMOVE ANY WORDS THAT STILL CONTAIN ENGLISH CHARACTERS
+        # This prevents technical jargon like "vibe_server" or "json" from leaking into TTS.
+        import re
+        essence = " ".join([w for w in essence.split() if not re.search(r'[a-zA-Z]', w)])
+        
+        # If essence becomes empty after filtering, use a generic fallback based on action
+        if not essence.strip():
+            if action == "starting": essence = "виконую заплановану дію"
+            elif action == "completed": essence = "дію завершено"
+            else: essence = "поточний етап"
 
-        # Clean up any leftover English characters to avoid TTS stutter
-        # (Simple heuristic: only keep Cyrillic, numbers and Basic punctuation)
-        # Actually, we keep it for now but the mapping covers 90%
+        # Clean up punctuation and spacing
+        essence = re.sub(r'\s+', ' ', essence).strip()
 
         # Construct message based on state
         if action == "completed":

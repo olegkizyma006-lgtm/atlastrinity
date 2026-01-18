@@ -79,7 +79,7 @@ class AgentPrompts:
             "thought": "Internal technical analysis in ENGLISH (Which tool? Which args? Why based on schema?)",
             "proposed_action": {{ "tool": "server.tool_name", "args": {{...}} }},
             "question_to_atlas": "Optional technical question if you are stuck or need guidance",
-            "voice_message": "Ukrainian message for the user describing the action"
+            "voice_message": "Mandatory Ukrainian message. SYNTHESIZE the action into natural Ukrainian. DO NOT use English words or raw technical descriptions. (e.g., 'Створюю нову папку для проекту' instead of 'Running mkdir...')"
         }}
         
         TOOL SELECTION GUIDE:
@@ -259,8 +259,8 @@ ALL textual reasoning (reason) MUST be in ENGLISH for maximum logic precision.
 Respond STRICTLY in JSON:
 {{
     "intent": "chat" or "task" or "development",
-    "reason": "Technical explanation of the choice in English",
-    "voice_response": "Ukrainian message for the user explaining the intent (e.g., 'Я зрозумів завдання, починаю розробку...')",
+    "reason": "Technical explanation of the choice in English (Internal only)",
+    "voice_response": "Ukrainian message for the user. ZERO English words. Be NATURAL as a companion. DO NOT explain your logic (e.g., 'Yes, I can do that' or 'I understand the task' in Ukrainian). NEVER mention server names, tool names (like 'vibe', 'mcp'), or technical intents (like 'development').",
     "enriched_request": "Detailed description of the request (English)",
     "complexity": "low/medium/high",
     "use_vibe": true/false,
@@ -319,6 +319,7 @@ Do not suggest creating a complex plan, just use your tools autonomously to answ
         - Output JSON matching the format in your SYSTEM PROMPT.
         - 'goal', 'reason', and 'action' descriptions MUST be in English (technical precision).
         - 'voice_summary' MUST be in UKRAINIAN (for the user).
+        - **STEP LOCALIZATION**: Each step in 'steps' MUST include a 'voice_action' field in natural UKRAINIAN (0% English words) describing what will happen.
         - **META-PLANNING AUTHORIZED**: If the task is complex, you MAY include reasoning steps (using `sequential-thinking`) to discover the path forward. Do not just say "no steps found". Goal achievement is mandatory.
 
         - **DISCOVERY FIRST**: If your plan involves the `macos-use` server, you MUST include a discovery step (tool: `macos-use.discovery`) as Step 1. This ensures Tetyana has the latest technical schemas before execution.
@@ -374,7 +375,7 @@ Do not suggest creating a complex plan, just use your tools autonomously to answ
             "quality_score": 0.0 to 1.0 (float),
             "achieved": true/false,
             "analysis": "Internal technical evaluation in ENGLISH (How did the tools perform?)",
-            "final_report": "DIRECT ANSWER to the user's GOAL in UKRAINIAN. If they asked to count, GIVE THE NUMBER. If they asked to find, LIST THE RESULTS. Use 0% English words. Localize all paths and tech terms. (e.g., 'Я знайшов шість документів у папці проектів...')",
+            "final_report": "DIRECT ANSWER to the user's GOAL in UKRAINIAN. 0% English words. (e.g., 'Я знайшов сім файлів...' OR 'Проект успішно зібрано.'). IF THE USER ASKED TO COUNT, YOU MUST PROVIDE THE COUNT HERE.",
             "compressed_strategy": [
                 "Step 1 intent",
                 ...

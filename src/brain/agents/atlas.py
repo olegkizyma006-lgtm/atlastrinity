@@ -400,8 +400,26 @@ class Atlas(BaseAgent):
         response = await self.llm.ainvoke(messages)
         plan_data = self._parse_response(response.content)
 
+        # ENSURE VOICE_ACTION INTEGRITY: Post-process steps to guarantee Ukrainian descriptions
+        steps = plan_data.get("steps", [])
+        import re
+        for step in steps:
+            # If voice_action is missing or contains English, force a generic Ukrainian description
+            va = step.get("voice_action", "")
+            if not va or re.search(r'[a-zA-Z]', va):
+                # Fallback heuristic: Try to translate action intent
+                action = step.get("action", "").lower()
+                if "click" in action: va = "Виконую натискання на елемент"
+                elif "type" in action: va = "Вводжу текст"
+                elif "search" in action: va = "Шукаю інформацію"
+                elif "vibe" in action: va = "Запускаю аналіз Вайб"
+                elif "terminal" in action or "command" in action: va = "Виконую команду в терміналі"
+                else: va = "Переходжу до наступного етапу завдання"
+                step["voice_action"] = va
+                logger.warning(f"[ATLAS] Fixed missing/English voice_action in step: {va}")
+
         # META-PLANNING FALLBACK: If planner failed to generate steps, force reasoning
-        if not plan_data.get("steps"):
+        if not steps:
             logger.info("[ATLAS] No direct steps found. Engaging Meta-Planning via sequential-thinking...")
             reasoning = await self.use_sequential_thinking(task_text)
             if reasoning.get("success"):
@@ -413,11 +431,16 @@ class Atlas(BaseAgent):
                 ]
                 response = await self.llm.ainvoke(messages)
                 plan_data = self._parse_response(response.content)
+                steps = plan_data.get("steps", [])
+                # Re-check voice_action for new steps
+                for step in steps:
+                    if not step.get("voice_action") or re.search(r'[a-zA-Z]', step.get("voice_action", "")):
+                        step["voice_action"] = "Виконую заплановану дію"
 
         self.current_plan = TaskPlan(
             id=str(uuid.uuid4())[:8],
             goal=plan_data.get("goal", enriched_request.get("enriched_request", "")),
-            steps=plan_data.get("steps", []),
+            steps=steps,
             context={**enriched_request, "simulation": simulation_result},
         )
 
@@ -649,17 +672,47 @@ class Atlas(BaseAgent):
             if res.get("error"):
                 history += f"   Error: {res.get('error')}\n"
 
-        prompt = AgentPrompts.atlas_evaluation_prompt(goal, history)
+        logger.info(f"[ATLAS] Deep Evaluating execution quality for goal: {goal[:50]}...")
+        
+        # 1. Deep Reasoning Phase (Fact Extraction)
+        reasoning_query = f"""Analyze this execution history and extract precise facts to answer the user's goal.
+GOAL: {goal}
+HISTORY: {history}
 
-        messages = [
-            SystemMessage(content=self.SYSTEM_PROMPT),
-            HumanMessage(content=prompt),
-        ]
+Extract specific numbers, names, and technical outcomes. If the user asked to count, find the count in the results.
+Output internal thoughts in English, then prepare a final report in UKRAINIAN with 0% English words."""
 
-        logger.info(f"[ATLAS] Evaluating execution quality for goal: {goal[:50]}...")
         try:
-            response = await self.llm.ainvoke(messages)
+            # Use Sequential Thinking for analysis
+            analysis_result = await self.use_sequential_thinking(reasoning_query)
+            synthesis_context = str(analysis_result.get("analysis", "No deep analysis available."))
+        except Exception as e:
+            logger.warning(f"Sequential thinking for evaluation failed: {e}")
+            synthesis_context = "Fallback to direct synthesis."
+
+        # 2. Final Synthesis Phase (JSON Formatting)
+        prompt = f"""Based on the following deep analysis and execution history, provide a final evaluation.
+
+GOAL: {goal}
+HISTORY: {history}
+DEEP ANALYSIS: {synthesis_context}
+
+IMPORTANT: The final_report must be a DIRECT ANSWER in UKRAINIAN. 0% English words. 
+If the user asked to 'count', you MUST state the exact number found.
+{AgentPrompts.atlas_evaluation_prompt(goal, history)}"""
+
+        try:
+            response = await self.llm.ainvoke([
+                SystemMessage(content=self.SYSTEM_PROMPT),
+                HumanMessage(content=prompt),
+            ])
             evaluation = self._parse_response(response.content)
+            
+            # Placeholder safeguard
+            if "[вкажіть" in str(evaluation.get("final_report")):
+                logger.warning("[ATLAS] Final report contains placeholders. Forcing fix.")
+                evaluation["final_report"] = evaluation["final_report"].split("[")[0].strip()
+
             logger.info(f"[ATLAS] Evaluation complete. Score: {evaluation.get('quality_score', 0)}")
             return evaluation
         except Exception as e:
@@ -696,7 +749,7 @@ class Atlas(BaseAgent):
 
         elif action == "vibe_engaged":
             return (
-                f"Залучаю Vibe для глибинного аналізу помилки у кроці {kwargs.get('step_id', '?')}."
+                f"Залучаю Вайб для глибинного аналізу помилки у кроці {kwargs.get('step_id', '?')}."
             )
 
         return f"Атлас: {action}"
