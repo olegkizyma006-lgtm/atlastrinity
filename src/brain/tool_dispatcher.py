@@ -27,7 +27,12 @@ class ToolDispatcher:
     
     SERACH_SYNONYMS = [] # Deprecated
     
-    VIBE_SYNONYMS = ["vibe", "vibe_prompt", "vibe_ask", "vibe_analyze_error", "vibe_smart_plan", "vibe_code_review", "vibe_implement_feature"]
+    VIBE_SYNONYMS = [
+        "vibe", "vibe_prompt", "vibe_ask", "vibe_analyze_error", "vibe_smart_plan", 
+        "vibe_code_review", "vibe_implement_feature", "vibe_execute_subcommand",
+        "vibe_list_sessions", "vibe_session_details", "vibe_which",
+        "debug", "fix", "implement", "feature", "review", "plan", "ask", "question"
+    ]
     
     BROWSER_SYNONYMS = ["browser", "puppeteer", "navigate", "google", "search", "bing", "web"]
 
@@ -46,19 +51,32 @@ class ToolDispatcher:
         "launch": "macos-use_open_application_and_traverse",
         "scroll": "macos-use_scroll_and_traverse",
         "fetch": "macos-use_fetch_url",
+        "fetch_url": "macos-use_fetch_url",
         "time": "macos-use_get_time",
+        "get_time": "macos-use_get_time",
         "notification": "macos-use_send_notification",
+        "run_applescript": "macos-use_run_applescript",
+        "applescript": "macos-use_run_applescript",
+        "spotlight": "macos-use_spotlight_search",
+        "spotlight_search": "macos-use_spotlight_search",
+        "clipboard_set": "macos-use_set_clipboard",
+        "set_clipboard": "macos-use_set_clipboard",
+        "clipboard_get": "macos-use_get_clipboard",
+        "get_clipboard": "macos-use_get_clipboard",
         # Notes tools
         "create_note": "macos-use_notes_create_note",
         "notes_create": "macos-use_notes_create_note",
         "list_notes": "macos-use_notes_list_folders",
         "notes_list": "macos-use_notes_list_folders",
         "get_note": "macos-use_notes_get_content",
+        "notes_get": "macos-use_notes_get_content",
         # Finder tools
         "finder_open": "macos-use_finder_open_path",
         "open_path": "macos-use_finder_open_path",
         "list_files": "macos-use_finder_list_files",
         "finder_list": "macos-use_finder_list_files",
+        "finder_selection": "macos-use_finder_get_selection",
+        "get_selection": "macos-use_finder_get_selection",
         "trash": "macos-use_finder_move_to_trash",
         "move_to_trash": "macos-use_finder_move_to_trash",
         # Calendar/Reminders
@@ -71,9 +89,9 @@ class ToolDispatcher:
         "mail_send": "macos-use_mail_send",
         "read_inbox": "macos-use_mail_read_inbox",
         "mail_read": "macos-use_mail_read_inbox",
-        # Spotlight
-        "spotlight": "macos-use_spotlight_search",
-        "spotlight_search": "macos-use_spotlight_search",
+        # Media/System
+        "system_control": "macos-use_system_control",
+        "media": "macos-use_system_control",
         # Explicit Terminal support within macos-use routing
         "terminal": "execute_command",
         "execute_command": "execute_command",
@@ -222,7 +240,14 @@ class ToolDispatcher:
                 return server, resolved_tool, normalized_args
         
         # Priority 2: Standard resolution
-        return self._resolve_tool_and_args(tool_name, args, explicit_server)
+        server, resolved_tool, normalized_args = self._resolve_tool_and_args(tool_name, args, explicit_server)
+        
+        # Override for 'search' if it's not explicitly browser search
+        if tool_name == "search" and server == "puppeteer" and not any(kw in str(args).lower() for kw in ["web", "google", "bing", "url", "navigate"]):
+             server = "memory"
+             resolved_tool = "search"
+             
+        return server, resolved_tool, normalized_args
     
     def get_coverage_stats(self) -> Dict[str, Any]:
         """Get macOS-use coverage statistics."""
@@ -391,14 +416,32 @@ class ToolDispatcher:
         vibe_map = {
             "vibe": "vibe_prompt",
             "prompt": "vibe_prompt",
+            "vibe_prompt": "vibe_prompt",
             "ask": "vibe_ask",
+            "vibe_ask": "vibe_ask",
             "question": "vibe_ask",
             "plan": "vibe_smart_plan",
+            "smart_plan": "vibe_smart_plan",
+            "vibe_smart_plan": "vibe_smart_plan",
             "debug": "vibe_analyze_error",
             "fix": "vibe_analyze_error",
+            "vibe_analyze_error": "vibe_analyze_error",
+            "analyze_error": "vibe_analyze_error",
             "review": "vibe_code_review",
+            "vibe_code_review": "vibe_code_review",
+            "code_review": "vibe_code_review",
             "implement": "vibe_implement_feature",
             "feature": "vibe_implement_feature",
+            "vibe_implement_feature": "vibe_implement_feature",
+            "implement_feature": "vibe_implement_feature",
+            "subcommand": "vibe_execute_subcommand",
+            "vibe_execute_subcommand": "vibe_execute_subcommand",
+            "sessions": "vibe_list_sessions",
+            "vibe_list_sessions": "vibe_list_sessions",
+            "session_details": "vibe_session_details",
+            "vibe_session_details": "vibe_session_details",
+            "which": "vibe_which",
+            "vibe_which": "vibe_which",
         }
         resolved_tool = vibe_map.get(tool_name, tool_name)
         if not resolved_tool.startswith("vibe_"):

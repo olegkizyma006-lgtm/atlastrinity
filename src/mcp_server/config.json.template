@@ -3,8 +3,8 @@
     "_comment_tier1": "=== TIER 1: MUST-HAVE (Ядро системи) ===",
     "macos-use": {
       "command": "${PROJECT_ROOT}/vendor/mcp-server-macos-use/.build/release/mcp-server-macos-use",
-      "connect_timeout": 60,
-      "description": "UNIVERSAL macOS control (39 tools): GUI automation, Vision/OCR, Terminal, Fetch URL, Time, AppleScript, Calendar, Reminders, Notes, Mail, Finder, Spotlight, Notifications. PRIMARY server for ALL macOS interactions.",
+      "connect_timeout": 3600,
+      "description": "UNIVERSAL macOS control (52 tools): GUI automation, Vision/OCR, Terminal, Fetch URL, Time, AppleScript, Calendar, Reminders, Notes, Mail, Finder, Spotlight, Notifications. PRIMARY server for ALL macOS interactions.",
       "permissions": {
         "accessibility": true,
         "screen_recording": true
@@ -70,7 +70,7 @@
         "-m",
         "src.mcp_server.vibe_server"
       ],
-      "description": "Mistral AI-powered CLI for self-healing, debugging, code review, and deep coding. Tools: vibe_prompt, vibe_analyze_error, vibe_implement_feature, vibe_code_review, vibe_smart_plan. All output visible in logs.",
+      "description": "Mistral AI-powered CLI for self-healing, debugging, code review, and deep coding. Tools: vibe_prompt, vibe_analyze_error, vibe_implement_feature, vibe_code_review, vibe_smart_plan, vibe_ask, vibe_execute_subcommand, vibe_which, vibe_list_sessions, vibe_session_details (10 tools).",
       "disabled": false,
       "tier": 2,
       "agents": [

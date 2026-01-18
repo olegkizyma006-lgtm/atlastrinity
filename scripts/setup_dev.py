@@ -395,10 +395,8 @@ def build_swift_mcp():
         print_warning("Папка vendor/mcp-server-macos-use не знайдена. Пропускаємо.")
         return True
 
-    binary_path = mcp_path / ".build" / "release" / "mcp-server-macos-use"
-    if binary_path.exists() and "--rebuild" not in sys.argv:
-        print_success("macos-use вже скомпільовано ✓ (пропускаємо)")
-        return True
+    # Force recompilation: removing existing binary check to ensure latest logic is built
+    print_info("Forcing recompilation of macos-use to ensure binary integrity...")
 
     try:
         print_info("Запуск 'swift build -c release' (це може зайняти час)...")
@@ -552,7 +550,7 @@ def sync_configs():
         DIRS["mcp"].mkdir(parents=True, exist_ok=True)
         if mcp_json_src.exists():
             shutil.copy2(mcp_json_src, mcp_json_dst)
-            print_success(f"Overwrote mcp/config.json from template")
+            print_success(f"FORCED SYNC: Overwrote mcp/config.json from project template")
         else:
             print_warning("mcp/config.json.template missing, skipped overwrite")
 
