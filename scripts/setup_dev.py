@@ -737,7 +737,7 @@ def main():
     print("  2. Запустіть систему: npm run dev")
     print("")
     print_info("Доступні MCP сервери:")
-    print("  - memory: Граф знань & Long-term Memory (Atlas, Tetyana)")
+    print("  - memory: Граф знань & Long-term Memory (Atlas, Tetyana, Grisha)")
     print("  - macos-use: Нативний контроль macOS + Термінал (Tetyana, Grisha)")
     print("  - vibe: Coding Agent & Self-Healing (Atlas, Tetyana, Grisha)")
     print("  - filesystem: Файлові операції (Tetyana, Grisha)")
