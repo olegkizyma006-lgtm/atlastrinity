@@ -185,7 +185,7 @@ const App: React.FC = () => {
 
       {/* Left Panel - Execution Log */}
       <div className="panel left-panel glass-panel">
-        <div className="w-full h-full flex flex-col p-2">
+        <div className="flex-1 flex flex-col p-2 overflow-hidden">
           <ExecutionLog logs={logs} />
         </div>
       </div>

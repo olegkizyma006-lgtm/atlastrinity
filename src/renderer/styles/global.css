@@ -383,6 +383,10 @@ body {
   background: rgba(255, 255, 255, 0.3);
 }
 
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
 /* --- APP LAYOUT --- */
 
 .app-container {
@@ -404,6 +408,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
   border-radius: 2px;
   position: relative;
 }
@@ -492,6 +497,7 @@ body {
 /* Helper Utilities */
 .flex-1 {
   flex: 1;
+  min-height: 0;
 }
 
 .h-full {
