@@ -300,4 +300,18 @@ async def delete_entity(name: str) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    server.run()
+    import sys
+    try:
+        server.run()
+    except (BrokenPipeError, KeyboardInterrupt):
+        sys.exit(0)
+    except BaseException as e:
+        def contains_broken_pipe(exc):
+            if isinstance(exc, BrokenPipeError) or "Broken pipe" in str(exc):
+                return True
+            if hasattr(exc, "exceptions"):
+                return any(contains_broken_pipe(inner) for inner in exc.exceptions)
+            return False
+        if contains_broken_pipe(e):
+            sys.exit(0)
+        raise

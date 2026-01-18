@@ -1284,10 +1284,16 @@ if __name__ == "__main__":
         # Graceful exit when parent process closes the pipe or user interrupts
         sys.exit(0)
     except BaseException as e:
-        # Catch ExceptionGroup / BaseExceptionGroup if it contains BrokenPipeError (Python 3.11+)
-        # We also catch BaseException to handle cases where it's wrapped in non-Exception groups
-        err_msg = str(e)
-        if "BrokenPipeError" in err_msg or "Broken pipe" in err_msg:
+        # Recursive check for BrokenPipeError within ExceptionGroups (Python 3.11+)
+        def contains_broken_pipe(exc):
+            if isinstance(exc, BrokenPipeError) or "Broken pipe" in str(exc):
+                return True
+            # Look inside ExceptionGroup or BaseExceptionGroup
+            if hasattr(exc, "exceptions"):
+                return any(contains_broken_pipe(inner) for inner in exc.exceptions)
+            return False
+
+        if contains_broken_pipe(e):
             sys.exit(0)
         # Re-raise if it's a real problem
         raise
