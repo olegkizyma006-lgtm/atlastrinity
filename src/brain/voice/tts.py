@@ -12,6 +12,10 @@ NOTE: TTS models must be set up before first use via setup_dev.py
 import os
 import tempfile
 import asyncio
+import warnings
+
+# Suppress PyTorch weight_norm deprecation warning (triggered by espnet2/ukrainian-tts)
+warnings.filterwarnings("ignore", message=".*torch.nn.utils.weight_norm is deprecated.*")
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
