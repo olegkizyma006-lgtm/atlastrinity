@@ -27,7 +27,7 @@ class ToolDispatcher:
     
     SERACH_SYNONYMS = [] # Deprecated
     
-    VIBE_SYNONYMS = ["vibe", "vibe_prompt", "vibe_ask", "vibe_analyze_error", "vibe_smart_plan", "vibe_code_review"]
+    VIBE_SYNONYMS = ["vibe", "vibe_prompt", "vibe_ask", "vibe_analyze_error", "vibe_smart_plan", "vibe_code_review", "vibe_implement_feature"]
     
     BROWSER_SYNONYMS = ["browser", "puppeteer", "navigate", "google", "search", "bing", "web"]
 
@@ -397,6 +397,8 @@ class ToolDispatcher:
             "debug": "vibe_analyze_error",
             "fix": "vibe_analyze_error",
             "review": "vibe_code_review",
+            "implement": "vibe_implement_feature",
+            "feature": "vibe_implement_feature",
         }
         resolved_tool = vibe_map.get(tool_name, tool_name)
         if not resolved_tool.startswith("vibe_"):

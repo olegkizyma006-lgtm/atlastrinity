@@ -165,6 +165,33 @@ SERVER_CATALOG: Dict[str, Dict[str, Any]] = {
         "key_tools": ["puppeteer_navigate", "puppeteer_screenshot", "puppeteer_click"],
         "when_to_use": "ANY web task: searching for info, checking weather, scraping data, or interacting with websites.",
     },
+    "chrome-devtools": {
+        "name": "chrome-devtools",
+        "tier": 2,
+        "category": "browser",
+        "description": "Chrome DevTools Protocol for browser automation",
+        "capabilities": [
+            "Low-level browser control",
+            "Network monitoring",
+            "Console log access",
+            "DOM inspection",
+        ],
+        "key_tools": ["captureScreenshot", "console_logs", "network_requests"],
+        "when_to_use": "Advanced browser debugging or when puppeteer is insufficient.",
+    },
+    "graph": {
+        "name": "graph",
+        "tier": 2,
+        "category": "visualization",
+        "description": "Knowledge Graph visualization and export",
+        "capabilities": [
+            "Generate Mermaid diagrams",
+            "Visualize task dependencies",
+            "Export graph data",
+        ],
+        "key_tools": ["generate_mermaid", "export_graph"],
+        "when_to_use": "Visualizing complex system states, task flows, or knowledge structures.",
+    },
 
     # ─────────────────────────────────────────────────────────────────────────
     # TIER 3-4 - OPTIONAL SERVERS
