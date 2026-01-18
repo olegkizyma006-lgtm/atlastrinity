@@ -965,14 +965,28 @@ class Trinity:
                         except Exception as trace_err:
                             logger.warning(f"Failed to fetch context history: {trace_err}")
 
-                    # NEW: Logical Rejection Handling (Missing confirmation/input)
-                    # If Grisha rejected because of missing user input, Atlas should try to decide first
+                    # NEW: Logical Rejection or Controlled States Handling
+                    # If it's a logical rejection (missing input) or Atlas already provided help, we skip Vibe
                     err_str = str(last_error).lower()
+                    
+                    # 1. Check for missing user input
                     is_logical_rejection = "grisha rejected" in err_str and any(
                         k in err_str for k in ["підтвердження", "confirmation", "дозволу", "permission", "user input", "чекаємо", "не отримано"]
                     )
                     
-                    if is_logical_rejection and depth < 2 and not step.get("_atlas_decided"): # Only for early recovery and once per step
+                    # 2. Check for internal states that shouldn't trigger Vibe
+                    # help_pending: Atlas already gave proactive help, let retry loop use it
+                    # need_user_input: Waiting for user, then Atlas will decide
+                    controlled_states = ["help_pending", "need_user_input", "user_input_received", "autonomous_decision_made"]
+                    is_controlled_state = any(cs in last_error for cs in controlled_states)
+
+                    if (is_logical_rejection or is_controlled_state) and depth < 2 and not step.get("_atlas_decided"):
+                        # If it's just help_pending, we don't even need Atlas to 'decide_for_user' again, 
+                        # because help_tetyana already did it.
+                        if last_error == "help_pending":
+                            await self._log(f"Step {step_id} is in help_pending state. Atlas has already provided guidance. Retrying without Vibe.", "orchestrator")
+                            continue
+
                         step["_atlas_decided"] = True
                         await self._log(f"Detected logical rejection (missing input) for step {step_id}. Atlas will attempt a strategic decision.", "orchestrator")
                         await self._speak("atlas", "Бачу, що не вистачає вашого підтвердження. Оскільки ви мовчите, я проаналізую контекст і прийму рішення самостійно.")
