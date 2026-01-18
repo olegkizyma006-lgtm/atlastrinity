@@ -255,6 +255,10 @@ async def _run_vibe(
     
     if extra_env:
         env.update({k: str(v) for k, v in extra_env.items()})
+    
+    # Force disable raw debug spam from runner unless explicitly requested
+    if "VIBE_DEBUG_RAW" not in env:
+        env["VIBE_DEBUG_RAW"] = "false"
 
     async def safe_notify(msg: str, is_error: bool = False):
         if not ctx: 
@@ -345,28 +349,31 @@ async def _run_vibe(
                         tool_calls = data_json.get("tool_calls")
                         
                         # Log role-based message
-                        if role:
-                            msg = f"📨 [VIBE-MSG] Role: {role}"
-                            logger.info(msg)
-                        
-                        if thoughts:
-                            snippet = thoughts[:800] + ("..." if len(thoughts) > 800 else "")
-                            msg = f"🧠 [VIBE-THOUGHT] {snippet}"
+                        if role and role != "assistant":
+                            msg = f"[VIBE] {role}: {content[:200]}"
                             logger.info(msg)
                             asyncio.create_task(safe_notify(msg))
+                        
+                        if thoughts:
+                            # Show thoughts with proper formatting, more transparency
+                            clean_thoughts = thoughts.strip()
+                            if clean_thoughts:
+                                msg = f"[VIBE] Thoughts: {clean_thoughts[:1000]}"
+                                logger.info(msg)
+                                asyncio.create_task(safe_notify(msg))
                         
                         if tool_calls:
                             for tc in tool_calls:
                                 func = tc.get("function", {})
                                 f_name = func.get("name", "unknown_tool")
-                                msg = f"🛠️ [VIBE-ACTION] Using tool: {f_name}"
+                                msg = f"🛠️ [VIBE] Action: {f_name}"
                                 logger.info(msg)
                                 asyncio.create_task(safe_notify(msg))
                         
-                        if content:
-                            snippet = content.strip().replace("\n", " ")[:500]
-                            if snippet:
-                                msg = f"📝 [VIBE-GEN] {snippet}"
+                        if content and not tool_calls:
+                            # Direct pass-through for generated content chunks
+                            msg = f"[VIBE] {content.strip()[:500]}"
+                            if msg.strip() and msg != "[VIBE]":
                                 logger.info(msg)
                                 asyncio.create_task(safe_notify(msg))
                                 
@@ -383,50 +390,29 @@ async def _run_vibe(
                             continue
 
                         if len(raw_text) < 1000:
-                             msg = f"⚡ [VIBE-STATUS] {raw_text}"
+                             msg = f"[VIBE] {raw_text}"
                              logger.info(msg)
                              asyncio.create_task(safe_notify(msg))
 
-        # Heartbeat task with informative progress messages
+        # Heartbeat task - much simpler, only logs if truly silent for long
         async def heartbeat_worker():
             ticks = 0
-            phases = [
-                "🔍 Analyzing request...",
-                "🧠 Deep thinking in progress...",
-                "💭 Reasoning through the problem...",
-                "📝 Formulating response...",
-                "🔧 Planning tool usage...",
-                "⚙️ Processing complex logic...",
-                "🎯 Refining approach...",
-                "✨ Almost there...",
-            ]
             while process.returncode is None:
-                await asyncio.sleep(5)
+                await asyncio.sleep(15)
                 if process.returncode is None:
                     ticks += 1
                     now = asyncio.get_event_loop().time()
                     silence_duration = now - last_activity[0]
                     
-                    # Only log if silent for > 5 seconds
-                    if silence_duration > 5:
-                        # Rotate through phases for variety
-                        phase_idx = min(ticks - 1, len(phases) - 1)
-                        phase_msg = phases[phase_idx % len(phases)]
-                        
-                        # Calculate estimated time remaining (rough heuristic)
+                    # Only log if silent for > 30 seconds
+                    if silence_duration > 30:
                         elapsed_mins = int(silence_duration // 60)
                         elapsed_secs = int(silence_duration % 60)
                         time_str = f"{elapsed_mins}m {elapsed_secs}s" if elapsed_mins > 0 else f"{elapsed_secs}s"
                         
-                        msg = f"⏳ [VIBE-LIVE] {phase_msg} (Elapsed: {time_str})"
+                        msg = f"⏳ [VIBE] Still thinking... (Elapsed: {time_str})"
                         logger.info(msg)
                         asyncio.create_task(safe_notify(msg))
-                        
-                        # Add context message every 30 seconds
-                        if ticks % 6 == 0:
-                            context_msg = "💡 [VIBE-INFO] Vibe CLI buffers responses - results will appear after processing completes."
-                            logger.info(context_msg)
-                            asyncio.create_task(safe_notify(context_msg))
                     
                     # Warning after long silence (2+ minutes)
                     if silence_duration > 120 and ticks % 12 == 0:

@@ -43,7 +43,7 @@ def main():
     if len(sys.argv) < 2:
         sys.exit(1)
 
-    debug_mode = os.environ.get("VIBE_DEBUG_RAW", "true").lower() == "true"
+    debug_mode = os.environ.get("VIBE_DEBUG_RAW", "false").lower() == "true"
 
     line_buffer = ""
 

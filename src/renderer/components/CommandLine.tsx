@@ -89,20 +89,20 @@ const CommandLine: React.FC<CommandLineProps> = ({
 
     silenceTimeoutRef.current = setTimeout(() => {
       const textToSend = pendingTextRef.current.trim();
-      
+
       if (textToSend) {
         setSttStatus('🚀 Відправка...');
         onCommand(textToSend);
         setInput('');
         pendingTextRef.current = '';
-        
+
         // Миттєве відновлення статусу "Слухаю", оскільки Full Duplex працює
         if (isListeningRef.current) {
-           setSttStatus('🎙️ Слухаю...');
+          setSttStatus('🎙️ Слухаю...');
         } else {
-           setSttStatus('');
+          setSttStatus('');
         }
-        
+
         if (textareaRef.current) textareaRef.current.style.height = 'auto';
       }
     }, 2000); // ОПТИМІЗАЦІЯ: 2 секунди замість 3 (швидша реакція)
@@ -115,17 +115,17 @@ const CommandLine: React.FC<CommandLineProps> = ({
 
       // Якщо сервер явно каже відправити (наприклад, довга пауза на сервері)
       if (should_send && combined_text.trim()) {
-         pendingTextRef.current = combined_text;
-         scheduleSend(); // Виклик негайно (через існуючий механізм таймера з 0 затримкою або просто викликати логіку submit)
-         // Насправді краще просто форсувати таймер
-         if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
-         const textToSend = combined_text.trim();
-         setSttStatus('🚀 Відправка (Server Trigger)...');
-         onCommand(textToSend);
-         setInput('');
-         pendingTextRef.current = '';
-         setSttStatus('🎙️ Слухаю...');
-         return;
+        pendingTextRef.current = combined_text;
+        scheduleSend(); // Виклик негайно (через існуючий механізм таймера з 0 затримкою або просто викликати логіку submit)
+        // Насправді краще просто форсувати таймер
+        if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+        const textToSend = combined_text.trim();
+        setSttStatus('🚀 Відправка (Server Trigger)...');
+        onCommand(textToSend);
+        setInput('');
+        pendingTextRef.current = '';
+        setSttStatus('🎙️ Слухаю...');
+        return;
       }
 
       switch (speech_type) {
@@ -430,7 +430,7 @@ const CommandLine: React.FC<CommandLineProps> = ({
           {/* TTS Toggle */}
           <button
             onClick={onToggleVoice}
-            className={`control-btn ${isVoiceEnabled ? 'active' : ''} !bg-transparent !border-none !shadow-none !p-0 !h-auto mb-[-2px]`}
+            className={`control-btn ${isVoiceEnabled ? 'active' : ''}`}
             title="Toggle Voice (TTS)"
           >
             <svg
@@ -461,7 +461,7 @@ const CommandLine: React.FC<CommandLineProps> = ({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="ENTER_CORE_COMMAND..."
-            className="command-textarea-extended !bg-transparent !border-none !box-shadow-none !p-0 !m-0 !leading-tight !min-h-[14px]"
+            className="command-textarea-extended"
             spellCheck={false}
             rows={1}
             autoFocus
@@ -483,7 +483,7 @@ const CommandLine: React.FC<CommandLineProps> = ({
           {/* STT/Mic Button */}
           <button
             onClick={toggleListening}
-            className={`control-btn ${isListening ? 'listening' : ''} !bg-transparent !border-none !shadow-none !p-0 !h-auto mb-[-2px]`}
+            className={`control-btn ${isListening ? 'listening' : ''}`}
             title="Toggle Smart Mic (STT)"
           >
             <svg
@@ -508,7 +508,7 @@ const CommandLine: React.FC<CommandLineProps> = ({
           <button
             onClick={() => handleSubmit()}
             disabled={!input.trim()}
-            className={`send-btn ${input.trim() ? 'active' : ''} !bg-transparent !border-none !shadow-none !p-0 !h-auto mb-[-2px]`}
+            className={`send-btn ${input.trim() ? 'active' : ''}`}
             title="Send Command (Enter)"
           >
             <svg

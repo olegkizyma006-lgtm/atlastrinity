@@ -204,12 +204,12 @@ const App: React.FC = () => {
         <div className="w-full h-full flex flex-col">
           {/* Chat Area - Flexible Height */}
 
-          <div className="flex-1 overflow-hidden relative">
+          <div className="flex-1 min-h-0 overflow-hidden relative">
             <ChatPanel messages={chatMessages} />
           </div>
 
           {/* Input Area - Docked at Bottom */}
-          <div className="mt-auto">
+          <div className="mt-auto pt-2 border-t border-white/5 bg-black/20 px-2 pb-2">
             <CommandLine
               onCommand={handleCommand}
               isVoiceEnabled={isVoiceEnabled}

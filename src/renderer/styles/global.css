@@ -622,10 +622,12 @@ body {
   overflow: hidden;
   padding: 8px 12px;
   outline: none;
-  min-height: 36px;
+  min-height: 24px;
   max-height: 200px;
-  border-radius: 4px;
+  border-radius: 2px;
   transition: all 0.2s;
+  background: rgba(0, 163, 255, 0.03);
+  border: 1px solid rgba(0, 163, 255, 0.1);
 }
 
 .command-textarea-extended:focus {
@@ -636,7 +638,7 @@ body {
 
 .command-textarea-extended::placeholder {
   color: var(--atlas-blue);
-  opacity: 0.2;
+  opacity: 0.4;
 }
 
 /* Control Buttons for Command Line */

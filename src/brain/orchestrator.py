@@ -965,33 +965,35 @@ class Trinity:
                         except Exception as trace_err:
                             logger.warning(f"Failed to fetch context history: {trace_err}")
 
-                    # NEW: Logical Rejection or Controlled States Handling
-                    # If it's a logical rejection (missing input) or Atlas already provided help, we skip Vibe
-                    err_str = str(last_error).lower()
-                    
-                    # 1. Check for missing user input
+                    # 1. Check for missing user input or logical rejection
                     is_logical_rejection = "grisha rejected" in err_str and any(
                         k in err_str for k in ["підтвердження", "confirmation", "дозволу", "permission", "user input", "чекаємо", "не отримано"]
                     )
                     
                     # 2. Check for internal states that shouldn't trigger Vibe
-                    # help_pending: Atlas already gave proactive help, let retry loop use it
-                    # need_user_input: Waiting for user, then Atlas will decide
                     controlled_states = ["help_pending", "need_user_input", "user_input_received", "autonomous_decision_made"]
                     is_controlled_state = any(cs in last_error for cs in controlled_states)
 
                     if (is_logical_rejection or is_controlled_state) and depth < 2 and not step.get("_atlas_decided"):
-                        # If it's just help_pending, we don't even need Atlas to 'decide_for_user' again, 
-                        # because help_tetyana already did it.
+                        # If help is already pending from Atlas, just retry
                         if last_error == "help_pending":
-                            await self._log(f"Step {step_id} is in help_pending state. Atlas has already provided guidance. Retrying without Vibe.", "orchestrator")
+                            await self._log(f"Step {step_id} is in help_pending state. Retrying.", "orchestrator")
                             continue
 
+                        # If we are waiting for user or already got a decision, the loop in execute_node should handle it.
+                        # However, if we are back here in _execute_steps_recursive, it means the retry started.
+                        if is_controlled_state:
+                             await self._log(f"Step {step_id} is in controlled state '{last_error}'. Retrying.", "orchestrator")
+                             continue
+
                         step["_atlas_decided"] = True
-                        await self._log(f"Detected logical rejection (missing input) for step {step_id}. Atlas will attempt a strategic decision.", "orchestrator")
-                        await self._speak("atlas", "Бачу, що не вистачає вашого підтвердження. Оскільки ви мовчите, я проаналізую контекст і прийму рішення самостійно.")
+                        await self._log(f"Detected rejection/missing input for step {step_id}. Atlas will decide.", "orchestrator")
+                        # Atlas ONLY speaks here if it's a recovery from a REJECTION (not just silence)
+                        if is_logical_rejection:
+                            await self._speak("atlas", "Я бачу, що Гріша відхилив цей крок. Я проаналізую ситуацію та прийму рішення самостійно.")
                         
-                        goal_msg = self.state.get("messages", [HumanMessage(content="Unknown")])[0]
+                        messages = self.state.get("messages", [])
+                        goal_msg = messages[0] if messages else HumanMessage(content="Unknown")
                         def _get_msg_content(m):
                             if hasattr(m, "content"): return m.content
                             if isinstance(m, dict): return m.get("content", str(m))
@@ -1002,24 +1004,21 @@ class Trinity:
                             {
                                 "goal": _get_msg_content(goal_msg),
                                 "current_step": step.get("action"),
-                                "history": [_get_msg_content(m) for m in self.state.get("messages", [])[-5:]]
+                                "history": [_get_msg_content(m) for m in messages[-5:]]
                             }
                         )
                         
                         await self._log(f"Atlas Autonomous Recovery Decision: {autonomous_decision}", "atlas")
-                        await self._speak("atlas", f"Моє рішення для продовження: {autonomous_decision}")
+                        await self._speak("atlas", f"Моє рішення: {autonomous_decision}")
                         
-                        # Inject decision as user feedback to Tetyana in the next retry
+                        # Inject decision as feedback to Tetyana
                         await message_bus.send(AgentMsg(
                             from_agent="atlas",
                             to_agent="tetyana",
                             message_type=MessageType.FEEDBACK,
-                            payload={"user_response": f"(Autonomous decision after silence/rejection): {autonomous_decision}"},
+                            payload={"user_response": f"(Autonomous decision): {autonomous_decision}"},
                             step_id=step_id
                         ))
-                        
-                        # We skip Vibe and proceed directly to next attempt loop
-                        await self._log("Skipping Vibe self-healing for logical rejection.", "system")
                         continue
 
                     await self._log(
@@ -1230,6 +1229,11 @@ class Trinity:
                 
                 # Handle need_user_input signal (New Autonomous Timeout Logic)
                 if result.error == "need_user_input":
+                    # Speak Tetyana's request BEFORE waiting to inform the user immediately
+                    if result.voice_message:
+                        await self._speak("tetyana", result.voice_message)
+                        result.voice_message = None # Clear it so it won't be spoken again at the end of node
+                    
                     timeout_val = float(config.get("orchestrator.user_input_timeout", 20.0))
                     await self._log(f"User input needed for step {step_id}. Waiting {timeout_val} seconds...", "orchestrator")
                     
@@ -1240,8 +1244,6 @@ class Trinity:
                     user_response = None
                     try:
                         # Wait for a 'user_response' message type specifically for this step
-                        # We use a 10 second timeout as requested
-                        # Note: message_bus needs to support waiting or we poll briefly
                         start_wait = asyncio.get_event_loop().time()
                         while asyncio.get_event_loop().time() - start_wait < timeout_val:
                             bus_msgs = await message_bus.receive("orchestrator", mark_read=True)
@@ -1257,12 +1259,13 @@ class Trinity:
 
                     if user_response:
                         await self._log(f"User responded: {user_response}", "system")
-                        # Add user response to history for context
-                        self.state["messages"].append(HumanMessage(content=user_response))
-                        # Save state immediately after user interaction
+                        messages = self.state.get("messages", [])
+                        messages.append(HumanMessage(content=user_response))
+                        self.state["messages"] = messages
                         if state_manager.available:
                             state_manager.save_session("current_session", self.state)
-                        # Retry the step with the user response as feedback
+                        
+                        # Direct feedback for the next retry
                         await message_bus.send(AgentMsg(
                             from_agent="USER",
                             to_agent="tetyana",
@@ -1273,35 +1276,35 @@ class Trinity:
                         result.success = False
                         result.error = "user_input_received"
                     else:
-                        # TIMEOUT: Atlas takes the burden
-                        await self._log("User silent for 10s. Atlas taking the burden...", "orchestrator", type="warning")
-                        await self._speak("atlas", "Ви мовчите, тому я прийму рішення самостійно, щоб не зупиняти процес.")
+                        # TIMEOUT: Atlas ONLY speaks if user was truly silent
+                        await self._log("User silent for timeout. Atlas deciding...", "orchestrator", type="warning")
                         
                         def _get_msg_content(m):
                             if hasattr(m, "content"): return m.content
                             if isinstance(m, dict): return m.get("content", str(m))
                             return str(m)
 
-                        goal_msg = self.state.get("messages", [HumanMessage(content="Unknown")])[0]
+                        messages = self.state.get("messages", [])
+                        goal_msg = messages[0] if messages else HumanMessage(content="Unknown")
                         
                         autonomous_decision = await self.atlas.decide_for_user(
-                            result.result, # The question text
+                            result.result, 
                             {
                                 "goal": _get_msg_content(goal_msg),
                                 "current_step": step.get("action"),
-                                "history": [_get_msg_content(m) for m in self.state.get("messages", [])[-5:]]
+                                "history": [_get_msg_content(m) for m in messages[-5:]]
                             }
                         )
                         
-                        await self._log(f"Atlas Autonomous Decision: {autonomous_decision}", "atlas")
-                        await self._speak("atlas", f"Моє рішення: {autonomous_decision}")
+                        await self._log(f"Atlas Autonomous Decision (Timeout): {autonomous_decision}", "atlas")
+                        await self._speak("atlas", f"Оскільки ви не відповіли, я вирішив: {autonomous_decision}")
                         
-                        # Inject decision as user feedback
+                        # Inject decision as feedback
                         await message_bus.send(AgentMsg(
                             from_agent="atlas",
                             to_agent="tetyana",
                             message_type=MessageType.FEEDBACK,
-                            payload={"user_response": f"(Autonomous Decision by Atlas): {autonomous_decision}"},
+                            payload={"user_response": f"(Autonomous Decision): {autonomous_decision}"},
                             step_id=step.get("id")
                         ))
                         result.success = False

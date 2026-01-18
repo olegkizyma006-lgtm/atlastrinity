@@ -423,11 +423,7 @@ IMPORTANT:
         self.attempt_count = attempt
 
         # --- SPECIAL CASE: Consent/Approval Steps ---
-        # If the step is about getting user consent/approval/confirmation,
-        # we can't automate it fully. Open Terminal and inform the user.
-        step_action_lower = str(step.get("action", "")).lower()
-        
-        # NEW: Check if we already have a response from the message bus (User or Atlas)
+        # Robust check for provided response in message bus or previous context
         provided_response = None
         if "bus_messages" in step:
             for bm in step["bus_messages"]:
@@ -436,50 +432,57 @@ IMPORTANT:
                     provided_response = payload["user_response"]
                     logger.info(f"[TETYANA] Found provided response in bus_messages: {provided_response}")
                     break
+        
+        # If not in bus_messages, check previous_results for Atlas's autonomous decision
+        if not provided_response and "previous_results" in step:
+            for pr in reversed(step["previous_results"]):
+                if pr.get("error") == "autonomous_decision_made" or pr.get("error") == "user_input_received":
+                    # The response should have been injected into message bus, but as a backup check
+                    pass
 
-        # FIX: Even stricter consent logic. 
-        # Must MUST mention a human/user to trigger a terminal popup.
+        # Refined consent detection
+        step_action_lower = str(step.get("action", "")).lower()
         user_keywords = ["user", "human", "oleg", "me", "operator", "owner", "користувач", "людин", "олег", "мені"]
-        # Filter out technical "user" references that don't mean the HUMAN operator
-        technical_user_refs = ["active user", "system user", "user home", "user account", "user directory"]
+        technical_user_refs = ["active user", "system user", "user home", "user account", "user directory", "current user", "username"]
         
-        # Check if it has a user ref that is NOT one of the technical ones
-        has_user_ref = any(u in step_action_lower for u in user_keywords)
-        if any(tr in step_action_lower for tr in technical_user_refs):
-            # If the ONLY user ref is a technical one, don't count it
-            remaining_action = step_action_lower
+        # Heuristic to detect if action truly targets the HUMAN operator
+        is_human_targeted = any(u in step_action_lower for u in user_keywords)
+        if is_human_targeted:
             for tr in technical_user_refs:
-                remaining_action = remaining_action.replace(tr, "")
-            has_user_ref = any(u in remaining_action for u in user_keywords)
+                if tr in step_action_lower:
+                    is_human_targeted = False
+                    break
         
+        # Only trigger consent if we DON'T have a response yet
         is_consent_request = (
             (not provided_response) and (
-                ("ask" in step_action_lower and has_user_ref)
-                or ("request" in step_action_lower and "consent" in step_action_lower)
-                or ("await" in step_action_lower and "approval" in step_action_lower)
-                or ("get" in step_action_lower and "confirmation" in step_action_lower and has_user_ref)
-                or ("confirm" in step_action_lower and has_user_ref)
-                or ("approval" in step_action_lower and has_user_ref)
-                or "preferences" in step_action_lower
+                (any(kw in step_action_lower for kw in ["ask", "request", "await", "get", "confirm"]) and is_human_targeted)
+                or ("consent" in step_action_lower)
+                or ("approval" in step_action_lower and is_human_targeted)
+                or ("confirmation" in step_action_lower and is_human_targeted)
+                or ("preferences" in step_action_lower and is_human_targeted)
                 or step.get("requires_consent", False) is True
             )
         )
 
         if is_consent_request:
             logger.info(
-                "[TETYANA] Detected consent/approval request step. Signalling Orchestrator for user input."
+                f"[TETYANA] Step '{step_id}' requires consent. Signal orchestrator."
             )
-            # Create a simple message for the user
-            consent_msg = f"Потрібна ваша згода або відповідь для кроку: {step.get('action')}\nОчікуваний результат: {step.get('expected_result', 'Підтвердження користувача')}\n\nБудь ласка, напишіть вашу відповідь у чаті. Якщо ви не відповісте протягом 10 секунд, Атлас прийме рішення самостійно."
+            consent_msg = f"Потрібна ваша згода або відповідь для кроку: {step.get('action')}\nОчікуваний результат: {step.get('expected_result', 'Підтвердження користувача')}"
 
             return StepResult(
                 step_id=step.get("id", self.current_step),
                 success=False,
                 result=consent_msg,
-                voice_message="Мені потрібна ваша згода або додаткова інформація. Будь ласка, подивіться у чат.",
+                voice_message="Мені потрібна ваша згода або додаткова інформація. Будь ласка, напишіть у чат.",
                 error="need_user_input",
-                thought=f"I detected a need for user consent or preferences in step: {step.get('action')}. Reporting as blocked on user input.",
+                thought=f"I detected a need for user consent in step: {step.get('action')}. provided_response={provided_response}.",
             )
+        
+        if provided_response:
+             logger.info(f"[TETYANA] Proceeding with provided response: {provided_response}")
+             # We let the reasoning LLM know we have this response via 'bus_messages' which is already in the prompt
 
         # --- OPTIMIZATION: SMART REASONING GATE ---
         # Skip reasoning LLM for well-defined, simple tools
