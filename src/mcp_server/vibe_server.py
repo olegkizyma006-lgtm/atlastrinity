@@ -1283,8 +1283,11 @@ if __name__ == "__main__":
     except (BrokenPipeError, KeyboardInterrupt):
         # Graceful exit when parent process closes the pipe or user interrupts
         sys.exit(0)
-    except Exception as e:
-        # Catch ExceptionGroup if it contains BrokenPipeError (Python 3.11+)
-        if "BrokenPipeError" in str(e) or "Broken pipe" in str(e):
+    except BaseException as e:
+        # Catch ExceptionGroup / BaseExceptionGroup if it contains BrokenPipeError (Python 3.11+)
+        # We also catch BaseException to handle cases where it's wrapped in non-Exception groups
+        err_msg = str(e)
+        if "BrokenPipeError" in err_msg or "Broken pipe" in err_msg:
             sys.exit(0)
+        # Re-raise if it's a real problem
         raise
