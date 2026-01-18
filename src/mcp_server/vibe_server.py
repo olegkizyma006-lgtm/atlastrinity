@@ -1183,6 +1183,8 @@ async def vibe_session_details(session_id_or_file: str) -> Dict[str, Any]:
         
     try:
         with open(target_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
         return {"error": f"Failed to read session details: {str(e)}"}
 
 
