@@ -50,46 +50,48 @@ except Exception:
     pass
 
 try:
-    from .config_loader import get_config_value
+    from .config_loader import get_config_value, CONFIG_ROOT, PROJECT_ROOT
 
     VIBE_BINARY = get_config_value("vibe", "binary", "vibe")
-    DEFAULT_TIMEOUT_S = float(get_config_value("vibe", "timeout_s", 1200))
+    DEFAULT_TIMEOUT_S = float(get_config_value("vibe", "timeout_s", 3600))
     # Increased for large log analysis
     MAX_OUTPUT_CHARS = int(get_config_value("vibe", "max_output_chars", 500000))
     DISALLOW_INTERACTIVE = bool(get_config_value("vibe", "disallow_interactive", True))
     
-    # Resolve global vibe_workspace - expand ~ to actual home path
-    _raw_workspace = get_config_value("vibe", "workspace", str(Path.home() / ".config" / "atlastrinity" / "vibe_workspace"))
-    VIBE_WORKSPACE = os.path.expanduser(_raw_workspace)
+    # Resolve global vibe_workspace (handled by get_config_value resolution)
+    VIBE_WORKSPACE = get_config_value("vibe", "workspace", str(CONFIG_ROOT / "vibe_workspace"))
 except Exception:
-    VIBE_BINARY = os.path.expanduser("~/.local/bin/vibe") if os.path.exists(os.path.expanduser("~/.local/bin/vibe")) else "vibe"
-    DEFAULT_TIMEOUT_S = 1200.0
-    MAX_OUTPUT_CHARS = 500000  # 500KB for large logs
+    VIBE_BINARY = "vibe"
+    DEFAULT_TIMEOUT_S = 3600.0
+    MAX_OUTPUT_CHARS = 500000 
     DISALLOW_INTERACTIVE = True
     VIBE_WORKSPACE = str(Path.home() / ".config" / "atlastrinity" / "vibe_workspace")
+    CONFIG_ROOT = Path.home() / ".config" / "atlastrinity"
+    PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 PROJECT_ROOT = str(Path(__file__).parent.parent.parent)
 
 # Repository root for self-healing (where the source code to be fixed lives)
-# Default is PROJECT_ROOT, but in production it should point to the clone
-try:
-    from .config_loader import load_mcp_config # This is src/mcp_server/config_loader.py
-    _full_config_path = Path.home() / ".config" / "atlastrinity" / "config.yaml"
-    if _full_config_path.exists():
-        import yaml
-        with open(_full_config_path, "r", encoding="utf-8") as f:
-            _full_cfg = yaml.safe_load(f) or {}
-            REPOSITORY_ROOT = _full_cfg.get("system", {}).get("repository_path", PROJECT_ROOT)
-    else:
-        REPOSITORY_ROOT = PROJECT_ROOT
-except Exception:
-    REPOSITORY_ROOT = PROJECT_ROOT
+def _get_repository_root():
+    try:
+        from .config_loader import load_mcp_config, _substitute_placeholders
+        config_path = CONFIG_ROOT / "config.yaml"
+        if config_path.exists():
+            import yaml
+            with open(config_path, "r", encoding="utf-8") as f:
+                full_cfg = yaml.safe_load(f) or {}
+                raw_path = full_cfg.get("system", {}).get("repository_path", str(PROJECT_ROOT))
+                return _substitute_placeholders(raw_path)
+    except Exception:
+        pass
+    return str(PROJECT_ROOT)
 
-LOG_DIR = str(Path.home() / ".config" / "atlastrinity" / "logs")
+REPOSITORY_ROOT = _get_repository_root()
+LOG_DIR = str(CONFIG_ROOT / "logs")
 
 # Global instructions directory for large prompts
-INSTRUCTIONS_DIR = str(Path.home() / ".config" / "atlastrinity" / "vibe_workspace" / "instructions")
+INSTRUCTIONS_DIR = str(Path(VIBE_WORKSPACE) / "instructions")
 
 
 def _cleanup_old_instructions(max_age_hours: int = 24):
