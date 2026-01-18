@@ -30,7 +30,8 @@
     "format:write": "prettier --write 'src/**/*.{ts,tsx,json}'",
     "mcp:status": "python scripts/check_mcp_health.py",
     "mcp:status:json": "python scripts/check_mcp_health.py --json",
-    "mcp:validate": "python -c \"from src.brain.config_validator import config_validator; results = config_validator.validate_all(); config_validator.log_results(results)\""
+    "mcp:validate": "python -c \"from src.brain.config_validator import config_validator; results = config_validator.validate_all(); config_validator.log_results(results)\"",
+    "verify": "python3 scripts/verify_environment.py"
   },
   "author": "AtlasTrinity Team",
   "license": "MIT",
