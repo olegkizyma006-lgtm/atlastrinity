@@ -4,7 +4,7 @@
  */
 
 import * as React from 'react';
-import { useRef, useEffect } from 'react';
+import { useRef, useLayoutEffect } from 'react';
 
 type AgentName = 'ATLAS' | 'TETYANA' | 'GRISHA' | 'SYSTEM' | 'USER';
 
@@ -29,20 +29,17 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
   const logsEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
+  // Smooth auto-scroll logic
+  useLayoutEffect(() => {
     if (scrollContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-      const isAtBottom = scrollHeight - scrollTop - clientHeight < 150; // Changed threshold from 100 to 150
-      if (isAtBottom) {
-        logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      // If we are within 100px of the bottom or it's the first render with messages, auto-scroll
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      
+      if (isNearBottom || filteredLogs.length <= 1) {
+        logsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
       }
-    } else {
-      logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  };
-
-  useEffect(() => {
-    scrollToBottom();
   }, [filteredLogs]);
 
   const formatTime = (ts: number) => {

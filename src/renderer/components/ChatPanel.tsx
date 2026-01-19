@@ -3,7 +3,7 @@
  */
 
 import * as React from 'react';
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 
 type AgentName = 'ATLAS' | 'TETYANA' | 'GRISHA' | 'SYSTEM' | 'USER';
 
@@ -26,20 +26,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
+  // Smooth auto-scroll logic
+  useLayoutEffect(() => {
     if (scrollContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-      const isAtBottom = scrollHeight - scrollTop - clientHeight < 150;
-      if (isAtBottom) {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      // If we are within 100px of the bottom or it's the first render with messages, auto-scroll
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      
+      if (isNearBottom || filteredMessages.length <= 1) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
       }
-    } else {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  };
-
-  useEffect(() => {
-    scrollToBottom();
   }, [filteredMessages]);
 
   const getHeaderColor = (agent: string) => {
