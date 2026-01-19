@@ -1214,3 +1214,9 @@ async def vibe_get_system_context(ctx: Context) -> Dict[str, Any]:
         
         logger.error(f"[VIBE] Unexpected error: {e}")
         raise
+        
+        if is_broken_pipe(e):
+            sys.exit(0)
+        
+        logger.error(f"[VIBE] Unexpected error: {e}")
+        raise

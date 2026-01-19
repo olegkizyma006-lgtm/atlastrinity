@@ -423,14 +423,27 @@ class FirstRunInstaller:
             return False
 
     async def create_database(self) -> bool:
-        """Create PostgreSQL database and tables"""
+        """Create structured database and tables (supports SQLite or PostgreSQL)"""
         self._report(SetupStep.CREATE_DATABASE, 0.0, "Створення бази даних...")
+
+        from .config_loader import get_config_value
+        db_url = get_config_value("database", "url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
+
+        if db_url.startswith("sqlite"):
+            # For SQLite, ensure file/directory exists and return
+            try:
+                CONFIG_ROOT.mkdir(parents=True, exist_ok=True)
+                db_file = CONFIG_ROOT / "atlastrinity.db"
+                if not db_file.exists():
+                    db_file.touch()
+                self._report(SetupStep.CREATE_DATABASE, 1.0, "SQLite database ensured.")
+                return True
+            except Exception as e:
+                self._report(SetupStep.CREATE_DATABASE, 1.0, "Failed to ensure SQLite DB", success=False, error=str(e))
+                return False
 
         db_name = "atlastrinity_db"
         username = os.environ.get("USER", "dev")
-        
-        # Ensure 'dev' role exists if we are using it
-        await self._ensure_postgres_role("dev")
 
         # Wait for PostgreSQL to be ready
         for attempt in range(10):
@@ -500,35 +513,15 @@ class FirstRunInstaller:
     # ============ NATIVE BINARIES ============
 
     def build_macos_use(self) -> bool:
-        """Create structured database and tables (No-op for SQLite)"""
-        self._report(SetupStep.CREATE_DATABASE, 0.0, "Створення бази даних...")
+        """Build macOS native helpers (placeholder)."""
+        self._report(SetupStep.BUILD_MACOS_USE, 0.0, "Building macOS native helpers (placeholder)...")
+        # TODO: implement build steps for macos-use native helper binary
+        self._report(SetupStep.BUILD_MACOS_USE, 1.0, "macos-use build skipped (placeholder).")
+        return True
 
-        from .config_loader import get_config_value
-        db_url = get_config_value("database", "url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
-
-        if db_url.startswith("sqlite"):
-            # For SQLite, ensure file/directory exists
-            try:
-                CONFIG_ROOT.mkdir(parents=True, exist_ok=True)
-                db_file = CONFIG_ROOT / "atlastrinity.db"
-                if not db_file.exists():
-                    db_file.touch()
-                self._report(SetupStep.CREATE_DATABASE, 1.0, "SQLite database ensured.")
-                return True
-            except Exception as e:
-                self._report(SetupStep.CREATE_DATABASE, 1.0, "Failed to ensure SQLite DB", success=False, error=str(e))
-                return False
-
-        # Non-sqlite: proceed with Postgres creation flow
-        self._report(SetupStep.CREATE_DATABASE, 0.0, "PostgreSQL database setup requested...")
-        db_name = "atlastrinity_db"
-        username = os.environ.get("USER", "dev")
-        
-        # Ensure 'dev' role exists if we are using it
-        await self._ensure_postgres_role("dev")
-            0.2,
-            "Завантаження ukrainian-tts (може тривати довго)...",
-        )
+    def download_tts_models(self) -> bool:
+        """Download Ukrainian TTS models (silently)"""
+        self._report(SetupStep.DOWNLOAD_TTS, 0.2, "Завантаження ukrainian-tts (може тривати довго)...")
 
         try:
             # Trigger download by importing TTS

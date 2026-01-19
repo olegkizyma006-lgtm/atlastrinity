@@ -54,3 +54,5 @@ greenlet>=3.0.0
 # === Structured Logging ===
 structlog>=24.1.0
 # Note: asyncio is stdlib in Python 3.12+, no external package needed
+
+aiosqlite>=0.19.0
