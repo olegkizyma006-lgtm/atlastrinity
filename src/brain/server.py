@@ -149,6 +149,22 @@ async def reset_session():
     return await trinity.reset_session()
 
 
+@app.get("/api/sessions")
+async def get_sessions():
+    """List all available sessions"""
+    from .state_manager import state_manager
+    return state_manager.list_sessions()
+
+
+@app.post("/api/sessions/restore")
+async def restore_session(payload: Dict[str, str]):
+    """Restore a specific session"""
+    session_id = payload.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id required")
+    return await trinity.load_session(session_id)
+
+
 @app.get("/api/state")
 async def get_state():
     """Get current system state for UI polling"""

@@ -69,6 +69,7 @@ class Trinity:
         # Initialize graph
         self.graph = self._build_graph()
         self._log_lock = asyncio.Lock()
+        self.current_session_id = "current_session"  # Default alias for the last active session
 
     async def initialize(self):
         """Async initialization of system components"""
@@ -114,10 +115,27 @@ class Trinity:
             del self.state["db_task_id"]
             
         if state_manager.available:
-            state_manager.clear_session("current_session")
+            state_manager.clear_session(self.current_session_id)
             
-        await self._log("Нова сесія розпочата", "system")
-        return {"status": "success"}
+        # Create a new unique session ID
+        import uuid
+        self.current_session_id = f"session_{uuid.uuid4().hex[:8]}"
+        
+        await self._log(f"Нова сесія розпочата ({self.current_session_id})", "system")
+        return {"status": "success", "session_id": self.current_session_id}
+
+    async def load_session(self, session_id: str):
+        """Load a specific session from Redis"""
+        if not state_manager.available:
+            return {"status": "error", "message": "Persistence unavailable"}
+            
+        saved_state = state_manager.restore_session(session_id)
+        if saved_state:
+            self.state = saved_state
+            self.current_session_id = session_id
+            await self._log(f"Сесія {session_id} відновлена", "system")
+            return {"status": "success"}
+        return {"status": "error", "message": "Session not found"}
 
     def _build_graph(self):
         workflow = StateGraph(TrinityState)
@@ -406,6 +424,7 @@ class Trinity:
             "system_state": sys_state,
             "current_task": task_summary,
             "active_agent": active_agent,
+            "session_id": self.current_session_id,
             "messages": messages[-50:],
             "logs": self.state.get("logs", [])[-100:],
             "step_results": self.state.get("step_results", []),
@@ -417,7 +436,7 @@ class Trinity:
         Main orchestration loop with advanced persistence and memory
         """
         start_time = asyncio.get_event_loop().time()
-        session_id = "current_session"
+        session_id = self.current_session_id
 
         # 0. Platform Insurance Check
         if not IS_MACOS:
@@ -448,39 +467,43 @@ class Trinity:
                 }
 
             # Restore from Redis if available and we are starting fresh
-            if state_manager.available and not self.state["messages"]:
+            if state_manager.available and not self.state["messages"] and session_id == "current_session":
                 saved_state = state_manager.restore_session(session_id)
                 if saved_state:
                     self.state = saved_state
-                    # Ensure critical fields exist after restoration
-                    if "step_results" not in self.state:
-                        self.state["step_results"] = []
-                    if "logs" not in self.state:
-                        self.state["logs"] = []
-                    if "error" not in self.state:
-                        self.state["error"] = None
-                    
-                    # Robust Message Restoration: Convert back to LangChain objects if they are dicts,
-                    # or handle if they are strings. Logic: If list of strings/dicts, we normalize.
-                    if "messages" in self.state and isinstance(self.state["messages"], list):
-                        normalized_msgs = []
-                        for m in self.state["messages"]:
-                            if isinstance(m, dict):
-                                # Reconstruct based on type
-                                m_type = m.get("type")
-                                m_content = m.get("content", "")
-                                if m_type == "human": normalized_msgs.append(HumanMessage(content=m_content))
-                                elif m_type == "ai": normalized_msgs.append(AIMessage(content=m_content))
-                                else: normalized_msgs.append(BaseMessage(content=m_content, type=m_type or "system"))
-                            elif isinstance(m, str):
-                                normalized_msgs.append(HumanMessage(content=m))
+                    # Normalize messages back into LangChain objects
+                    normalized_messages = []
+                    for m in self.state.get("messages", []):
+                        if isinstance(m, dict):
+                            m_type = m.get("type")
+                            m_content = m.get("content", "")
+                            if m_type == "human":
+                                normalized_messages.append(HumanMessage(content=m_content))
                             else:
-                                normalized_msgs.append(m)
-                        self.state["messages"] = normalized_msgs
+                                normalized_messages.append(
+                                    AIMessage(content=m_content, name=m.get("name", "ATLAS"))
+                                )
+                        elif isinstance(m, str):
+                            normalized_messages.append(HumanMessage(content=m))
+                        else:
+                            normalized_messages.append(m)
+                    self.state["messages"] = normalized_messages
+                    logger.info("[STATE] Successfully restored last active session")
 
-                    logger.info("[ORCHESTRATOR] State restored and normalized from Redis")
-                    # CRITICAL: Verify that the DB IDs in the restored state actually exist
-                    await self._verify_db_ids()
+            # Update session ID if we were using the alias
+            if session_id == "current_session" and "session_id" in self.state:
+                 session_id = self.state["session_id"]
+                 self.current_session_id = session_id
+            elif "session_id" not in self.state:
+                 self.state["session_id"] = session_id
+
+            # Set theme if this is the first message
+            if "_theme" not in self.state or self.state["_theme"] == "Untitled Session":
+                self.state["_theme"] = user_request[:40] + ("..." if len(user_request) > 40 else "")
+
+            # CRITICAL: Verify that the DB IDs in the restored state actually exist
+            await self._verify_db_ids()
+            logger.info("[ORCHESTRATOR] State validation complete")
 
             # Append the new user message
             self.state["messages"].append(HumanMessage(content=user_request))

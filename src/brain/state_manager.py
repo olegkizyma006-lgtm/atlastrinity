@@ -10,7 +10,7 @@ Redis-based state persistence for:
 import json
 import os
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 try:
     import redis
@@ -106,6 +106,52 @@ class StateManager:
             logger.error(f"[STATE] Failed to restore session: {e}")
 
         return None
+
+    def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Directly get session data by ID."""
+        return self.restore_session(session_id)
+
+    def list_sessions(self) -> List[Dict[str, Any]]:
+        """List all available sessions with summaries."""
+        if not self.available:
+            return []
+
+        sessions = []
+        try:
+            pattern = self._key("session", "*")
+            for key in self.redis.scan_iter(pattern):
+                data = self.redis.get(key)
+                if data:
+                    try:
+                        state = json.loads(data)
+                        session_id = key.split(":")[-1]
+                        
+                        # Use the first user message as theme if not explicitly set
+                        theme = state.get("_theme", "Untitled Session")
+                        if theme == "Untitled Session":
+                            msgs = state.get("messages", [])
+                            for m in msgs:
+                                if isinstance(m, dict) and m.get("type") == "human":
+                                    theme = m.get("content", "")[:30] + "..."
+                                    break
+                                elif hasattr(m, "content") and "HumanMessage" in str(type(m)):
+                                    theme = m.content[:30] + "..."
+                                    break
+
+                        sessions.append({
+                            "id": session_id,
+                            "theme": theme,
+                            "saved_at": state.get("_saved_at", ""),
+                        })
+                    except Exception as e:
+                        logger.error(f"[STATE] Error parsing session {key}: {e}")
+
+            # Sort by saved_at desc
+            sessions.sort(key=lambda x: x["saved_at"], reverse=True)
+        except Exception as e:
+            logger.error(f"[STATE] Failed to list sessions: {e}")
+
+        return sessions
 
     def checkpoint(self, session_id: str, step_id: int, step_result: Dict[str, Any]) -> bool:
         """

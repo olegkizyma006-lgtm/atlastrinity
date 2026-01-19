@@ -18,12 +18,14 @@ interface LogEntry {
 
 interface ExecutionLogProps {
   logs: LogEntry[];
+  onNewSession?: () => void;
+  onToggleHistory?: () => void;
 }
 
-const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
+const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs, onNewSession, onToggleHistory }) => {
   // Filter out noisy connection logs
   const filteredLogs = logs.filter(
-    (log) => !log.message.includes('GET /api/state') && !log.message.includes('POST /api/chat')
+    (l) => !l.message.includes('Connected to') && !l.message.includes('health check')
   );
 
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -32,7 +34,7 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
   const scrollToBottom = () => {
     if (scrollContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-      const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 150; // Changed threshold from 100 to 150
       if (isAtBottom) {
         logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }
@@ -45,21 +47,59 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
     scrollToBottom();
   }, [filteredLogs]);
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('uk-UA', {
+  const formatTime = (ts: number) => {
+    return new Date(ts * 1000).toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
+      hour12: false,
     });
+  };
+
+  const getLogColor = (type: string) => {
+    switch (type) {
+      case 'error':
+        return '#FF4D4D';
+      case 'warning':
+        return '#FFB800';
+      case 'success':
+        return '#00FF88';
+      case 'action':
+        return '#00A3FF';
+      default:
+        return 'rgba(255, 255, 255, 0.5)';
+    }
   };
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden font-mono relative">
       {/* Window Header - Absolute Positioned to align with traffic lights */}
-      <div className="absolute top-[-38px] left-[110px] flex items-center gap-1.5 opacity-30 shrink-0 select-none">
+      <div className="absolute top-[-38px] left-[110px] right-0 flex items-center justify-between gap-1.5 opacity-30 hover:opacity-100 transition-opacity shrink-0 select-none px-4">
         <span className="text-[6px] tracking-[0.4em] uppercase font-bold text-white/50">
           core::log_stream
         </span>
+
+        <div className="flex items-center gap-1.5">
+          {/* History Button */}
+          <button
+            onClick={onToggleHistory}
+            className="control-btn"
+            style={{ width: '22px', height: '22px', padding: '4px' }}
+            title="Session History"
+          >
+            <span className="text-[9px] leading-none group-hover:scale-110 transition-transform">⌛</span>
+          </button>
+
+          {/* New Session Button */}
+          <button
+            onClick={onNewSession}
+            className="control-btn"
+            style={{ width: '22px', height: '22px', padding: '4px' }}
+            title="New Session"
+          >
+            <span className="text-[12px] leading-none group-hover:scale-110 transition-transform">+</span>
+          </button>
+        </div>
       </div>
 
       <div
@@ -94,17 +134,10 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
                 <div
                   className="flex items-center gap-3 text-[6.5px] font-mono font-medium tracking-[0.05em] uppercase"
                   style={{
-                    color:
-                      log.agent === 'GRISHA'
-                        ? 'var(--grisha-orange)'
-                        : log.agent === 'TETYANA'
-                          ? 'var(--tetyana-green)'
-                          : log.agent === 'USER'
-                            ? '#FFFFFF'
-                            : 'var(--atlas-blue)',
+                    color: getLogColor(log.type),
                   }}
                 >
-                  <span className="tracking-tighter">{formatTime(log.timestamp)}</span>
+                  <span className="tracking-tighter">{formatTime(Number(log.timestamp))}</span>
                   <span className="font-bold">{log.type.toUpperCase()}</span>
                 </div>
               </div>

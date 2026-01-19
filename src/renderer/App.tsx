@@ -46,6 +46,9 @@ const App: React.FC = () => {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [activeMode, setActiveMode] = useState<'STANDARD' | 'LIVE'>('STANDARD');
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string>('current_session');
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [metrics, setMetrics] = useState<SystemMetrics>({
     cpu: '0%',
     memory: '0.0GB',
@@ -69,38 +72,35 @@ const App: React.FC = () => {
 
   const [currentTask, setCurrentTask] = useState<string>('');
 
-  // Initialize & Poll State
-  useEffect(() => {
-    const pollState = async () => {
-      try {
-        const response = await fetch('http://127.0.0.1:8000/api/state');
-        if (response.ok) {
-          const data = await response.json();
+  const fetchSessions = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/sessions');
+      const data = await response.json();
+      setSessions(data);
+    } catch (err) {
+      console.error('Failed to fetch sessions:', err);
+    }
+  };
 
+  const pollState = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/state');
+      if (response.ok) {
+        const data = await response.json();
+        if (data) {
           // Sync system state
           setSystemState(data.system_state || 'IDLE');
           setActiveAgent(data.active_agent || 'ATLAS');
+          if (data.session_id) setCurrentSessionId(data.session_id);
           setCurrentTask(data.current_task || '');
           setActiveMode(data.active_mode || 'STANDARD');
           if (data.metrics) setMetrics(data.metrics);
 
-          if (data.logs && data.logs.length > 0) {
-            const newLogs = data.logs.slice(-100).map(
-              (l: {
-                agent: AgentName;
-                message: string;
-                type: LogEntry['type'];
-                timestamp: number;
-              }) => ({
-                ...l,
-                id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                timestamp: new Date(l.timestamp * 1000),
-              })
-            );
-            setLogs(newLogs);
+          if (data.logs) {
+            setLogs(data.logs); // Keep as numbers
           }
 
-          if (data.messages && data.messages.length > 0) {
+          if (data.messages) {
             setChatHistory(
               data.messages.map(
                 (m: { agent: AgentName; text: string; timestamp: number; type: 'text' | 'voice' }) => ({
@@ -111,13 +111,17 @@ const App: React.FC = () => {
             );
           }
         }
-      } catch (err) {
-        // Silent fail to avoid flooding console if server is starting up
       }
-    };
+    } catch (err) {
+      // Silent fail to avoid flooding console if server is starting up
+    }
+  };
 
+  // Initialize & Poll State
+  useEffect(() => {
     pollState();
-    const interval = setInterval(pollState, 1000);
+    fetchSessions();
+    const interval = setInterval(pollState, 1500); // Polling every 1.5s
     return () => clearInterval(interval);
   }, []);
 
@@ -172,19 +176,42 @@ const App: React.FC = () => {
   };
 
   const handleNewSession = async () => {
+    console.log('Starting new session...');
     try {
       const response = await fetch('http://127.0.0.1:8000/api/session/reset', {
         method: 'POST',
       });
       if (response.ok) {
+        const result = await response.json();
+        // Clear local state
         setLogs([]);
         setChatHistory([]);
-        setSystemState('IDLE');
-        setCurrentTask('');
-        addLog('ATLAS', 'Нова сесія розпочата', 'success');
+        if (result.session_id) setCurrentSessionId(result.session_id);
+        fetchSessions();
       }
     } catch (err) {
       console.error('Failed to reset session:', err);
+    }
+  };
+
+  const handleRestoreSession = async (sessionId: string) => {
+    console.log(`Restoring session: ${sessionId}`);
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/sessions/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      if (response.ok) {
+        // Clear local state to force refresh from new session
+        setLogs([]);
+        setChatHistory([]);
+        setCurrentSessionId(sessionId);
+        setIsHistoryOpen(false);
+        pollState();
+      }
+    } catch (err) {
+      console.error('Failed to restore session:', err);
     }
   };
 
@@ -206,31 +233,77 @@ const App: React.FC = () => {
       <div className="pulsing-border right"></div>
 
       {/* Left Panel - Execution Log */}
-      <div className="panel left-panel glass-panel">
-        <div className="flex-1 flex flex-col p-2 overflow-hidden">
-          <ExecutionLog logs={logs} />
-        </div>
-      </div>
+      <aside className="panel glass-panel left-panel relative">
+        <ExecutionLog
+          logs={logs}
+          onNewSession={handleNewSession}
+          onToggleHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+        />
 
-      {/* Center Panel - Neural Core Visualization */}
-      <div className="panel center-panel">
-        {/* Status Overlay - REMOVED FROM TOP */}
-        <div className="fixed top-0 left-0 w-full flex justify-center z-[100] pointer-events-none"></div>
+        {/* Session History Sidebar Overlay */}
+        {isHistoryOpen && (
+          <div className="absolute inset-0 z-50 bg-[#020202]/95 backdrop-blur-xl border-r border-white/5 animate-slide-in">
+            <div className="p-6 h-full flex flex-col">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-[10px] tracking-[0.4em] uppercase font-bold text-white/40">Session History</h2>
+                <button
+                  onClick={() => setIsHistoryOpen(false)}
+                  className="text-white/30 hover:text-white transition-colors text-xs"
+                >
+                  ✕
+                </button>
+              </div>
 
-        {/* Main Core */}
-        <NeuralCore state={systemState} activeAgent={activeAgent} />
-      </div>
+              <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
+                {sessions.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-[8px] uppercase tracking-widest text-white/10 italic">
+                    No history found
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {sessions.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => handleRestoreSession(s.id)}
+                        className={`group p-3 border text-left transition-all duration-300 ${currentSessionId === s.id
+                          ? 'bg-white/10 border-white/30'
+                          : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
+                          }`}
+                      >
+                        <div className="text-[9px] text-white/80 font-medium mb-1 truncate group-hover:text-white transition-colors">
+                          {s.theme}
+                        </div>
+                        <div className="text-[7px] text-white/30 truncate font-mono">
+                          {new Date(s.saved_at).toLocaleString()}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-      {/* Right Panel - Chat */}
-      <div className="panel right-panel glass-panel">
-        <div className="right-panel-body">
-          {/* Chat Area - Flexible Height */}
-
-          <div className="chat-panel-container flex-1">
-            <ChatPanel messages={chatMessages} onNewSession={handleNewSession} />
+              <button
+                onClick={handleNewSession}
+                className="mt-6 w-full py-3 border border-white/20 bg-white/5 hover:bg-white/10 text-[9px] uppercase tracking-[0.3em] font-bold transition-all"
+              >
+                + New Session
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
+        )}
+      </aside>
+
+      {/* Center Panel: Neural Core */}
+      <main className="panel center-panel">
+        <NeuralCore state={systemState} activeAgent={activeAgent} />
+      </main>
+
+      {/* Right Panel: Chat Panel */}
+      <aside className="panel glass-panel right-panel">
+        <ChatPanel
+          messages={chatMessages}
+        />
+      </aside>
 
       {/* Floating Input Dock */}
       <div className="command-dock command-dock-floating">
