@@ -1095,18 +1095,16 @@ class Trinity:
                         ))
                         continue
 
+                    # NEW: Structured Self-Healing Loop (Vibe Diagnostics -> Grisha Audit -> Atlas Review)
                     await self._log(
-                        f"Engaging Vibe Self-Healing for Step {step_id} (Timeout: {config.get('orchestrator', {}).get('task_timeout', 1200)}s)...",
+                        f"Engaging Multi-Agent Self-Healing for Step {step_id}...",
                         "orchestrator",
                     )
-                    await self._log(f"[VIBE] Error to analyze: {last_error[:200]}...", "vibe")
-                    await self._speak(
-                        "atlas", self.atlas.get_voice_message("vibe_engaged", step_id=step_id)
-                    )
-
+                    await self._log(f"[VIBE] Diagnostic Phase...", "vibe")
+                    
                     start_heal = asyncio.get_event_loop().time()
                     
-                    # Use vibe_analyze_error for programmatic CLI mode with full logging
+                    # 1. VIBE DIAGNOSTICS (auto_fix=False)
                     vibe_res = await asyncio.wait_for(
                         mcp_manager.call_tool(
                             "vibe",
@@ -1116,14 +1114,56 @@ class Trinity:
                                 "log_context": log_context,
                                 "recovery_history": recovery_history,
                                 "timeout_s": int(config.get("orchestrator", {}).get("task_timeout", 1200)),
-                                "auto_fix": True,
+                                "auto_fix": False, # Diagnostic mode
                             },
                         ),
                         timeout=int(config.get("orchestrator", {}).get("task_timeout", 1200)) + 10,
                     )
                     
-                    heal_duration = int((asyncio.get_event_loop().time() - start_heal) * 1000)
                     vibe_text = self._extract_vibe_payload(self._mcp_result_to_text(vibe_res))
+                    
+                    if vibe_text:
+                        # 2. GRISHA AUDIT
+                        await self._log("[GRISHA] Auditing proposed fix...", "grisha")
+                        grisha_audit = await self.grisha.audit_vibe_fix(
+                            last_error, 
+                            vibe_text, 
+                            task_id=self.state.get("db_task_id")
+                        )
+                        
+                        # 3. ATLAS REVIEW & TEMPO SETTING
+                        await self._log("[ATLAS] Final review and tempo setting...", "atlas")
+                        healing_decision = await self.atlas.evaluate_healing_strategy(
+                            last_error,
+                            vibe_text,
+                            grisha_audit
+                        )
+                        
+                        # Atlas speaks the diagnosis and solution
+                        await self._speak("atlas", healing_decision.get("voice_message", "Я знайшов рішення. Тетяно, виконуй."))
+                        
+                        if healing_decision.get("decision") == "PROCEED":
+                            await self._log("Executing approved healing instructions...", "system")
+                            # 4. EXECUTION (Vibe implements the approved fix)
+                            vibe_exec_res = await mcp_manager.call_tool(
+                                "vibe",
+                                "vibe_prompt",
+                                {
+                                    "prompt": f"EXECUTE FIX: {healing_decision.get('instructions_for_vibe')}\nCONTEXT: {vibe_text}",
+                                    "auto_approve": True,
+                                    "timeout_s": int(config.get("orchestrator", {}).get("task_timeout", 1200)),
+                                }
+                            )
+                            vibe_exec_text = self._extract_vibe_payload(self._mcp_result_to_text(vibe_exec_res))
+                            vibe_text = (vibe_text + "\n\nEXECUTION_REPORT:\n" + vibe_exec_text) if vibe_exec_text else vibe_text
+                            await self._log(f"Vibe completed execution of self-healing for step {step_id}", "system")
+                        else:
+                            await self._log(f"Atlas decided to {healing_decision.get('decision')}: {healing_decision.get('reason')}", "atlas", type="warning")
+                            # If not proceeding, we might want to continue to standard recovery or fail
+                            if healing_decision.get("decision") == "PIVOT":
+                                raise Exception(f"Atlas pivoted recovery: {healing_decision.get('reason')}")
+
+                    heal_duration = int((asyncio.get_event_loop().time() - start_heal) * 1000)
                     
                     # DB: Update Recovery Attempt
                     if db_manager.available and recovery_id:
@@ -1132,8 +1172,6 @@ class Trinity:
                                 from sqlalchemy import update
                                 from .db.schema import RecoveryAttempt
                                 
-                                # Heuristic match for success (did it return text?)
-                                # Ideally Vibe returns structured status, but text length > 50 usually means it did something.
                                 is_success = bool(vibe_text and len(vibe_text) > 50)
                                 
                                 await db_sess.execute(
@@ -1150,10 +1188,9 @@ class Trinity:
                             logger.error(f"Failed to update recovery attempt result: {e}")
 
                     if vibe_text:
-                        last_error = last_error + "\n\nVIBE_FIX_REPORT:\n" + vibe_text[:4000]
-                        await self._log(f"Vibe completed self-healing for step {step_id}", "system")
+                        last_error = last_error + "\n\nVIBE_HEALING_REPORT:\n" + vibe_text[:4000]
                 except Exception as ve:
-                    await self._log(f"Vibe self-healing failed: {ve}", "error")
+                    await self._log(f"Vibe self-healing loop failed: {ve}", "error")
 
                 # RECURSION SAFEGUARD
                 if depth >= 3:
@@ -1303,36 +1340,37 @@ class Trinity:
 
                 # --- DYNAMIC AGENCY: Check for Strategy Deviation ---
                 if result.error == "strategy_deviation":
-                    logger.warning(f"[ORCHESTRATOR] Tetyana proposed a deviation: {result.result}")
-                    
-                    # Consult Atlas
-                    evaluation = await self.atlas.evaluate_deviation(
-                        step, 
-                        str(result.result), 
-                        self.state.get("current_plan", [])
-                    )
-                    
-                    voice_msg = evaluation.get("voice_message", "")
-                    if voice_msg:
-                        await self._speak("atlas", voice_msg)
+                    try:
+                        logger.warning(f"[ORCHESTRATOR] Tetyana proposed a deviation: {result.result}")
                         
-                    if evaluation.get("approved"):
-                        logger.info(f"[ORCHESTRATOR] Deviation APPROVED. Adjusting plan...")
-                        result.success = True
-                        result.result = f"Strategy Deviated: {evaluation.get('reason')}"
-                        result.error = None
+                        # Consult Atlas
+                        evaluation = await self.atlas.evaluate_deviation(
+                            step, 
+                            str(result.result), 
+                            self.state.get("current_plan", [])
+                        )
                         
-                        # Mark for behavioral learning after successful verification
-                        result.is_deviation = True
-                        result.deviation_info = evaluation
-                    else:
-                        logger.info(f"[ORCHESTRATOR] Deviation REJECTED. Forcing original plan.")
-                        step["grisha_feedback"] = f"Strategy Deviation Rejected: {evaluation.get('reason')}. Stick to the plan."
+                        voice_msg = evaluation.get("voice_message", "")
+                        if voice_msg:
+                            await self._speak("atlas", voice_msg)
+                            
+                        if evaluation.get("approved"):
+                            logger.info(f"[ORCHESTRATOR] Deviation APPROVED. Adjusting plan...")
+                            result.success = True
+                            result.result = f"Strategy Deviated: {evaluation.get('reason')}"
+                            result.error = None
+                            
+                            # Mark for behavioral learning after successful verification
+                            result.is_deviation = True
+                            result.deviation_info = evaluation
+                        else:
+                            logger.info(f"[ORCHESTRATOR] Deviation REJECTED. Forcing original plan.")
+                            step["grisha_feedback"] = f"Strategy Deviation Rejected: {evaluation.get('reason')}. Stick to the plan."
+                            result.success = False
+                    except Exception as eval_err:
+                        logger.error(f"[ORCHESTRATOR] Deviation evaluation failed: {eval_err}")
                         result.success = False
-                except Exception as eval_err:
-                    logger.error(f"[ORCHESTRATOR] Deviation evaluation failed: {eval_err}")
-                    result.success = False
-                    result.error = "evaluation_error"
+                        result.error = "evaluation_error"
                 
                 # Handle need_user_input signal (New Autonomous Timeout Logic)
                 if result.error == "need_user_input":

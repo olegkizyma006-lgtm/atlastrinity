@@ -651,6 +651,48 @@ class Atlas(BaseAgent):
         response = await self.llm.ainvoke(messages)
         return self._parse_response(response.content)
 
+    async def evaluate_healing_strategy(
+        self,
+        error: str,
+        vibe_report: str,
+        grisha_audit: dict,
+        context: dict = None
+    ) -> Dict[str, Any]:
+        """
+        Atlas reviews the diagnostics from Vibe and the audit from Grisha.
+        Decides whether to proceed with the self-healing fix and sets the tempo.
+        """
+        from langchain_core.messages import HumanMessage, SystemMessage
+        
+        context_data = context or shared_context.to_dict()
+        
+        prompt = AgentPrompts.atlas_healing_review_prompt(
+            error,
+            vibe_report,
+            grisha_audit,
+            context_data
+        )
+        
+        messages = [
+            SystemMessage(content=self.SYSTEM_PROMPT),
+            HumanMessage(content=prompt)
+        ]
+        
+        try:
+            logger.info(f"[ATLAS] Reviewing self-healing strategy and setting tempo...")
+            response = await self.llm.ainvoke(messages)
+            decision = self._parse_response(response.content)
+            
+            logger.info(f"[ATLAS] Healing Decision: {decision.get('decision', 'PIVOT')}")
+            return decision
+        except Exception as e:
+            logger.error(f"[ATLAS] Healing review failed: {e}")
+            return {
+                "decision": "PIVOT",
+                "reason": f"Review failed due to technical error: {str(e)}",
+                "voice_message": "Я не зміг узгодити план лікування. Спробую інший підхід."
+            }
+
     async def summarize_session(self, messages: List[Any]) -> Dict[str, Any]:
         """Generate a professional summary and extract key entities from a session."""
         if not messages:

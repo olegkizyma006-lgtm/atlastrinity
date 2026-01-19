@@ -1147,6 +1147,57 @@ Timestamp: {timestamp}
             except Exception:
                 return ""
 
+    async def audit_vibe_fix(
+        self,
+        error: str,
+        vibe_report: str,
+        context: dict = None,
+        task_id: str = None
+    ) -> Dict[str, Any]:
+        """
+        Audits a proposed fix from Vibe AI before execution.
+        Uses advanced reasoning to ensure safety and correctness.
+        """
+        from langchain_core.messages import HumanMessage, SystemMessage
+        
+        context_data = context or shared_context.to_dict()
+        
+        # Fetch technical trace for grounding
+        technical_trace = ""
+        try:
+            # We use the current step if available in context, or try to infer
+            step_id = context_data.get("current_step_id", "unknown")
+            technical_trace = await self._fetch_execution_trace(str(step_id), task_id=task_id)
+        except Exception as e:
+            logger.warning(f"[GRISHA] Could not fetch trace for audit: {e}")
+
+        prompt = AgentPrompts.grisha_vibe_audit_prompt(
+            error,
+            vibe_report,
+            context_data,
+            technical_trace=technical_trace
+        )
+        
+        messages = [
+            SystemMessage(content=self.SYSTEM_PROMPT),
+            HumanMessage(content=prompt)
+        ]
+        
+        try:
+            logger.info(f"[GRISHA] Auditing Vibe's proposed fix...")
+            response = await self.llm.ainvoke(messages)
+            audit_result = self._parse_response(response.content)
+            
+            logger.info(f"[GRISHA] Audit Verdict: {audit_result.get('audit_verdict', 'REJECT')}")
+            return audit_result
+        except Exception as e:
+            logger.error(f"[GRISHA] Vibe audit failed: {e}")
+            return {
+                "audit_verdict": "REJECT",
+                "reasoning": f"Audit failed due to technical error: {str(e)}",
+                "voice_message": "Я не зміг перевірити запропоноване виправлення через технічну помилку."
+            }
+
     def get_voice_message(self, action: str, **kwargs) -> str:
         """Generates short message for TTS"""
         messages = {

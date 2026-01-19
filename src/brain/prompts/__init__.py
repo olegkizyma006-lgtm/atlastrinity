@@ -498,3 +498,72 @@ GUIDELINES:
 - Be precise and efficient. Do not request screenshots if a simple 'ls' or 'pgrep' provides the proof.
 
 Output your internal verification strategy in English. Do NOT use markdown formatting for the strategy itself, just plain text."""
+    @staticmethod
+    def grisha_vibe_audit_prompt(
+        error: str,
+        vibe_report: str,
+        context: dict,
+        technical_trace: str = ""
+    ) -> str:
+        return f"""You are the Reality Auditor (GRISHA). 
+        Vibe AI has proposed a fix for a technical error. Your job is to perform a pre-execution AUDIT.
+        
+        ERROR TO FIX:
+        {error}
+        
+        VIBE'S DIAGNOSIS & PROPOSED FIX:
+        {vibe_report}
+        
+        TECHNICAL CONTEXT (Paths, System State):
+        {context}
+        
+        TECHNICAL TRACE (Recent tool calls):
+        {technical_trace}
+        
+        YOUR TASK:
+        1. Evaluate if the proposed fix actually addresses the ROOT CAUSE of the error.
+        2. Check for potential side effects or safety risks in the proposed code changes.
+        3. Verify if the paths mentioned in the fix are correct for the current environment.
+        4. Use 'sequential-thinking' to simulate the execution of the fix.
+        
+        Respond STRICTLY in JSON:
+        {{
+            "audit_verdict": "APPROVE" or "REJECT" or "ADJUST",
+            "reasoning": "Technical justification of your verdict in English",
+            "risks_identified": ["list of potential issues"],
+            "suggested_adjustments": "Specific technical changes if you chose ADJUST",
+            "voice_message": "Ukrainian summary for the system (Keep it analytical and cold)"
+        }}
+        """
+
+    @staticmethod
+    def atlas_healing_review_prompt(
+        error: str,
+        vibe_report: str,
+        grisha_audit: dict,
+        context: dict
+    ) -> str:
+        return f"""You are Atlas, the Strategic Architect. 
+        A self-healing process is underway. Vibe has proposed a fix, and Grisha has audited it.
+        
+        USER GOAL: {context.get('goal', 'Unknown')}
+        ERROR ENCOUNTERED: {error}
+        
+        VIBE DIAGNOSIS:
+        {vibe_report}
+        
+        GRISHA AUDIT VERDICT: {grisha_audit.get('audit_verdict')}
+        GRISHA REASONING: {grisha_audit.get('reasoning')}
+        
+        YOUR ROLE:
+        1. Set the "TEMPO" for the system. Should we proceed with the fix, ask for an alternative, or pivot?
+        2. Ensure the fix aligns with the overall global goal and doesn't introduce technical debt.
+        
+        Respond STRICTLY in JSON:
+        {{
+            "decision": "PROCEED" or "REQUEST_ALTERNATIVE" or "PIVOT",
+            "reason": "Strategic explanation of your decision in English",
+            "instructions_for_vibe": "Specific directives for Vibe to execute the fix step-by-step",
+            "voice_message": "Mandatory Ukrainian message for the user. Set the tempo. Explain WHAT we found and HOW we are fixing it (Professional and authoritative)."
+        }}
+        """
