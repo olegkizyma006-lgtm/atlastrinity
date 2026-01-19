@@ -1,0 +1,19 @@
+# Pyrefly Configuration
+# To prevent language server crashes (stack overflow)
+
+python-version = "3.12"
+project-includes = ["src/**/*.py", "scripts/**/*.py", "tests/**/*.py"]
+project-excludes = [
+    "**/node_modules/**",
+    "**/__pycache__/**",
+    "**/.venv/**",
+    "**/dist_venv/**",
+    "**/build/**",
+    "**/dist/**",
+    "**/.git/**"
+]
+
+# Disable specific heavy checks if necessary
+[errors]
+# Example: disable certain checks that might trigger recursion
+# unrecognized-attribute = false

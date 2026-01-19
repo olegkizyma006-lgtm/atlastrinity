@@ -78,6 +78,11 @@ class LongTermMemory:
                 metadata={"description": "Summaries of past chat sessions for semantic recall"},
             )
 
+            self.behavior_deviations = self.client.get_or_create_collection(
+                name="behavior_deviations",
+                metadata={"description": "Successful logic deviations from original plans"},
+            )
+
             self.available = True
             logger.info(f"[MEMORY] ChromaDB initialized at {CHROMA_DIR}")
             logger.info(
@@ -375,6 +380,88 @@ class LongTermMemory:
 
         logger.info(f"[MEMORY] Consolidated {new_lessons} new lessons from {len(logs)} logs")
         return new_lessons
+
+    def remember_behavioral_change(
+        self, 
+        original_intent: str, 
+        deviation: str, 
+        reason: str, 
+        result: str, 
+        context: Dict[str, Any],
+        decision_factors: Dict[str, Any] = None
+    ) -> bool:
+        """
+        Store a successful logic deviation with decision context.
+        
+        Args:
+            original_intent: What was originally planned
+            deviation: What was actually done
+            reason: Why the change was made
+            result: The outcome
+            context: Execution context (step_id, etc.)
+            decision_factors: Key environmental factors driving the decision (e.g. "time_pressure", "resource_unavailability")
+        """
+        if not self.available: return False
+        try:
+            doc_id = f"deviation_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{hash(original_intent) % 10000}"
+            
+            # Format factors for semantic understanding
+            factors_text = ""
+            if decision_factors:
+                factors_text = "\nDecision Factors:\n" + "\n".join([f"- {k}: {v}" for k, v in decision_factors.items()])
+            
+            document = (
+                f"Original Intent: {original_intent}\n"
+                f"Deviated To: {deviation}\n"
+                f"Reason: {reason}\n"
+                f"Outcome: {result}"
+                f"{factors_text}"
+            )
+            
+            # Enrich metadata
+            metadata = {
+                "timestamp": datetime.now().isoformat(),
+                "step_id": str(context.get("step_id", "")),
+                "success": True
+            }
+            # Flatten simple factors into metadata for filtering
+            if decision_factors:
+                for k, v in decision_factors.items():
+                    if isinstance(v, (str, int, float, bool)):
+                        metadata[f"factor_{k}"] = v
+            
+            self.behavior_deviations.upsert(
+                ids=[doc_id],
+                documents=[document],
+                metadatas=[metadata]
+            )
+            logger.info(f"[MEMORY] Stored behavior deviation with factors: {doc_id}")
+            return True
+        except Exception as e:
+            logger.error(f"[MEMORY] Failed to store deviation: {e}")
+            return False
+
+    def recall_behavioral_logic(self, intent: str, n_results: int = 2) -> List[Dict[str, Any]]:
+        """Recall past behavioral deviations for a given intent."""
+        if not self.available or self.behavior_deviations.count() == 0: return []
+        try:
+            results = self.behavior_deviations.query(
+                query_texts=[intent],
+                n_results=min(n_results, self.behavior_deviations.count()),
+                include=["documents", "metadatas", "distances"]
+            )
+            similar = []
+            if results and results["documents"]:
+                for i, doc in enumerate(results["documents"][0]):
+                    similar.append({
+                        "document": doc,
+                        "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
+                        "distance": results["distances"][0][i] if results["distances"] else 1.0
+                    })
+            return similar
+        except Exception as e:
+            logger.error(f"[MEMORY] Failed to recall deviations: {e}")
+            return []
 
 
 # Singleton instance

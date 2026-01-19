@@ -709,6 +709,49 @@ class Grisha(BaseAgent):
             ),
         )
 
+    async def analyze_failure(self, step: Dict[str, Any], error: str, context: dict = None) -> Dict[str, Any]:
+        """
+        Analyzes a failure reported by Tetyana or Orchestrator.
+        Returns constructive feedback for a retry.
+        """
+        from langchain_core.messages import HumanMessage, SystemMessage
+        
+        step_id = step.get("id", "unknown")
+        context_data = context or shared_context.to_dict()
+        
+        prompt = AgentPrompts.grisha_failure_analysis_prompt(
+            str(step),
+            error,
+            context_data,
+            plan_context=step.get("full_plan", "")
+        )
+        
+        messages = [
+            SystemMessage(content=self.SYSTEM_PROMPT),
+            HumanMessage(content=prompt)
+        ]
+        
+        try:
+            response = await self.llm.ainvoke(messages)
+            analysis = self._parse_response(response.content)
+            
+            logger.info(f"[GRISHA] Failure Analysis for step {step_id}: {analysis.get('root_cause')}")
+            
+            return {
+                "step_id": step_id,
+                "analysis": analysis,
+                "feedback_text": f"GRISHA FEEDBACK: {analysis.get('root_cause')}\nADVICE: {analysis.get('technical_advice')}",
+                "voice_message": analysis.get("voice_message")
+            }
+        except Exception as e:
+            logger.error(f"[GRISHA] Failure analysis failed: {e}")
+            return {
+                "step_id": step_id,
+                "analysis": {},
+                "feedback_text": f"GRISHA FEEDBACK: Unknown error analysis. Original error: {error}",
+                "voice_message": "Я не зміг проаналізувати помилку, але раджу спробувати ще раз."
+            }
+
     async def _save_rejection_report(
         self,
         step_id: int,

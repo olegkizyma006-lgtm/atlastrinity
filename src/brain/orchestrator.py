@@ -1300,6 +1300,42 @@ class Trinity:
                     step_copy["bus_messages"] = [m.to_dict() for m in bus_messages]
 
                 result = await self.tetyana.execute_step(step_copy, attempt=attempt)
+
+                # --- DYNAMIC AGENCY: Check for Strategy Deviation ---
+                if result.error == "strategy_deviation":
+                    logger.warning(f"[ORCHESTRATOR] Tetyana proposed a deviation: {result.result}")
+                    
+                    # Consult Atlas
+                    evaluation = await self.atlas.evaluate_deviation(
+                        step, 
+                        str(result.result), 
+                        self.state.get("current_plan", [])
+                    )
+                    
+                    voice_msg = evaluation.get("voice_message", "")
+                    if voice_msg:
+                        await self._speak("atlas", voice_msg)
+                        
+                    if evaluation.get("approved"):
+                        logger.info(f"[ORCHESTRATOR] Deviation APPROVED. Adjusting plan...")
+                        result.success = True
+                        result.result = f"Strategy Deviated: {evaluation.get('reason')}"
+                        result.error = None
+                        
+                        # --- BEHAVIORAL LEARNING: Save successful deviation logic ---
+                        if long_term_memory.available:
+                            await long_term_memory.remember_behavioral_change(
+                                original_intent=step.get("action", "Unknown"),
+                                deviation=str(result.result),
+                                reason=evaluation.get("reason", "Unknown"),
+                                result="Approved and Executed",
+                                context={"step_id": step.get("id")},
+                                decision_factors=evaluation.get("decision_factors", {})
+                            )
+                    else:
+                        logger.info(f"[ORCHESTRATOR] Deviation REJECTED. Forcing original plan.")
+                        step["grisha_feedback"] = f"Strategy Deviation Rejected: {evaluation.get('reason')}. Stick to the plan."
+                        result.success = False
                 
                 # Handle need_user_input signal (New Autonomous Timeout Logic)
                 if result.error == "need_user_input":

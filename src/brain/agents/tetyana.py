@@ -544,11 +544,16 @@ IMPORTANT:
                         screenshot_path=vision_result.get("screenshot_path"),
                     )
 
-        # Fetch Grisha's feedback for retry attempts
-        grisha_feedback = ""
-        if attempt > 1:
-            logger.info(f"[TETYANA] Attempt {attempt} - fetching Grisha's rejection feedback...")
+        vibe_guardrail_msg = ""
+
+        # Fetch Grisha's feedback (Priority: Injected via self-healing loop > Saved rejection report)
+        grisha_feedback = step.get("grisha_feedback", "")
+        if not grisha_feedback and attempt > 1:
+            logger.info(f"[TETYANA] Attempt {attempt} - fetching Grisha's rejection feedback from memory...")
             grisha_feedback = await self.get_grisha_feedback(step.get("id")) or ""
+        
+        if grisha_feedback:
+             logger.info(f"[TETYANA] Improving execution with Grisha's feedback: {grisha_feedback[:100]}...")
 
         target_server = step.get("realm") or step.get("tool") or step.get("server")
         # Normalize generic 'browser' realm to macos-use to leverage native automation
@@ -558,12 +563,14 @@ IMPORTANT:
         monologue = {}
 
         # SMART GATE: Check if we can skip reasoning
-        # Only skip if it's the first attempt; on retries (attempt > 1), always use reasoning to address feedback
+        # Only skip if it's the first attempt; on retries (attempt > 1) or if FEEDBACK exists, always use reasoning
         skip_reasoning = (
             attempt == 1
+            and not grisha_feedback
             and target_server in SKIP_REASONING_TOOLS
             and step.get("tool")
             and step.get("args")
+            and not step.get("requires_vision")
         )
 
         if skip_reasoning:

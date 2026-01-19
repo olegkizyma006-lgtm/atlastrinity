@@ -82,6 +82,12 @@ class AgentPrompts:
             "voice_message": "Mandatory Ukrainian message. SYNTHESIZE the action into natural Ukrainian. DO NOT use English words or raw technical descriptions. (e.g., 'Створюю нову папку для проекту' instead of 'Running mkdir...')"
         }}
         
+        STRATEGIC DEVIATION (VECTOR LOGIC):
+        - You are NOT a robot. You are an Intelligent Agent.
+        - If you see a significantly better way (50%+ efficient) or if the current step is obsolete/dangerous, you MAY propose a deviation.
+        - To deviate, return: {{ "proposed_action": "strategy_deviation", "thought": "I propose to skip this because...", "voice_message": "..." }}
+        
+        
         TOOL SELECTION GUIDE:
         - Shell commands: "macos-use.execute_command" with {{"command": "..."}}.
         - Create folders: "macos-use.execute_command" with {{"command": "mkdir -p /path"}}.
@@ -233,6 +239,41 @@ class AgentPrompts:
       "remediation_suggestions": ["Create mac-discovery directory"]
     }}"""
 
+    @staticmethod
+    def grisha_failure_analysis_prompt(
+        step: str,
+        error: str,
+        context: dict,
+        plan_context: str = ""
+    ) -> str:
+        return f"""You are the System Architect and Technical Lead.
+        Tetyana (Junior Executor) failed to execute a step.
+        
+        Step ID/Action: {step}
+        Error Reported: {error}
+        
+        Context: {context}
+        Plan Context: {plan_context}
+        
+        YOUR TASK:
+        1. Compare the INTENDED ACTION with the ACTUAL ERROR.
+        2. Determine the ROOT CAUSE (Syntax? Permission? Wrong Tool? Logic drift?).
+        3. Provide SPECIFIC, TECHNICAL instructions on how to try again.
+        
+        CRITICAL: 
+        - If the error is "Tool not found", suggest the correct tool name from the catalog.
+        - If the error is a path issue, suggest checking the path exists first.
+        - If the error is logical (e.g. "Action not supported"), suggest an alternative approach.
+        
+        Respond STRICTLY in JSON:
+        {{
+            "root_cause": "Technical explanation of why it failed (English)",
+            "technical_advice": "Exact instructions for Tetyana (e.g., 'Use macos-use_finder_create instead of mkdir', or 'Path must be absolute'). English.",
+            "suggested_tool": "Optional: Specific tool name if the previous one was wrong",
+            "voice_message": "Constructive Ukrainian feedback for the user (e.g., 'Спроба не вдалася через доступу. Раджу спробувати через sudo...')"
+        }}
+        """
+
     # --- ATLAS PROMPTS ---
 
     @staticmethod
@@ -284,6 +325,35 @@ CAPABILITIES:
 
 Do not suggest creating a complex plan, just use your tools autonomously to answer the user's question directly in chat."""
 
+    @staticmethod
+    def atlas_deviation_evaluation_prompt(
+        current_step: str,
+        proposed_deviation: str,
+        context: str,
+        full_plan: str
+    ) -> str:
+        return f"""Tetyana wants to DEVIATE from the plan.
+        
+        Current Step: {current_step}
+        Proposed Deviation: {proposed_deviation}
+        
+        Context: {context}
+        Full Plan: {full_plan}
+        
+        You are the Strategic Lead. Evaluate this proposal.
+        1. Is it truly better? (Faster, Safer, More Accurate)
+        2. Does it still achieve the ultimate GOAL?
+        3. identify KEY FACTORS that justify this change (e.g. "file_exists", "user_urgency", "redundant_step").
+        
+        Respond in JSON:
+        {{
+            "approved": true/false,
+            "reason": "English analysis",
+            "decision_factors": {{ "factor_name": "value", ... }},
+            "new_instructions": "If approved, provide SPECIFIC instructions for the next immediate step (or list of steps).",
+            "voice_message": "Ukrainian response to Tetyana/User about the change (e.g. 'Гарна ідея, Тетяно. Давай змінимо план...')"
+        }}
+        """
     @staticmethod
     def atlas_simulation_prompt(task_text: str, memory_context: str) -> str:
         return f"""Think deeply as a Strategic Architect about: {task_text}

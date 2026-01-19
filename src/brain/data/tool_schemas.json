@@ -1,0 +1,940 @@
+{
+    "vibe_prompt": {
+        "server": "vibe",
+        "required": [
+            "prompt"
+        ],
+        "optional": [
+            "cwd",
+            "timeout_s",
+            "output_format",
+            "auto_approve",
+            "max_turns",
+            "resume"
+        ],
+        "types": {
+            "prompt": "str",
+            "cwd": "str",
+            "timeout_s": "float",
+            "output_format": "str",
+            "auto_approve": "bool",
+            "max_turns": "int",
+            "resume": "str"
+        },
+        "description": "Run a general AI coding or analysis task with full TUI capabilities"
+    },
+    "vibe_analyze_error": {
+        "server": "vibe",
+        "required": [
+            "error_message"
+        ],
+        "optional": [
+            "context_files",
+            "cwd",
+            "timeout_s"
+        ],
+        "types": {
+            "error_message": "str",
+            "context_files": "list",
+            "cwd": "str",
+            "timeout_s": "float"
+        },
+        "description": "SELF-HEALING: Analyze an error and automatically implement a fix"
+    },
+    "vibe_implement_feature": {
+        "server": "vibe",
+        "required": [
+            "goal"
+        ],
+        "optional": [
+            "context_files",
+            "constraints",
+            "cwd",
+            "timeout_s"
+        ],
+        "types": {
+            "goal": "str",
+            "context_files": "list",
+            "constraints": "str",
+            "cwd": "str",
+            "timeout_s": "float"
+        },
+        "description": "DEEP CODING: Plan and implement complex features across multiple files"
+    },
+    "vibe_code_review": {
+        "server": "vibe",
+        "required": [
+            "files"
+        ],
+        "optional": [
+            "focus",
+            "cwd",
+            "timeout_s"
+        ],
+        "types": {
+            "files": "list",
+            "focus": "str",
+            "cwd": "str",
+            "timeout_s": "float"
+        },
+        "description": "Perform a deep technical code review of specified files"
+    },
+    "vibe_smart_plan": {
+        "server": "vibe",
+        "required": [
+            "goal"
+        ],
+        "optional": [
+            "cwd",
+            "timeout_s"
+        ],
+        "types": {
+            "goal": "str",
+            "cwd": "str",
+            "timeout_s": "float"
+        },
+        "description": "Generate a detailed multi-step execution plan for a complex task"
+    },
+    "vibe_ask": {
+        "server": "vibe",
+        "required": [
+            "question"
+        ],
+        "optional": [
+            "cwd",
+            "timeout_s"
+        ],
+        "types": {
+            "question": "str",
+            "cwd": "str",
+            "timeout_s": "float"
+        },
+        "description": "Ask a technical or architectural question without making changes"
+    },
+    "vibe_execute_subcommand": {
+        "server": "vibe",
+        "required": [
+            "subcommand"
+        ],
+        "optional": [
+            "args",
+            "cwd"
+        ],
+        "types": {
+            "subcommand": "str",
+            "args": "list",
+            "cwd": "str"
+        },
+        "description": "Execute a raw Vibe CLI subcommand (e.g., list-editors)"
+    },
+    "vibe_list_sessions": {
+        "server": "vibe",
+        "required": [],
+        "optional": [],
+        "description": "List all active and historical Vibe sessions"
+    },
+    "vibe_session_details": {
+        "server": "vibe",
+        "required": [
+            "session_id"
+        ],
+        "optional": [],
+        "types": {
+            "session_id": "str"
+        },
+        "description": "Get detailed logs and status for a specific Vibe session"
+    },
+    "vibe_which": {
+        "server": "vibe",
+        "required": [],
+        "optional": [],
+        "description": "Check if Vibe CLI is installed and find its path"
+    },
+    "vibe_check_db": {
+        "server": "vibe",
+        "required": [
+            "query"
+        ],
+        "optional": [],
+        "types": {
+            "query": "str"
+        },
+        "description": "Execute a read-only SQL query against the AtlasTrinity PostgreSQL database for deep inspection"
+    },
+    "vibe_get_system_context": {
+        "server": "vibe",
+        "required": [],
+        "optional": [],
+        "description": "Retrieve current operational context (Session ID, latest tasks, last errors) for focused analysis"
+    },
+    "macos-use_open_application_and_traverse": {
+        "server": "macos-use",
+        "required": [
+            "identifier"
+        ],
+        "optional": [],
+        "types": {
+            "identifier": "str"
+        },
+        "description": "Open/activate app and traverse accessibility tree"
+    },
+    "macos-use_click_and_traverse": {
+        "server": "macos-use",
+        "required": [
+            "x",
+            "y"
+        ],
+        "optional": [
+            "pid",
+            "showAnimation",
+            "animationDuration",
+            "traverseBefore",
+            "traverseAfter"
+        ],
+        "types": {
+            "pid": "int",
+            "x": "float",
+            "y": "float",
+            "showAnimation": "bool",
+            "animationDuration": "float",
+            "traverseBefore": "bool",
+            "traverseAfter": "bool"
+        },
+        "description": "Click coordinates (x, y) and traverse tree"
+    },
+    "macos-use_type_and_traverse": {
+        "server": "macos-use",
+        "required": [
+            "text"
+        ],
+        "optional": [
+            "pid",
+            "showAnimation",
+            "animationDuration",
+            "traverseBefore",
+            "traverseAfter"
+        ],
+        "types": {
+            "pid": "int",
+            "text": "str",
+            "showAnimation": "bool",
+            "animationDuration": "float",
+            "traverseBefore": "bool",
+            "traverseAfter": "bool"
+        },
+        "description": "Type text and traverse tree"
+    },
+    "macos-use_press_key_and_traverse": {
+        "server": "macos-use",
+        "required": [
+            "keyName"
+        ],
+        "optional": [
+            "pid",
+            "modifierFlags",
+            "showAnimation",
+            "animationDuration",
+            "traverseBefore",
+            "traverseAfter"
+        ],
+        "types": {
+            "pid": "int",
+            "keyName": "str",
+            "modifierFlags": "list",
+            "showAnimation": "bool",
+            "animationDuration": "float",
+            "traverseBefore": "bool",
+            "traverseAfter": "bool"
+        },
+        "description": "Press key (Return, Tab, Escape, etc.) with modifiers"
+    },
+    "macos-use_refresh_traversal": {
+        "server": "macos-use",
+        "required": [],
+        "optional": [
+            "pid"
+        ],
+        "types": {
+            "pid": "int"
+        },
+        "description": "Update accessibility tree traversal"
+    },
+    "macos-use_scroll_and_traverse": {
+        "server": "macos-use",
+        "required": [
+            "direction"
+        ],
+        "optional": [
+            "pid",
+            "amount",
+            "showAnimation",
+            "animationDuration",
+            "traverseBefore",
+            "traverseAfter"
+        ],
+        "types": {
+            "pid": "int",
+            "direction": "str",
+            "amount": "float",
+            "showAnimation": "bool",
+            "animationDuration": "float",
+            "traverseBefore": "bool",
+            "traverseAfter": "bool"
+        },
+        "description": "Scroll wheel action and traverse tree"
+    },
+    "macos-use_right_click_and_traverse": {
+        "server": "macos-use",
+        "required": [
+            "x",
+            "y"
+        ],
+        "optional": [
+            "pid",
+            "showAnimation",
+            "animationDuration",
+            "traverseBefore",
+            "traverseAfter"
+        ],
+        "types": {
+            "pid": "int",
+            "x": "float",
+            "y": "float",
+            "showAnimation": "bool",
+            "animationDuration": "float",
+            "traverseBefore": "bool",
+            "traverseAfter": "bool"
+        },
+        "description": "Right-click and traverse tree"
+    },
+    "macos-use_double_click_and_traverse": {
+        "server": "macos-use",
+        "required": [
+            "x",
+            "y"
+        ],
+        "optional": [
+            "pid",
+            "showAnimation",
+            "animationDuration",
+            "traverseBefore",
+            "traverseAfter"
+        ],
+        "types": {
+            "pid": "int",
+            "x": "float",
+            "y": "float",
+            "showAnimation": "bool",
+            "animationDuration": "float",
+            "traverseBefore": "bool",
+            "traverseAfter": "bool"
+        },
+        "description": "Double-click and traverse tree"
+    },
+    "macos-use_drag_and_drop_and_traverse": {
+        "server": "macos-use",
+        "required": [
+            "startX",
+            "startY",
+            "endX",
+            "endY"
+        ],
+        "optional": [
+            "pid",
+            "showAnimation",
+            "animationDuration",
+            "traverseBefore",
+            "traverseAfter"
+        ],
+        "types": {
+            "pid": "int",
+            "startX": "float",
+            "startY": "float",
+            "endX": "float",
+            "endY": "float",
+            "showAnimation": "bool",
+            "animationDuration": "float",
+            "traverseBefore": "bool",
+            "traverseAfter": "bool"
+        },
+        "description": "Drag and drop action and traverse tree"
+    },
+    "macos-use_window_management": {
+        "server": "macos-use",
+        "required": [
+            "action"
+        ],
+        "optional": [
+            "pid",
+            "x",
+            "y",
+            "width",
+            "height"
+        ],
+        "types": {
+            "pid": "int",
+            "action": "str",
+            "x": "float",
+            "y": "float",
+            "width": "float",
+            "height": "float"
+        },
+        "description": "Manage windows: move, resize, minimize, maximize, make_front"
+    },
+    "execute_command": {
+        "server": "macos-use",
+        "required": [
+            "command"
+        ],
+        "optional": [],
+        "types": {
+            "command": "str"
+        },
+        "description": "Execute shell command (PRIMARY terminal access)"
+    },
+    "macos-use_take_screenshot": {
+        "server": "macos-use",
+        "required": [],
+        "optional": [],
+        "types": {},
+        "description": "Capture screen as Base64 PNG"
+    },
+    "macos-use_analyze_screen": {
+        "server": "macos-use",
+        "required": [],
+        "optional": [],
+        "types": {},
+        "description": "Apple Vision OCR - analyze screen text"
+    },
+    "macos-use_set_clipboard": {
+        "server": "macos-use",
+        "required": [
+            "text"
+        ],
+        "optional": [
+            "showAnimation",
+            "animationDuration"
+        ],
+        "types": {
+            "text": "str",
+            "showAnimation": "bool",
+            "animationDuration": "float"
+        },
+        "description": "Set clipboard content"
+    },
+    "macos-use_get_clipboard": {
+        "server": "macos-use",
+        "required": [],
+        "optional": [],
+        "types": {},
+        "description": "Get clipboard content"
+    },
+    "macos-use_system_control": {
+        "server": "macos-use",
+        "required": [
+            "action"
+        ],
+        "optional": [],
+        "types": {
+            "action": "str"
+        },
+        "description": "System control (media, volume, brightness)"
+    },
+    "macos-use_get_time": {
+        "server": "macos-use",
+        "required": [],
+        "optional": [
+            "timezone"
+        ],
+        "types": {
+            "timezone": "str"
+        },
+        "description": "Returns current system time"
+    },
+    "macos-use_fetch_url": {
+        "server": "macos-use",
+        "required": [
+            "url"
+        ],
+        "optional": [],
+        "types": {
+            "url": "str"
+        },
+        "description": "Fetch URL and convert HTML to markdown/text"
+    },
+    "macos-use_list_tools_dynamic": {
+        "server": "macos-use",
+        "required": [],
+        "optional": [],
+        "description": "List all available native macOS tools and schemas"
+    },
+    "macos-use_notes_create_note": {
+        "server": "macos-use",
+        "required": [
+            "body"
+        ],
+        "optional": [
+            "folder"
+        ],
+        "types": {
+            "body": "str",
+            "folder": "str"
+        },
+        "description": "Create new note in Apple Notes"
+    },
+    "macos-use_notes_list_folders": {
+        "server": "macos-use",
+        "required": [],
+        "optional": [],
+        "description": "List all folders in Apple Notes"
+    },
+    "macos-use_notes_get_content": {
+        "server": "macos-use",
+        "required": [
+            "name"
+        ],
+        "optional": [],
+        "types": {
+            "name": "str"
+        },
+        "description": "Get HTML body of note by name"
+    },
+    "macos-use_mail_send": {
+        "server": "macos-use",
+        "required": [
+            "to",
+            "subject",
+            "body"
+        ],
+        "optional": [],
+        "types": {
+            "to": "str",
+            "subject": "str",
+            "body": "str"
+        },
+        "description": "Send email via Apple Mail"
+    },
+    "macos-use_mail_read_inbox": {
+        "server": "macos-use",
+        "required": [],
+        "optional": [
+            "limit"
+        ],
+        "types": {
+            "limit": "int"
+        },
+        "description": "Read recent message subjects from inbox"
+    },
+    "macos-use_finder_list_files": {
+        "server": "macos-use",
+        "required": [],
+        "optional": [
+            "path"
+        ],
+        "types": {
+            "path": "str"
+        },
+        "description": "List files in frontmost Finder window or path"
+    },
+    "macos-use_finder_get_selection": {
+        "server": "macos-use",
+        "required": [],
+        "optional": [],
+        "description": "Get POSIX paths of currently selected items in Finder"
+    },
+    "macos-use_finder_open_path": {
+        "server": "macos-use",
+        "required": [
+            "path"
+        ],
+        "optional": [],
+        "types": {
+            "path": "str"
+        },
+        "description": "Open POSIX path in Finder"
+    },
+    "macos-use_finder_move_to_trash": {
+        "server": "macos-use",
+        "required": [
+            "path"
+        ],
+        "optional": [],
+        "types": {
+            "path": "str"
+        },
+        "description": "Move item to Trash via Finder"
+    },
+    "macos-use_calendar_events": {
+        "server": "macos-use",
+        "required": [
+            "start",
+            "end"
+        ],
+        "optional": [],
+        "types": {
+            "start": "str",
+            "end": "str"
+        },
+        "description": "Fetch calendar events for date range (ISO8601)"
+    },
+    "macos-use_create_event": {
+        "server": "macos-use",
+        "required": [
+            "title",
+            "date"
+        ],
+        "optional": [],
+        "types": {
+            "title": "str",
+            "date": "str"
+        },
+        "description": "Create new calendar event"
+    },
+    "macos-use_reminders": {
+        "server": "macos-use",
+        "required": [],
+        "optional": [
+            "list"
+        ],
+        "types": {
+            "list": "str"
+        },
+        "description": "Fetch incomplete reminders"
+    },
+    "macos-use_create_reminder": {
+        "server": "macos-use",
+        "required": [
+            "title"
+        ],
+        "optional": [],
+        "types": {
+            "title": "str"
+        },
+        "description": "Create new reminder"
+    },
+    "macos-use_spotlight_search": {
+        "server": "macos-use",
+        "required": [
+            "query"
+        ],
+        "optional": [],
+        "types": {
+            "query": "str"
+        },
+        "description": "File search using Spotlight (mdfind)"
+    },
+    "macos-use_send_notification": {
+        "server": "macos-use",
+        "required": [
+            "title",
+            "message"
+        ],
+        "optional": [],
+        "types": {
+            "title": "str",
+            "message": "str"
+        },
+        "description": "Send native macOS notification"
+    },
+    "create_entities": {
+        "server": "memory",
+        "required": [
+            "entities"
+        ],
+        "optional": [],
+        "types": {
+            "entities": "list"
+        },
+        "description": "Batch create or update entities in knowledge graph"
+    },
+    "add_observations": {
+        "server": "memory",
+        "required": [
+            "name",
+            "observations"
+        ],
+        "optional": [],
+        "types": {
+            "name": "str",
+            "observations": "list"
+        },
+        "description": "Add observations to existing entity"
+    },
+    "get_entity": {
+        "server": "memory",
+        "required": [
+            "name"
+        ],
+        "optional": [],
+        "types": {
+            "name": "str"
+        },
+        "description": "Retrieve full entity details"
+    },
+    "list_entities": {
+        "server": "memory",
+        "required": [],
+        "optional": [],
+        "description": "List all entity names"
+    },
+    "search": {
+        "server": "memory",
+        "required": [
+            "query"
+        ],
+        "optional": [
+            "limit"
+        ],
+        "types": {
+            "query": "str",
+            "limit": "int"
+        },
+        "description": "Semantic search in knowledge graph (returns closest entities)"
+    },
+    "create_relation": {
+        "server": "memory",
+        "required": [
+            "source",
+            "target",
+            "relation"
+        ],
+        "optional": [],
+        "types": {
+            "source": "str",
+            "target": "str",
+            "relation": "str"
+        },
+        "description": "Link two entities in the knowledge graph with a specific relationship"
+    },
+    "delete_entity": {
+        "server": "memory",
+        "required": [
+            "name"
+        ],
+        "optional": [],
+        "types": {
+            "name": "str"
+        },
+        "description": "Delete entity from graph"
+    },
+    "get_graph_json": {
+        "server": "graph",
+        "required": [],
+        "optional": [],
+        "description": "Export graph as JSON"
+    },
+    "generate_mermaid": {
+        "server": "graph",
+        "required": [],
+        "optional": [
+            "node_type"
+        ],
+        "types": {
+            "node_type": "str"
+        },
+        "description": "Generate a Mermaid.js flowchart of the graph (optional filter by node type)"
+    },
+    "get_node_details": {
+        "server": "graph",
+        "required": [
+            "node_id"
+        ],
+        "optional": [],
+        "types": {
+            "node_id": "str"
+        },
+        "description": "Retrieve full attributes and metadata for a specific graph node"
+    },
+    "get_related_nodes": {
+        "server": "graph",
+        "required": [
+            "node_id"
+        ],
+        "optional": [],
+        "types": {
+            "node_id": "str"
+        },
+        "description": "Find all nodes connected to a specific ID in the graph"
+    },
+    "read_file": {
+        "server": "filesystem",
+        "required": [
+            "path"
+        ],
+        "optional": [],
+        "types": {
+            "path": "str"
+        },
+        "description": "Read file contents (home directory only)"
+    },
+    "write_file": {
+        "server": "filesystem",
+        "required": [
+            "path",
+            "content"
+        ],
+        "optional": [],
+        "types": {
+            "path": "str",
+            "content": "str"
+        },
+        "description": "Write/create file (home directory only)"
+    },
+    "list_directory": {
+        "server": "filesystem",
+        "required": [
+            "path"
+        ],
+        "optional": [],
+        "types": {
+            "path": "str"
+        },
+        "description": "List directory contents"
+    },
+    "search_files": {
+        "server": "filesystem",
+        "required": [
+            "path",
+            "pattern"
+        ],
+        "optional": [],
+        "types": {
+            "path": "str",
+            "pattern": "str"
+        },
+        "description": "Search files by name or content"
+    },
+    "get_file_info": {
+        "server": "filesystem",
+        "required": [
+            "path"
+        ],
+        "optional": [],
+        "types": {
+            "path": "str"
+        },
+        "description": "Get file metadata"
+    },
+    "puppeteer_navigate": {
+        "server": "puppeteer",
+        "required": [
+            "url"
+        ],
+        "optional": [],
+        "types": {
+            "url": "str"
+        },
+        "description": "Navigate to a URL"
+    },
+    "puppeteer_screenshot": {
+        "server": "puppeteer",
+        "required": [
+            "path"
+        ],
+        "optional": [
+            "selector",
+            "full_page"
+        ],
+        "types": {
+            "path": "str",
+            "selector": "str",
+            "full_page": "bool"
+        },
+        "description": "Take a screenshot of the page"
+    },
+    "puppeteer_click": {
+        "server": "puppeteer",
+        "required": [
+            "selector"
+        ],
+        "optional": [],
+        "types": {
+            "selector": "str"
+        },
+        "description": "Click an element"
+    },
+    "puppeteer_fill": {
+        "server": "puppeteer",
+        "required": [
+            "selector",
+            "value"
+        ],
+        "optional": [],
+        "types": {
+            "selector": "str",
+            "value": "str"
+        },
+        "description": "Fill an input field"
+    },
+    "captureScreenshot": {
+        "server": "chrome-devtools",
+        "required": [],
+        "optional": [
+            "format",
+            "quality",
+            "clip",
+            "fromSurface",
+            "captureBeyondViewport"
+        ],
+        "types": {
+            "format": "str",
+            "quality": "int",
+            "clip": "dict",
+            "fromSurface": "bool",
+            "captureBeyondViewport": "bool"
+        },
+        "description": "Capture the screenshot of the current page."
+    },
+    "console_logs": {
+        "server": "chrome-devtools",
+        "required": [],
+        "optional": [],
+        "description": "Get console logs"
+    },
+    "network_requests": {
+        "server": "chrome-devtools",
+        "required": [],
+        "optional": [],
+        "description": "Get network requests"
+    },
+    "sequentialthinking": {
+        "server": "sequential-thinking",
+        "required": [
+            "thought",
+            "thoughtNumber",
+            "totalThoughts"
+        ],
+        "optional": [
+            "nextThoughtNeeded"
+        ],
+        "types": {
+            "thought": "str",
+            "thoughtNumber": "int",
+            "totalThoughts": "int",
+            "nextThoughtNeeded": "bool"
+        },
+        "description": "Multi-step sequential reasoning"
+    },
+    "macos-use_run_applescript": {
+        "server": "macos-use",
+        "required": [
+            "script"
+        ],
+        "optional": [],
+        "types": {
+            "script": "str"
+        },
+        "description": "Execute raw AppleScript"
+    },
+    "restart_mcp_server": {
+        "server": "system",
+        "required": [
+            "server_name"
+        ],
+        "optional": [],
+        "types": {
+            "server_name": "str"
+        },
+        "description": "Internal tool to restart an MCP server"
+    }
+}

@@ -1,0 +1,72 @@
+VIBE MCP SERVER - AI-POWERED DEBUGGING & SELF-HEALING
+
+The 'vibe' server provides access to Mistral AI for advanced debugging, code analysis, and self-healing.
+All Vibe operations run in PROGRAMMATIC CLI mode (not interactive TUI) - output is fully visible in logs.
+
+AVAILABLE VIBE TOOLS:
+
+1. **vibe_prompt** (PRIMARY TOOL)
+   Purpose: Send any prompt to Vibe AI for analysis or action
+   Args:
+     - prompt: The message/query (required)
+     - cwd: Working directory (optional)
+     - timeout_s: Timeout in seconds (default 3600)
+     - output_format: 'json', 'text', or 'streaming' (default 'json')
+     - auto_approve: Auto-approve tool calls (default True)
+     - max_turns: Max conversation turns (default 10)
+   Example: vibe_prompt(prompt="Why is this code failing?", cwd="/path/to/project")
+
+2. **vibe_analyze_error** (SELF-HEALING)
+   Purpose: Deep error analysis with optional auto-fix
+   Args:
+     - error_message: The error/stack trace (required)
+     - log_context: Recent logs for context (optional)
+     - file_path: Path to problematic file (optional)
+     - auto_fix: Whether to apply fixes (default True)
+   Example: vibe_analyze_error(error_message="TypeError: x is undefined", log_context="...", auto_fix=True)
+
+3. **vibe_code_review**
+   Purpose: Request AI code review for a file
+   Args:
+     - file_path: Path to review (required)
+     - focus_areas: Areas to focus on, e.g., "security", "performance" (optional)
+   Example: vibe_code_review(file_path="/src/main.py", focus_areas="security")
+
+4. **vibe_smart_plan**
+   Purpose: Generate execution plan for complex objectives
+   Args:
+     - objective: The goal to plan for (required)
+     - context: Additional context (optional)
+   Example: vibe_smart_plan(objective="Implement OAuth2 authentication")
+
+5. **vibe_ask** (READ-ONLY)
+   Purpose: Ask a quick question without file modifications
+   Args:
+     - question: The question (required)
+   Example: vibe_ask(question="What's the best way to handle async errors in Python?")
+
+6. **vibe_execute_subcommand**
+   Purpose: Execute a specific Vibe CLI subcommand (non-AI utility)
+   Args:
+     - subcommand: 'list-editors', 'run', 'enable', 'disable', 'install', etc. (required)
+     - args: List of string arguments (optional)
+     - cwd: Working directory (optional)
+   Example: vibe_execute_subcommand(subcommand="list-editors")
+
+7. **vibe_which**
+   Purpose: Check Vibe CLI installation path and version
+   Example: vibe_which()
+
+TRINITY NATIVE SYSTEM TOOLS (Any Agent):
+- `restart_mcp_server(server_name)`: Force restart an MCP server.
+- `query_db(query, params)`: Query the internal system database.
+
+WHEN TO USE VIBE:
+- When Tetyana/Grisha fail after multiple attempts
+- Complex debugging requiring AI reasoning
+- Code review before committing
+- Planning multi-step implementations
+- Understanding unfamiliar code patterns
+- System diagnostics
+
+IMPORTANT: All Vibe output is logged and visible in the Electron app logs!

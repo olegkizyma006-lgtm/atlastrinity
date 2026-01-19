@@ -169,6 +169,36 @@ class Atlas(BaseAgent):
                 "initial_response": None # Force falling back to atlas.chat() for dynamic response
             }
 
+    async def evaluate_deviation(self, current_step: dict, proposed_deviation: str, full_plan: list) -> dict:
+        """
+        Evaluates a strategic deviation proposed by Tetyana.
+        """
+        from langchain_core.messages import HumanMessage, SystemMessage
+        
+        prompt = AgentPrompts.atlas_deviation_evaluation_prompt(
+            str(current_step),
+            proposed_deviation,
+            context=shared_context.to_dict(),
+            full_plan=str(full_plan)
+        )
+        
+        # Strip system prompt placeholder
+        system_prompt = self.SYSTEM_PROMPT.replace("{{CONTEXT_SPECIFIC_DOCTRINE}}", "")
+        
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=prompt)
+        ]
+        
+        try:
+            response = await self.llm.ainvoke(messages)
+            evaluation = self._parse_response(response.content)
+            logger.info(f"[ATLAS] Deviation Evaluation: {evaluation.get('approved')}")
+            return evaluation
+        except Exception as e:
+            logger.error(f"[ATLAS] Evaluation failed: {e}")
+            return {"approved": False, "reason": "Evaluation failed", "voice_message": "Помилка оцінки."}
+    
     async def chat(self, user_request: str, history: List[Any] = None, use_deep_persona: bool = False) -> str:
         """
         Omni-Knowledge Chat Mode.
@@ -350,6 +380,14 @@ class Atlas(BaseAgent):
                 memory_context = "\nPAST LESSONS (Strategies used before):\n" + "\n".join(
                     [f"- {s['document']}" for s in similar]
                 )
+            
+            # --- BEHAVIORAL LEARNING RECALL ---
+            behavioral_lessons = long_term_memory.recall_behavioral_logic(task_text, n_results=2)
+            if behavioral_lessons:
+                memory_context += "\n\nPAST BEHAVIORAL DEVIATIONS (LEARNED LOGIC):\n" + "\n".join(
+                    [f"- {b['document']}" for b in behavioral_lessons]
+                )
+                logger.info(f"[ATLAS] Recalled {len(behavioral_lessons)} behavioral lessons for planning.")
 
         simulation_prompt = AgentPrompts.atlas_simulation_prompt(task_text, memory_context)
 
