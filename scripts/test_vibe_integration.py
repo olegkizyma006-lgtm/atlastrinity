@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.mcp_server.vibe_server import (
     vibe_which,
     vibe_prompt,
+    vibe_analyze_error,
     handle_long_prompt,
     VIBE_WORKSPACE,
     INSTRUCTIONS_DIR,

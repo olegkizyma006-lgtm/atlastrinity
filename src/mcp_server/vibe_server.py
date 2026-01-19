@@ -323,7 +323,7 @@ async def run_vibe_subprocess(
                     pass
 
                 # Regular log line - filter out TUI spam
-                spam_triggers = ["Welcome to", "│", "╭", "╮", "╰", "─", "──", "[2K", "[1A"]
+                spam_triggers = ["Welcome to", "│", "╭", "╮", "╰", "─", "──", "[2K", "[1A", "Press Enter", "↵"]
                 if any(t in line for t in spam_triggers):
                     return
 
