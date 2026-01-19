@@ -100,3 +100,9 @@ api:
 
 database:
   url: sqlite+aiosqlite:///${CONFIG_ROOT}/atlastrinity.db
+
+memory:
+  chroma:
+    persist_directory: ${CONFIG_ROOT}/memory/chroma
+    collection_name: atlastrinity_memory
+  vector_store_type: chroma

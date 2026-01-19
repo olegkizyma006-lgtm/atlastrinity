@@ -387,7 +387,7 @@ def verify_mcp_package_versions():
     # Prefer global config path
     mcp_config_path = CONFIG_ROOT / "mcp" / "config.json"
     if not mcp_config_path.exists():
-        mcp_config_path = PROJECT_ROOT / "src" / "mcp_server" / "config.json"
+        mcp_config_path = PROJECT_ROOT / "src" / "mcp_server" / "config.json.template"
 
     issues = scan_mcp_config_for_package_issues(mcp_config_path)
     # Append system limits checks
