@@ -18,6 +18,8 @@ dist_venv/
 # Python
 __pycache__/
 *.pyc
+*.db
+trinity.db
 *.pyo
 *.egg-info/
 .eggs/

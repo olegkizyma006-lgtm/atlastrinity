@@ -113,6 +113,19 @@ class Trinity:
             del self.state["db_session_id"]
         if "db_task_id" in self.state:
             del self.state["db_task_id"]
+        
+        # Auto-backup before clearing session
+        try:
+            from pathlib import Path
+            import sys
+            project_root = Path(__file__).parent.parent.parent
+            sys.path.insert(0, str(project_root))
+            from scripts.setup_dev import backup_databases
+            
+            await asyncio.to_thread(backup_databases)
+            await self._log("📦 Backup попередньої сесії...", "system")
+        except Exception as e:
+            logger.warning(f"[BACKUP] Не вдалося створити backup: {e}")
             
         if state_manager.available:
             state_manager.clear_session(self.current_session_id)
@@ -767,6 +780,19 @@ class Trinity:
             "tasks",
             {"type": "task_finished", "status": "completed", "session_id": session_id},
         )
+        
+        # Auto-backup databases after session completion
+        try:
+            from pathlib import Path
+            import sys
+            project_root = Path(__file__).parent.parent.parent
+            sys.path.insert(0, str(project_root))
+            from scripts.setup_dev import backup_databases
+            
+            asyncio.create_task(asyncio.to_thread(backup_databases))
+            await self._log("📦 Автоматичний backup баз даних...", "system")
+        except Exception as e:
+            logger.warning(f"[BACKUP] Не вдалося створити backup: {e}")
 
         return {"status": "completed", "result": self.state["step_results"]}
 
