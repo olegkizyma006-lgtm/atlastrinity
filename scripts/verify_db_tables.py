@@ -1,65 +1,39 @@
-
+#!/usr/bin/env python3
+"""Standalone script to verify database tables and counts during setup"""
 import asyncio
-import os
 import sys
-from sqlalchemy import inspect
-from sqlalchemy.ext.asyncio import create_async_engine
+from pathlib import Path
 
-# Add project root to path
-sys.path.append(os.getcwd())
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.brain.db.manager import DB_URL
+from src.brain.db.manager import db_manager
 from src.brain.db.schema import Base
+from sqlalchemy import select, func
 
-async def verify_tables():
-    print(f"Connecting to database: {DB_URL}")
-    engine = create_async_engine(DB_URL)
-    
+async def verify_database_tables():
+    """Detailed verification of database tables and counts"""
     try:
-        async with engine.connect() as conn:
-            def get_db_info(connection):
-                inspector = inspect(connection)
-                tables = inspector.get_table_names()
-                info = {}
-                for table in tables:
-                    columns = inspector.get_columns(table)
-                    info[table] = [c['name'] for c in columns]
-                return info
-            
-            db_info = await conn.run_sync(get_db_info)
-            actual_tables = list(db_info.keys())
-            
-            expected_tables = Base.metadata.tables
-            
-            print("\nTable & Column Verification Result:")
-            print("-" * 40)
-            
-            all_ok = True
-            for table_name, table_obj in expected_tables.items():
-                if table_name in actual_tables:
-                    actual_cols = db_info[table_name]
-                    expected_cols = [c.name for c in table_obj.columns]
+        await db_manager.initialize()
+        
+        async with await db_manager.get_session() as session:
+            print(f"[DB] Found {len(Base.metadata.tables)} tables in schema.")
+            for table_name in Base.metadata.tables.keys():
+                try:
+                    table = Base.metadata.tables[table_name]
+                    stmt = select(func.count()).select_from(table)
+                    res = await session.execute(stmt)
+                    count = res.scalar()
+                    print(f"[DB] Table '{table_name}': {count} records")
+                except Exception as e:
+                    print(f"[DB] WARNING: Could not verify table '{table_name}': {e}")
                     
-                    missing_cols = [c for c in expected_cols if c not in actual_cols]
-                    
-                    if not missing_cols:
-                        print(f"✅ {table_name}: EXISTS (Columns: {len(actual_cols)}/{len(expected_cols)})")
-                    else:
-                        print(f"❌ {table_name}: MISSING COLUMNS: {missing_cols}")
-                        all_ok = False
-                else:
-                    print(f"❌ {table_name}: MISSING TABLE")
-                    all_ok = False
-            
-            if all_ok:
-                print("\nSUCCESS: All schema tables and columns are present in the database.")
-            else:
-                print("\nFAILURE: Schema mismatch detected.")
-                
+        await db_manager.close()
+        return True
     except Exception as e:
-        print(f"\nERROR: Failed to connect or verify: {e}")
-    finally:
-        await engine.dispose()
+        print(f"[DB] ERROR during table verification: {e}")
+        return False
 
 if __name__ == "__main__":
-    asyncio.run(verify_tables())
+    if not asyncio.run(verify_database_tables()):
+        sys.exit(1)

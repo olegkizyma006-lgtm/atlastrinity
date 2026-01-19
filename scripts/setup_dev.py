@@ -436,6 +436,7 @@ def install_deps():
             "chrome-devtools-mcp",
             "@modelcontextprotocol/server-filesystem",
             "@modelcontextprotocol/server-puppeteer",
+            "@modelcontextprotocol/server-github",
         ]
         print_info("Updating critical MCP packages...")
         subprocess.run(
@@ -637,6 +638,18 @@ def restore_databases():
     print_success("Бази даних успішно відновлено!")
 
 
+async def verify_database_tables():
+    """Detailed verification of database tables and counts using external script"""
+    print_step("Детальна перевірка таблиць бази даних...")
+    venv_python = str(VENV_PATH / "bin" / "python")
+    try:
+        subprocess.run([venv_python, str(PROJECT_ROOT / "scripts" / "verify_db_tables.py")], check=True)
+        return True
+    except Exception as e:
+        print_error(f"Помилка при верифікації таблиць: {e}")
+        return False
+
+
 def check_services():
     """Перевіряє запущені сервіси"""
     print_step("Перевірка системних сервісів...")
@@ -722,6 +735,9 @@ def main():
     sync_configs()
 
     ensure_database()  # Now dependencies are ready and config is synced
+    
+    # Run detailed table verification
+    asyncio.run(verify_database_tables())
 
     build_swift_mcp()
     
@@ -759,6 +775,9 @@ def main():
     print("  - sequential-thinking: Глибоке мислення (Atlas, Tetyana, Grisha)")
     print("  - chrome-devtools: Автоматизація Chrome (Tetyana)")
     print("  - puppeteer: Веб-скрейпінг та пошук (Tetyana, Grisha)")
+    print("  - github: Офіційний GitHub MCP (PRs, Issues, Code Search)")
+    print("  - duckduckgo-search: Швидкий пошук без ключів (Tetyana, Grisha)")
+    print("  - whisper-stt: Локальне розпізнавання мови (Tetyana)")
     print("  - graph: Візуалізація графу знань (Atlas, Grisha)")
     print("=" * 60 + "\n")
 

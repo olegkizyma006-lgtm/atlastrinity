@@ -11,6 +11,7 @@ This enables the system to learn from past experience.
 
 import json
 import os
+import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -435,7 +436,39 @@ class LongTermMemory:
                 documents=[document],
                 metadatas=[metadata]
             )
-            logger.info(f"[MEMORY] Stored behavior deviation with factors: {doc_id}")
+            logger.info(f"[MEMORY] Stored behavior deviation in ChromaDB: {doc_id}")
+            
+            # 2. Sync to Relational DB (SQL) for auditing
+            try:
+                from .db.manager import db_manager
+                from .db.schema import BehavioralDeviation
+                
+                async def _sync_to_sql():
+                    async with await db_manager.get_session() as session:
+                        deviation_entry = BehavioralDeviation(
+                            session_id=context.get("db_session_id") or context.get("session_id"),
+                            step_id=context.get("step_id"),
+                            original_intent=original_intent,
+                            deviation=deviation,
+                            reason=reason,
+                            result=result,
+                            decision_factors=decision_factors or {}
+                        )
+                        session.add(deviation_entry)
+                        await session.commit()
+                        logger.info(f"[MEMORY] Synced deviation to SQL")
+                
+                # Check if we are in an event loop (likely)
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(_sync_to_sql())
+                except RuntimeError:
+                    # Not in loop, use run
+                    asyncio.run(_sync_to_sql())
+                    
+            except Exception as sql_e:
+                logger.warning(f"[MEMORY] Failed to sync deviation to SQL: {sql_e}")
+
             return True
         except Exception as e:
             logger.error(f"[MEMORY] Failed to store deviation: {e}")

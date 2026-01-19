@@ -209,3 +209,21 @@ class ConversationSummary(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     metadata_blob: Mapped[Dict[str, Any]] = mapped_column(JSON, default={})
 
+class BehavioralDeviation(Base):
+    """
+    Stores logic deviations from original plans for auditing and analytics.
+    Complements the vector-based memory in ChromaDB.
+    """
+    __tablename__ = "behavioral_deviations"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("sessions.id"))
+    step_id: Mapped[Optional[uuid.UUID]] = mapped_column(GUID(), ForeignKey("task_steps.id"), nullable=True)
+
+    original_intent: Mapped[str] = mapped_column(Text)
+    deviation: Mapped[str] = mapped_column(Text)
+    reason: Mapped[str] = mapped_column(Text)
+    result: Mapped[str] = mapped_column(Text)
+    decision_factors: Mapped[Dict[str, Any]] = mapped_column(JSON, default={})
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
