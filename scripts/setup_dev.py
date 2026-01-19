@@ -549,24 +549,47 @@ def download_models():
     # TTS
     try:
         print_info("Ініціалізація TTS моделей (з автоматичним патчингом)...")
-        cmd = [
-            venv_python,
-            "-c",
-            "import os, sys; "
-            "sys.path.append(os.getcwd()); "
-            "from src.brain.voice.tts import _patch_tts_config; "
-            "from pathlib import Path; "
-            f"cache_dir = Path('{DIRS['tts_models']}'); "
-            "from ukrainian_tts.tts import TTS; "
-            "TTS(cache_folder=str(cache_dir), device='cpu'); "
-            "_patch_tts_config(cache_dir); "
-            "print('TTS OK')",
-        ]
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        python_script = f"""
+import os, sys
+from pathlib import Path
+sys.path.append(os.getcwd())
+try:
+    from src.brain.voice.tts import _patch_tts_config
+except ImportError:
+    def _patch_tts_config(d): pass
+
+cache_dir = Path('{DIRS['tts_models']}')
+cache_dir.mkdir(parents=True, exist_ok=True)
+
+from ukrainian_tts.tts import TTS
+
+# 1. Спробуємо ініціалізацію з автоматичним патчингом у разі помилки
+old_cwd = os.getcwd()
+try:
+    os.chdir(str(cache_dir))
+    # TTS constructor downloads files if missing
+    TTS(cache_folder='.', device='cpu')
+except Exception as e:
+    print(f"Initial TTS load failed (likely missing files or unpatched config): {{e}}")
+    os.chdir(old_cwd)
+    # Якщо завантаження відбулося, але завантаження не вдалося, спробуємо патчити
+    _patch_tts_config(cache_dir)
+    os.chdir(str(cache_dir))
+    # Спроба №2 після патчу
+    TTS(cache_folder='.', device='cpu')
+finally:
+    os.chdir(old_cwd)
+print('TTS OK')
+"""
+        cmd = [venv_python, "-c", python_script]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
         if res.returncode == 0:
             print_success("TTS моделі готові")
         else:
-            print_warning(f"Помилка завантаження TTS: {res.stderr}")
+            # Check if it failed specifically because of feats_stats.npz and try to provide helpful info
+            if "feats_stats.npz" in res.stderr or "feats_stats.npz" in res.stdout:
+                print_warning("Виявлено проблему з feats_stats.npz. Спробуйте вручну видалити папку models/tts та запустити знову.")
+            print_warning(f"Помилка завантаження TTS: {res.stderr or res.stdout}")
     except Exception as e:
         print_warning(f"Помилка завантаження TTS: {e}")
 

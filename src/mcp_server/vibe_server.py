@@ -56,7 +56,6 @@ try:
 except Exception as e:
     print(f"[VIBE] Warning: Could not setup file logging: {e}")
 
-# Stream handler (stderr)
 import sys
 sh = logging.StreamHandler(sys.stderr)
 sh.setLevel(logging.INFO)
@@ -268,7 +267,7 @@ async def run_vibe_subprocess(
         await emit_log("info", f"🚀 [VIBE-LIVE] Запуск Vibe: {prompt_preview[:80]}...")
     
     try:
-        # Launch subprocess. 
+        # Launch subprocess.
         # On macOS, we use 'script' to provide a TTY, but we need to be careful with its output.
         script_path = shutil.which("script")
         
@@ -514,7 +513,7 @@ async def vibe_prompt(
     if not vibe_path:
         return {
             "success": False,
-            "error": f"Vibe CLI not found on PATH",
+            "error": "Vibe CLI not found on PATH",
         }
     
     eff_timeout = timeout_s if timeout_s is not None else DEFAULT_TIMEOUT_S

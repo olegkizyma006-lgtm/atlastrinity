@@ -279,8 +279,7 @@ class VoiceManager:
         self.last_text = ""
         self.history = deque(maxlen=5) # History of last spoken phrases
         self.last_speak_time = 0.0
-        self.last_speak_time = 0.0
-        
+
         # Concurrency control
         import asyncio
         self._lock = asyncio.Lock()
@@ -402,7 +401,8 @@ class VoiceManager:
                 # async generator function
                 async def _gen_f(c_text, c_idx):
                     # Check cancellation before heavy work
-                    if self._stop_event.is_set(): return None
+                    if self._stop_event.is_set():
+                        return None
 
                     c_id = f"{agent_id}_{c_idx}_{hash(c_text) % 10000}"
                     c_file = os.path.join(tempfile.gettempdir(), f"tts_{c_id}.wav")
@@ -449,11 +449,13 @@ class VoiceManager:
                 start_time = time.time()
                 
                 # Check interruption
-                if self._stop_event.is_set(): return None
+                if self._stop_event.is_set():
+                    return None
 
                 # Generate first chunk
                 current_file = await _gen_f(final_chunks[0], 0)
-                if not current_file: return None # Interrupted
+                if not current_file:
+                    return None  # Interrupted
                 
                 first_chunk_time = time.time() - start_time
                 # print(f"[TTS] [{config.name}] First chunk ready in {first_chunk_time:.2f}s")
