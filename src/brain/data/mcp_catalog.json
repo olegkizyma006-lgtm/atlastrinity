@@ -113,7 +113,11 @@
             "vibe_get_system_context",
             "vibe_code_review",
             "vibe_smart_plan",
-            "vibe_ask"
+            "vibe_ask",
+            "vibe_execute_subcommand",
+            "vibe_which",
+            "vibe_list_sessions",
+            "vibe_session_details"
         ],
         "when_to_use": "ONLY for software development, writing code/scripts, fixing hard errors (self-healing), and deep system state inspection via DB."
     },

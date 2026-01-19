@@ -584,7 +584,7 @@ async def vibe_analyze_error(
     error_message: str,
     file_path: Optional[str] = None,
     log_context: Optional[str] = None,
-    recovery_history: Optional[str] = None,
+    recovery_history: Optional[List[Dict[str, Any]] | str] = None,
     cwd: Optional[str] = None,
     timeout_s: Optional[float] = None,
     auto_fix: bool = True,
@@ -599,7 +599,7 @@ async def vibe_analyze_error(
         error_message: The error message or stack trace
         file_path: Path to the file with the error (if known)
         log_context: Recent log entries for context
-        recovery_history: Summary of past recovery attempts
+        recovery_history: List of past recovery attempts or a summary string
         cwd: Working directory
         timeout_s: Timeout in seconds (default: 300)
         auto_fix: Automatically apply fixes (default: True)
@@ -627,7 +627,14 @@ async def vibe_analyze_error(
         prompt_parts.append(f"\nRECENT LOGS:\n{log_context}")
     
     if recovery_history:
-        prompt_parts.append(f"\nPAST ATTEMPTS:\n{recovery_history}\n(Avoid repeating failed strategies)")
+        if isinstance(recovery_history, list):
+            history_str = "\n".join([
+                f"- Attempt {i+1}: {a.get('action', 'Unknown')} | Result: {a.get('status', 'Unknown')} | Error: {a.get('error_message', 'N/A')}"
+                for i, a in enumerate(recovery_history)
+            ])
+            prompt_parts.append(f"\nPAST ATTEMPTS:\n{history_str}\n(Avoid repeating failed strategies)")
+        else:
+            prompt_parts.append(f"\nPAST ATTEMPTS:\n{recovery_history}\n(Avoid repeating failed strategies)")
     
     if file_path and os.path.exists(file_path):
         try:

@@ -31,15 +31,21 @@
         "optional": [
             "context_files",
             "cwd",
-            "timeout_s"
+            "timeout_s",
+            "auto_fix",
+            "log_context",
+            "recovery_history"
         ],
         "types": {
             "error_message": "str",
             "context_files": "list",
             "cwd": "str",
-            "timeout_s": "float"
+            "timeout_s": "float",
+            "auto_fix": "bool",
+            "log_context": "str",
+            "recovery_history": "list"
         },
-        "description": "SELF-HEALING: Analyze an error and automatically implement a fix"
+        "description": "SELF-HEALING: Analyze an error and optionally implement a fix. Supports diagnostic mode (auto_fix=False)."
     },
     "vibe_implement_feature": {
         "server": "vibe",
