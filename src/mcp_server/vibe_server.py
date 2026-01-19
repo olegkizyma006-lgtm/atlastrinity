@@ -68,14 +68,14 @@ try:
     from .config_loader import get_config_value, CONFIG_ROOT, PROJECT_ROOT
     
     VIBE_BINARY = get_config_value("mcp.vibe", "binary", "vibe")
-    DEFAULT_TIMEOUT_S = float(get_config_value("mcp.vibe", "timeout_s", 300))
+    DEFAULT_TIMEOUT_S = float(get_config_value("mcp.vibe", "timeout_s", 600))
     MAX_OUTPUT_CHARS = int(get_config_value("mcp.vibe", "max_output_chars", 500000))
     VIBE_WORKSPACE = get_config_value("mcp.vibe", "workspace", str(CONFIG_ROOT / "vibe_workspace"))
     
 except Exception as e:
     logger.warning(f"Failed to load config_loader: {e}. Using defaults.")
     VIBE_BINARY = "vibe"
-    DEFAULT_TIMEOUT_S = 300.0
+    DEFAULT_TIMEOUT_S = 600.0
     MAX_OUTPUT_CHARS = 500000
     CONFIG_ROOT = Path.home() / ".config" / "atlastrinity"
     PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -539,7 +539,9 @@ async def vibe_prompt(
             argv.extend(["--max-price", str(max_price)])
             
         if args:
-            argv.extend(args)
+            # Filter out interactive arguments like --no-tui which might be hallucinated
+            clean_args = [a for a in args if a != "--no-tui"]
+            argv.extend(clean_args)
         
         logger.info(f"[VIBE] Executing prompt: {prompt[:50]}... (timeout={eff_timeout}s)")
         
@@ -654,11 +656,13 @@ async def vibe_analyze_error(
     
     prompt = "\n".join(prompt_parts)
     
+    logger.info(f"[VIBE] Analyzing error (auto_fix={auto_fix})")
+    
     return await vibe_prompt(
         ctx=ctx,
         prompt=prompt,
         cwd=cwd,
-        timeout_s=timeout_s or 300,
+        timeout_s=timeout_s or DEFAULT_TIMEOUT_S,
         auto_approve=auto_fix,
         max_turns=15,
     )
@@ -959,7 +963,9 @@ async def vibe_execute_subcommand(
     
     argv = [vibe_path, sub]
     if args:
-        argv.extend([str(a) for a in args])
+        # Filter out interactive arguments
+        clean_args = [str(a) for a in args if a != "--no-tui"]
+        argv.extend(clean_args)
     
     # Create preview from subcommand and args
     preview = f"{sub} {' '.join(str(a) for a in (args or []))[:50]}"

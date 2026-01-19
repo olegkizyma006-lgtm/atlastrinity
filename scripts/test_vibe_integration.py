@@ -29,6 +29,9 @@ class MockContext:
     async def error(self, msg):
         print(f"[ERROR] {msg}")
         self.output.append(msg)
+    async def log(self, level, message, logger_name=None):
+        print(f"[{level.upper()}] {message}")
+        self.output.append(message)
 
 
 async def test_vibe_which():
@@ -95,7 +98,7 @@ async def test_vibe_prompt_small_task():
     result = await vibe_prompt(
         ctx=ctx,
         prompt=prompt,
-        timeout_s=300,
+        timeout_s=600,
         max_turns=5,
     )
     
@@ -121,6 +124,52 @@ async def test_vibe_prompt_small_task():
         return False
 
 
+async def test_vibe_arg_filtering():
+    """Test that forbidden arguments like --no-tui are filtered out."""
+    print("\n=== TEST: vibe_prompt (argument filtering) ===")
+    ctx = MockContext()
+    
+    # Send prompt with forbidden argument
+    result = await vibe_prompt(
+        ctx=ctx,
+        prompt="version",
+        args=["--no-tui"],
+        timeout_s=30,
+        max_turns=1,
+    )
+    
+    # Check if command in result contains --no-tui
+    command = result.get("command", [])
+    if "--no-tui" not in command:
+        print(f"✅ Argument --no-tui was correctly filtered out")
+        print(f"   Command run: {' '.join(command)}")
+        return True
+    else:
+        print(f"❌ Failed: --no-tui was NOT filtered out")
+        print(f"   Command run: {' '.join(command)}")
+        return False
+
+
+async def test_vibe_analyze_error():
+    """Test vibe_analyze_error to ensure prompt variable is fixed."""
+    print("\n=== TEST: vibe_analyze_error ===")
+    ctx = MockContext()
+    
+    result = await vibe_analyze_error(
+        ctx=ctx,
+        error_message="Test error message for analysis",
+        auto_fix=False,
+        timeout_s=60,
+    )
+    
+    if result.get("success") or result.get("returncode") is not None:
+        print(f"✅ vibe_analyze_error executed without name errors")
+        return True
+    else:
+        print(f"❌ Failed: {result.get('error')}")
+        return False
+
+
 async def main():
     print("=" * 60)
     print("VIBE MCP SERVER - INTEGRATION TEST")
@@ -137,7 +186,13 @@ async def main():
     # Test 3: Large prompt (file in INSTRUCTIONS_DIR)
     results.append(("_prepare_prompt_arg (large)", await test_prepare_prompt_large()))
     
-    # Test 4: Actually run Vibe to create a file
+    # Test 4: Argument filtering
+    results.append(("vibe_arg_filtering", await test_vibe_arg_filtering()))
+    
+    # Test 5: Analyze error (fix check)
+    results.append(("vibe_analyze_error", await test_vibe_analyze_error()))
+    
+    # Test 6: Actually run Vibe to create a file
     results.append(("vibe_prompt (create file)", await test_vibe_prompt_small_task()))
     
     print("\n" + "=" * 60)
