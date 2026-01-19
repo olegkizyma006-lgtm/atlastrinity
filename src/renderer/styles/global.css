@@ -552,10 +552,20 @@ body {
 }
 
 .command-dock {
+  --command-dock-height: 84px;
   flex-shrink: 0;
-  position: sticky;
+  position: absolute;
+  left: 0;
+  right: 0;
   bottom: 0;
   z-index: 3;
+  min-height: var(--command-dock-height);
+  padding: 8px 10px 10px;
+  backdrop-filter: blur(10px);
+}
+
+.chat-panel-container {
+  padding-bottom: var(--command-dock-height, 84px);
 }
 
 .command-textarea {
