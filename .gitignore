@@ -46,7 +46,7 @@ feats_stats.npz
 # Whisper models cache
 
 
-# ChromaDB data
+# ChromaDB data (local only, backups are in backups/)
 data/chroma/
 
 # Swift
@@ -55,3 +55,8 @@ data/chroma/
 DerivedData/
 
 **/vendor/mcp-server-macos-use/.build/
+
+# Database Backups Strategy:
+# - Local databases in ~/.config/atlastrinity/ are never committed
+# - backups/databases/ directory IS tracked in Git for sync across machines
+# - Use: python scripts/setup_dev.py to auto-restore on new machine

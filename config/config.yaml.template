@@ -98,4 +98,4 @@ api:
   retry_count: 3
 
 database:
-  url: postgresql+asyncpg://dev:postgres@localhost/atlastrinity_db
+  url: sqlite+aiosqlite:///${CONFIG_ROOT}/atlastrinity.db

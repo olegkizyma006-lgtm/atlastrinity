@@ -12,27 +12,35 @@ from .schema import Base
 from ..config import CONFIG_ROOT
 from ..config_loader import config
 
-# Primary connection string from config, fallback to SQLite in global folder
-# Default: ~/.config/atlastrinity/atlastrinity.db
-DEFAULT_DB_PATH = CONFIG_ROOT / "atlastrinity.db"
-DB_URL = config.get(
-    "database.url", 
-    os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{DEFAULT_DB_PATH}")
-)
-
-
 class DatabaseManager:
     def __init__(self):
         self._engine = None
         self._session_maker = None
-        self._semaphore = asyncio.Semaphore(15)  # Limit concurrent connections
+        self._semaphore = asyncio.Semaphore(15)
         self.available = False
+        
+        # Resolve DB_URL dynamically
+        url = config.get(
+            "database.url", 
+            os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
+        )
+        # Handle placeholders: ${CONFIG_ROOT}, ${HOME}, ${PROJECT_ROOT}
+        from ..config import PROJECT_ROOT
+        placeholders = {
+            "${CONFIG_ROOT}": str(CONFIG_ROOT),
+            "${HOME}": str(Path.home()),
+            "${PROJECT_ROOT}": str(PROJECT_ROOT)
+        }
+        for k, v in placeholders.items():
+            url = url.replace(k, v)
+            
+        self.db_url = url
 
     async def initialize(self):
         """Initialize DB connection and create tables if missing."""
         try:
             self._engine = create_async_engine(
-                DB_URL, 
+                self.db_url, 
                 echo=False,
                 pool_size=20,
                 max_overflow=10,
