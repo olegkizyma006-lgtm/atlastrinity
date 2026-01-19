@@ -1222,39 +1222,29 @@ func setupAndStartServer() async throws -> Server {
                         content: [.text("Invalid URL: \(urlString)")], isError: true)
                 }
 
-                // Synchronous fetch for simplicity (or use a semaphore)
-                let semaphore = DispatchSemaphore(value: 0)
-                var resultText = ""
-                var isError = false
-
-                let task = URLSession.shared.dataTask(with: url) { data, response, error in
-                    defer { semaphore.signal() }
-                    if let error = error {
-                        resultText = "Error fetching URL: \(error.localizedDescription)"
-                        isError = true
-                        return
+                let (resultText, isError): (String, Bool) = await withCheckedContinuation { continuation in
+                    let task = URLSession.shared.dataTask(with: url) { data, response, error in
+                        var text = ""
+                        var errorFound = false
+                        if let error = error {
+                            text = "Error fetching URL: \(error.localizedDescription)"
+                            errorFound = true
+                        } else if let data = data, let html = String(data: data, encoding: .utf8) {
+                            do {
+                                let doc = try SwiftSoup.parse(html)
+                                text = try doc.text()
+                            } catch {
+                                text = "Error parsing HTML: \(error.localizedDescription)"
+                                errorFound = true
+                            }
+                        } else {
+                            text = "No data or invalid encoding."
+                            errorFound = true
+                        }
+                        continuation.resume(returning: (text, errorFound))
                     }
-                    guard let data = data, let html = String(data: data, encoding: .utf8) else {
-                        resultText = "No data or invalid encoding."
-                        isError = true
-                        return
-                    }
-
-                    // Parse with SwiftSoup
-                    do {
-                        let doc = try SwiftSoup.parse(html)
-                        resultText = try doc.text()  // Extract text content
-
-                        // Basic Markdown conversion attempt (headers)
-                        // doc.select("h1").prepend("# ") ... etc could be added here for better MD
-
-                    } catch {
-                        resultText = "Error parsing HTML: \(error.localizedDescription)"
-                        isError = true
-                    }
+                    task.resume()
                 }
-                task.resume()
-                semaphore.wait()
                 return CallTool.Result(content: [.text(resultText)], isError: isError)
 
             case getTimeTool.name:
@@ -1300,24 +1290,22 @@ func setupAndStartServer() async throws -> Server {
                         ], isError: true)
                 }
 
-                let semaphore = DispatchSemaphore(value: 0)
-                var resultText = ""
+                let resultText: String = await withCheckedContinuation { continuation in
+                    eventStore.requestAccess(to: .event) { granted, error in
+                        if !granted {
+                            continuation.resume(returning: "Access denied")
+                            return
+                        }
 
-                eventStore.requestAccess(to: .event) { granted, error in
-                    defer { semaphore.signal() }
-                    if !granted {
-                        resultText = "Access denied"
-                        return
+                        let predicate = eventStore.predicateForEvents(
+                            withStart: start, end: end, calendars: nil)
+                        let events = eventStore.events(matching: predicate)
+                        let text = events.map {
+                            "\($0.title ?? "No Title") (\($0.startDate.description) - \($0.endDate.description))"
+                        }.joined(separator: "\n")
+                        continuation.resume(returning: text)
                     }
-
-                    let predicate = eventStore.predicateForEvents(
-                        withStart: start, end: end, calendars: nil)
-                    let events = eventStore.events(matching: predicate)
-                    resultText = events.map {
-                        "\($0.title ?? "No Title") (\($0.startDate.description) - \($0.endDate.description))"
-                    }.joined(separator: "\n")
                 }
-                semaphore.wait()
                 return CallTool.Result(content: [.text(resultText)])
 
             case createEventTool.name:
@@ -1332,88 +1320,65 @@ func setupAndStartServer() async throws -> Server {
                         ], isError: true)
                 }
 
-                let semaphore = DispatchSemaphore(value: 0)
-                var resultText = ""
-                eventStore.requestAccess(to: .event) { granted, error in
-                    defer { semaphore.signal() }
-                    if !granted {
-                        resultText = "Access denied"
-                        return
-                    }
+                let resultText: String = await withCheckedContinuation { continuation in
+                    eventStore.requestAccess(to: .event) { granted, error in
+                        if !granted {
+                            continuation.resume(returning: "Access denied")
+                            return
+                        }
 
-                    let event = EKEvent(eventStore: eventStore)
-                    event.title = title
-                    event.startDate = date
-                    event.endDate = date.addingTimeInterval(3600)  // Default 1h
-                    event.calendar = eventStore.defaultCalendarForNewEvents
-                    do {
-                        try eventStore.save(event, span: .thisEvent)
-                        resultText = "Event created."
-                    } catch {
-                        resultText = "Error: \(error)"
+                        let event = EKEvent(eventStore: eventStore)
+                        event.title = title
+                        event.startDate = date
+                        event.endDate = date.addingTimeInterval(3600)  // Default 1h
+                        event.calendar = eventStore.defaultCalendarForNewEvents
+                        do {
+                            try eventStore.save(event, span: .thisEvent)
+                            continuation.resume(returning: "Event created.")
+                        } catch {
+                            continuation.resume(returning: "Error: \(error)")
+                        }
                     }
                 }
-                semaphore.wait()
                 return CallTool.Result(content: [.text(resultText)])
 
             case remindersTool.name:
-                let semaphore = DispatchSemaphore(value: 0)
-                var resultText = ""
-                eventStore.requestAccess(to: .reminder) { granted, error in
-                    defer { semaphore.signal() }
-                    if !granted {
-                        resultText = "Access denied"
-                        return
-                    }
-
-                    // This is async inside the closure
-                    // For simplicity in this sync wrapper, we might not be able to wait easily inside the closure for fetchReminders
-                    // We will use a nested semaphore or sleep approach which is hacky but expected for this simple wrapper
-                    // Actually fetchReminders expects a completion block.
-
-                    // IMPROVEMENT: Use the semaphore wait OUTSIDE.
-                }
-                // Correct logic for reminders fetch which is double-async
-                let remSemaphore = DispatchSemaphore(value: 0)
-                eventStore.requestAccess(to: .reminder) { granted, error in
-                    if !granted {
-                        resultText = "Access denied"
-                        remSemaphore.signal()
-                        return
-                    }
-                    let predicate = eventStore.predicateForIncompleteReminders(
-                        withDueDateStarting: nil, ending: nil, calendars: nil)
-                    eventStore.fetchReminders(matching: predicate) { reminders in
-                        resultText =
-                            reminders?.map { $0.title ?? "No Title" }.joined(separator: "\n")
-                            ?? "No reminders"
-                        remSemaphore.signal()
+                let resultText: String = await withCheckedContinuation { continuation in
+                    eventStore.requestAccess(to: .reminder) { granted, error in
+                        if !granted {
+                            continuation.resume(returning: "Access denied")
+                            return
+                        }
+                        let predicate = eventStore.predicateForIncompleteReminders(
+                            withDueDateStarting: nil, ending: nil, calendars: nil)
+                        eventStore.fetchReminders(matching: predicate) { reminders in
+                            let text = reminders?.map { $0.title ?? "No Title" }.joined(separator: "\n")
+                                ?? "No reminders"
+                            continuation.resume(returning: text)
+                        }
                     }
                 }
-                remSemaphore.wait()
                 return CallTool.Result(content: [.text(resultText)])
 
             case createReminderTool.name:
                 let title = try getRequiredString(from: params.arguments, key: "title")
-                let semaphore = DispatchSemaphore(value: 0)
-                var resultText = ""
-                eventStore.requestAccess(to: .reminder) { granted, error in
-                    defer { semaphore.signal() }
-                    if !granted {
-                        resultText = "Access denied"
-                        return
-                    }
-                    let reminder = EKReminder(eventStore: eventStore)
-                    reminder.title = title
-                    reminder.calendar = eventStore.defaultCalendarForNewReminders()
-                    do {
-                        try eventStore.save(reminder, commit: true)
-                        resultText = "Reminder saved."
-                    } catch {
-                        resultText = "Error: \(error)"
+                let resultText: String = await withCheckedContinuation { continuation in
+                    eventStore.requestAccess(to: .reminder) { granted, error in
+                        if !granted {
+                            continuation.resume(returning: "Access denied")
+                            return
+                        }
+                        let reminder = EKReminder(eventStore: eventStore)
+                        reminder.title = title
+                        reminder.calendar = eventStore.defaultCalendarForNewReminders()
+                        do {
+                            try eventStore.save(reminder, commit: true)
+                            continuation.resume(returning: "Reminder saved.")
+                        } catch {
+                            continuation.resume(returning: "Error: \(error)")
+                        }
                     }
                 }
-                semaphore.wait()
                 return CallTool.Result(content: [.text(resultText)])
 
             case spotlightTool.name:
@@ -1427,7 +1392,7 @@ func setupAndStartServer() async throws -> Server {
 
                 let script =
                     "display notification \"\(message.replacingOccurrences(of: "\"", with: "\\\""))\" with title \"\(title.replacingOccurrences(of: "\"", with: "\\\""))\""
-                let output = runShellCommand("osascript -e '\(script)'")
+                _ = runShellCommand("osascript -e '\(script)'")
                 return CallTool.Result(content: [.text("Notification sent via AppleScript.")])
 
             // --- Notes Handlers ---
