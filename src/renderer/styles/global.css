@@ -17,7 +17,8 @@
   --tetyana-green: #00FF41;
   /* TETYANA - Executor */
   --warning-yellow: #FDF500;
-  /* Warning */
+  --user-turquoise: #00E5FF;
+  /* USER - Turquoise */
 
   /* Base Colors */
   --bg-black: #050505;
@@ -425,8 +426,8 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
   min-height: 0;
-  border-radius: 2px;
   position: relative;
 }
 

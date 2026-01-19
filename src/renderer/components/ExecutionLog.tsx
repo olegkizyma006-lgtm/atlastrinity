@@ -75,8 +75,7 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
 
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto p-1 scrollbar-thin"
-        style={{ height: '0', minHeight: '100%' }}
+        className="flex-1 overflow-y-auto p-1 scrollbar-thin h-full"
       >
         {filteredLogs.map((log) => (
           <div
@@ -89,13 +88,9 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
                   className="text-[6.5px] font-medium tracking-[0.2em] uppercase"
                   style={{
                     color:
-                      log.agent === 'GRISHA'
-                        ? 'var(--grisha-orange)'
-                        : log.agent === 'TETYANA'
-                          ? 'var(--tetyana-green)'
-                          : log.agent === 'USER'
-                            ? '#FFFFFF'
-                            : 'var(--atlas-blue)',
+                      log.agent === 'USER'
+                        ? 'var(--user-turquoise, #00E5FF)'
+                        : 'var(--atlas-blue)',
                     fontFamily: 'Outfit',
                   }}
                 >
@@ -140,7 +135,7 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
 
         <div ref={logsEndRef} />
 
-        {logs.length === 0 && (
+        {filteredLogs.length === 0 && (
           <div className="h-full flex flex-col items-center justify-center opacity-10 text-[9px] gap-2 tracking-[0.4em] uppercase">
             <div className="w-10 h-10 rounded-full border border-current animate-spin-slow opacity-20"></div>
             <span>System Initialized</span>

@@ -24,10 +24,10 @@ interface AgentStatusProps {
 
 const AGENT_INFO: Record<AgentName, { ukrainianName: string; color: string }> = {
   ATLAS: { ukrainianName: 'Атлас', color: '#00A3FF' },
-  TETYANA: { ukrainianName: 'Тетяна', color: '#00FF88' },
-  GRISHA: { ukrainianName: 'Гріша', color: '#FFB800' },
-  SYSTEM: { ukrainianName: 'Система', color: '#AA88FF' },
-  USER: { ukrainianName: 'Користувач', color: '#FFFFFF' },
+  TETYANA: { ukrainianName: 'Тетяна', color: '#00A3FF' },
+  GRISHA: { ukrainianName: 'Гріша', color: '#00A3FF' },
+  SYSTEM: { ukrainianName: 'Система', color: '#00A3FF' },
+  USER: { ukrainianName: 'Користувач', color: '#00E5FF' },
 };
 
 const AgentStatus: React.FC<AgentStatusProps> = ({

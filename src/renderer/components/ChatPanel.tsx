@@ -45,15 +45,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
   const getAgentColor = (agent: string) => {
     const a = agent.toUpperCase().trim();
     switch (a) {
-      case 'GRISHA':
-        return 'var(--grisha-orange, #FFB800)';
-      case 'TETYANA':
-        return 'var(--tetyana-green, #00FF88)';
       case 'USER':
-        return '#FFFFFF';
-      case 'SYSTEM':
-        return 'var(--atlas-blue, #00A3FF)';
+        return 'var(--user-turquoise, #00E5FF)';
       default:
+        // All agents and system go blue
         return 'var(--atlas-blue, #00A3FF)';
     }
   };
@@ -65,8 +60,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
       {/* Main Chat Stream */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto pr-1 scrollbar-thin"
-        style={{ height: '0', minHeight: '100%' }}
+        className="flex-1 overflow-y-auto pr-1 scrollbar-thin h-full"
       >
         {filteredMessages.length === 0 ? (
           <div className="h-full flex items-center justify-center opacity-10 italic text-[9px] tracking-[0.5em] uppercase">
