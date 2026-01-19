@@ -95,7 +95,7 @@ class ConsolidationModule:
             return {"error": str(e)}
 
     async def _fetch_tasks_from_db(self, cutoff: datetime) -> List[Dict[str, Any]]:
-        """Fetch tasks and their steps from PostgreSQL."""
+        """Fetch tasks and their steps from the configured SQL database (SQLite by default)."""
         from sqlalchemy import select
 
         from .db.manager import db_manager

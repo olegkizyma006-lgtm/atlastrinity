@@ -49,19 +49,19 @@ async def verify_chromadb():
             peek = col.peek(limit=1)
             print(f"     Sample ID: {peek['ids'][0]}")
 
-async def verify_postgres():
-    print("\n--- 2. Structured Storage (PostgreSQL) ---")
+async def verify_database():
+    print("\n--- 2. Structured Storage (SQLite) ---")
     await db_manager.initialize()
     if not db_manager.available:
-        print("❌ PostgreSQL is NOT available.")
+        print("❌ Structured DB is NOT available.")
         return
 
     try:
         async with await db_manager.get_session() as session:
             # Check connection
             res = await session.execute(text("SELECT 1"))
-            if res.scalar() == 1:
-                print("✅ PostgreSQL Connection: OK")
+                if res.scalar() == 1:
+                    print("✅ Database Connection: OK")
             
             # Count rows in key tables
             tables = [
@@ -85,7 +85,7 @@ async def verify_postgres():
                     print(f"   ❌ Table '{name}': Error/Missing - {e}")
 
     except Exception as e:
-        print(f"❌ PostgreSQL Verification Failed: {e}")
+        print(f"❌ Database Verification Failed: {e}")
 
 async def verify_redis():
     print("\n--- 3. State & Cache (Redis) ---")
@@ -117,7 +117,7 @@ async def verify_redis():
 
 async def main():
     await verify_chromadb()
-    await verify_postgres()
+    await verify_database()
     await verify_redis()
 
 if __name__ == "__main__":

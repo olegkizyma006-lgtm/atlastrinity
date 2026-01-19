@@ -23,7 +23,7 @@ async def report(limit_tasks: int = 50, limit_logs: int = 200):
         return 1
 
     if not db_manager.available:
-        print("[DB] Database not available. Ensure PostgreSQL is running and DATABASE_URL is set.")
+        print("[DB] Database not available. Ensure DATABASE_URL is set and the configured DB driver (e.g., aiosqlite for SQLite) is installed and accessible.")
         return 2
 
     try:

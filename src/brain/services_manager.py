@@ -238,6 +238,31 @@ def ensure_postgres(force_check: bool = False) -> bool:
                     flag_file.touch()
                 return True
 
+
+def ensure_database(force_check: bool = False) -> bool:
+    """
+    Ensure the configured structured database is available. Supports SQLite (default) and PostgreSQL.
+    For SQLite the DB is file-based and considered available if the config root is writable.
+    """
+    # Lazy import to avoid circulars
+    from .config_loader import get_config_value
+
+    db_url = get_config_value("database", "url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
+    if db_url.startswith("sqlite"):
+        try:
+            CONFIG_ROOT.mkdir(parents=True, exist_ok=True)
+            # Touch file to ensure directory permissions
+            db_file = CONFIG_ROOT / "atlastrinity.db"
+            if not db_file.exists():
+                db_file.touch()
+            return True
+        except Exception as e:
+            logger.error(f"[Services] SQLite DB not writable or cannot be created: {e}")
+            return False
+    else:
+        # Fallback to existing postgres check for non-sqlite URLs
+        return ensure_postgres(force_check=force_check)
+
             # Fallback check if pg_isready missing
             res = subprocess.run(
                 ["brew", "services", "info", "postgresql@17", "--json"],

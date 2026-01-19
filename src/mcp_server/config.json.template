@@ -87,7 +87,7 @@
         "-m",
         "src.mcp_server.memory_server"
       ],
-      "description": "Knowledge graph for persistent memory (PostgreSQL + ChromaDB). Tools: create_entities, add_observations, create_relation, search, get_entity, list_entities, delete_entity.",
+      "description": "Knowledge graph for persistent memory (SQLite + ChromaDB). Tools: create_entities, add_observations, create_relation, search, get_entity, list_entities, delete_entity.",
       "disabled": false,
       "tier": 2,
       "agents": [

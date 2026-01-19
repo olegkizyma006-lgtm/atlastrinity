@@ -63,7 +63,12 @@ class DatabaseManager:
             
             print("[DB] Database initialized successfully.")
         except Exception as e:
-            print(f"[DB] Failed to initialize database: {e}")
+            # Helpful guidance for common driver issues (aiosqlite missing when using sqlite+aiosqlite)
+            err_str = str(e)
+            if "No module named 'aiosqlite'" in err_str or "aiosqlite" in err_str:
+                print(f"[DB] Failed to initialize database: {e}\n[DB] Hint: The async SQLite driver 'aiosqlite' is not installed. Install it via 'pip install aiosqlite' or set DATABASE_URL to a supported DB backend.")
+            else:
+                print(f"[DB] Failed to initialize database: {e}")
             self.available = False
 
     async def verify_schema(self, fix: bool = True):

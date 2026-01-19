@@ -65,7 +65,7 @@ For complex, multi-step sub-tasks that require detailed planning or recursive th
 TRINITY NATIVE SYSTEM TOOLS (Self-Healing & Maintenance):
 For system recovery and diagnostics, use these internal tools directly:
 - **restart_mcp_server(server_name="...")**: If an MCP server (e.g., `macos-use`, `vibe`) is unresponsive, crashing, or throwing persistent authentication errors, RESTART it immediately.
-- **query_db(query="...", params={...})**: If you need to verify system state, task logs, or diagnostic information that's not available via other tools, query the internal AtlasTrinity PostgreSQL database.
+    - **query_db(query="...", params={...})**: If you need to verify system state, task logs, or diagnostic information that's not available via other tools, query the internal AtlasTrinity configured SQL database (SQLite by default).
 
 SELF-HEALING WITH VIBE:
 1. **vibe_analyze_error**: Use for deep error analysis and auto-fixing of project code.

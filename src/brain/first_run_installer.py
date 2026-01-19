@@ -343,7 +343,14 @@ class FirstRunInstaller:
         return self._install_brew_package(SetupStep.INSTALL_REDIS, "redis", check_cmd="redis-cli")
 
     def install_postgres(self) -> bool:
-        """Install PostgreSQL"""
+        """Install PostgreSQL (skipped if using SQLite backend)"""
+        from .config_loader import get_config_value
+
+        db_url = get_config_value("database", "url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
+        if db_url.startswith("sqlite"):
+            self._report(SetupStep.INSTALL_POSTGRES, 1.0, "SQLite is configured as the DB backend; skipping PostgreSQL installation.")
+            return True
+
         return self._install_brew_package(
             SetupStep.INSTALL_POSTGRES, "postgresql@17", check_cmd="psql"
         )
@@ -352,7 +359,13 @@ class FirstRunInstaller:
         """Start Redis and PostgreSQL services"""
         self._report(SetupStep.START_SERVICES, 0.0, "Запуск сервісів...")
 
-        services = ["redis", "postgresql@17"]
+        # Only include PostgreSQL service if backend requires it
+        from .config_loader import get_config_value
+        db_url = get_config_value("database", "url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
+
+        services = ["redis"]
+        if not db_url.startswith("sqlite"):
+            services.append("postgresql@17")
         all_ok = True
 
         for i, service in enumerate(services):
@@ -487,60 +500,32 @@ class FirstRunInstaller:
     # ============ NATIVE BINARIES ============
 
     def build_macos_use(self) -> bool:
-        """Compile macos-use Swift binary if missing (dev mode)"""
-        self._report(SetupStep.INSTALL_MACOS_USE, 0.0, "Перевірка бінарного файлу macos-use...")
-        
-        from .config import PROJECT_ROOT
-        mcp_path = PROJECT_ROOT / "vendor" / "mcp-server-macos-use"
-        binary_path = mcp_path / ".build" / "release" / "mcp-server-macos-use"
-        
-        # In production, check bundle location fallback if shared code is used
-        if binary_path.exists():
-            self._report(SetupStep.INSTALL_MACOS_USE, 1.0, "macos-use вже скомпільовано ✓")
-            return True
-            
-        if not mcp_path.exists():
-            self._report(SetupStep.INSTALL_MACOS_USE, 1.0, "Source not found, assuming production build will provide binary.")
-            return True # Not an error for installer if running from frozen app
-            
-        self._report(SetupStep.INSTALL_MACOS_USE, 0.2, "Компіляція macos-use (це може зайняти час)...")
-        
-        if not shutil.which("swift"):
-             self._report(SetupStep.INSTALL_MACOS_USE, 1.0, "Swift не знайдено, неможливо скомпільовати!", success=False, error="Swift missing")
-             return False
+        """Create structured database and tables (No-op for SQLite)"""
+        self._report(SetupStep.CREATE_DATABASE, 0.0, "Створення бази даних...")
 
-        code, _, stderr = _run_command(["swift", "build", "-c", "release"], timeout=600)
-        
-        if code == 0 and binary_path.exists():
-            # Set executable permissions
+        from .config_loader import get_config_value
+        db_url = get_config_value("database", "url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
+
+        if db_url.startswith("sqlite"):
+            # For SQLite, ensure file/directory exists
             try:
-                os.chmod(binary_path, 0o755)
-            except Exception:
-                pass
-            self._report(SetupStep.INSTALL_MACOS_USE, 1.0, "macos-use скомпільовано та налаштовано ✓")
-            return True
-        else:
-            self._report(SetupStep.INSTALL_MACOS_USE, 1.0, "Помилка компіляції", success=False, error=stderr[:100])
-            return False
+                CONFIG_ROOT.mkdir(parents=True, exist_ok=True)
+                db_file = CONFIG_ROOT / "atlastrinity.db"
+                if not db_file.exists():
+                    db_file.touch()
+                self._report(SetupStep.CREATE_DATABASE, 1.0, "SQLite database ensured.")
+                return True
+            except Exception as e:
+                self._report(SetupStep.CREATE_DATABASE, 1.0, "Failed to ensure SQLite DB", success=False, error=str(e))
+                return False
 
-    # ============ MODELS ============
-
-    def download_tts_models(self) -> bool:
-        """Download Ukrainian TTS models"""
-        self._report(SetupStep.DOWNLOAD_TTS, 0.0, "Завантаження TTS моделей...")
-
-        required_files = [
-            "model.pth",
-            "config.yaml",
-            "feats_stats.npz",
-            "spk_xvector.ark",
-        ]
-        if all((MODELS_DIR / f).exists() for f in required_files):
-            self._report(SetupStep.DOWNLOAD_TTS, 1.0, "TTS моделі вже завантажені ✓")
-            return True
-
-        self._report(
-            SetupStep.DOWNLOAD_TTS,
+        # Non-sqlite: proceed with Postgres creation flow
+        self._report(SetupStep.CREATE_DATABASE, 0.0, "PostgreSQL database setup requested...")
+        db_name = "atlastrinity_db"
+        username = os.environ.get("USER", "dev")
+        
+        # Ensure 'dev' role exists if we are using it
+        await self._ensure_postgres_role("dev")
             0.2,
             "Завантаження ukrainian-tts (може тривати довго)...",
         )

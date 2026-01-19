@@ -1,6 +1,6 @@
 """
 Knowledge Graph (GraphChain)
-Bridges Structured Data (Postgres) and Semantic Data (ChromaDB)
+Bridges Structured Data (SQL/SQLite) and Semantic Data (ChromaDB)
 """
 
 import json
@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 
 from .db.manager import db_manager
 from .db.schema import KGEdge, KGNode
@@ -51,14 +51,21 @@ class KnowledgeGraph:
 
         try:
             async with await db_manager.get_session() as session:
-                # Upsert node
-                stmt = insert(KGNode).values(id=node_id, type=node_type, attributes=attributes)
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=["id"],
-                    set_=dict(attributes=attributes, last_updated=stmt.excluded.last_updated),
-                )
-                await session.execute(stmt)
-                await session.commit()
+                # Attempt insert; if it conflicts (existing id), update fields
+                try:
+                    new_node = KGNode(id=node_id, type=node_type, attributes=attributes)
+                    session.add(new_node)
+                    await session.commit()
+                except IntegrityError:
+                    # Existing node - update in place
+                    await session.rollback()
+                    existing = await session.get(KGNode, node_id)
+                    if existing:
+                        existing.type = node_type
+                        existing.attributes = attributes
+                        existing.last_updated = datetime.now()
+                        session.add(existing)
+                        await session.commit()
 
             # Semantic Sync
             if sync_to_vector and long_term_memory.available:

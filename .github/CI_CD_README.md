@@ -119,6 +119,7 @@ Set in workflow files or `.env`:
 - `PYTHON_VERSION` - Default: `3.12`
 - `NODE_VERSION` - Default: `22`
 - `DATABASE_URL` - PostgreSQL connection string
+ - `DATABASE_URL` - SQL connection string (default: local SQLite `sqlite+aiosqlite:///${CONFIG_ROOT}/atlastrinity.db`)
 - `REDIS_URL` - Redis connection string
 
 ## 📊 Workflow Matrix
