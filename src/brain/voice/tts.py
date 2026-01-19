@@ -365,6 +365,11 @@ class VoiceManager:
         
         self.is_speaking = False
 
+    async def close(self):
+        """Shutdown the voice manager"""
+        self.stop()
+        await asyncio.sleep(0.1)
+
     async def speak(self, agent_id: str, text: str) -> Optional[str]:
         # Reset stop event for new phrase only if we aren't already stopping?
         # Actually, if we are in a lock, previous speech is done.

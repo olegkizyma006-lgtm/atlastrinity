@@ -3,7 +3,8 @@
  * Cyberpunk Terminal Style
  */
 
-import React, { useRef, useEffect } from 'react';
+import * as React from 'react';
+import { useRef, useEffect } from 'react';
 
 type AgentName = 'ATLAS' | 'TETYANA' | 'GRISHA' | 'SYSTEM' | 'USER';
 
@@ -53,7 +54,7 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden font-mono">
+    <div className="flex-1 flex flex-col h-full overflow-hidden font-mono relative">
       {/* Window Header - Absolute Positioned to align with traffic lights */}
       <div className="absolute top-[-38px] left-[110px] flex items-center gap-1.5 opacity-30 shrink-0 select-none">
         <span className="text-[6px] tracking-[0.4em] uppercase font-bold text-white/50">
@@ -61,7 +62,11 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
         </span>
       </div>
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-1 scrollbar-thin">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto p-1 scrollbar-thin"
+        style={{ height: '0', minHeight: '100%' }}
+      >
         {filteredLogs.map((log) => (
           <div
             key={log.id}

@@ -2,7 +2,8 @@
  * ChatPanel - Right panel for agent messages
  */
 
-import React, { useEffect, useRef } from 'react';
+import * as React from 'react';
+import { useEffect, useRef } from 'react';
 
 type AgentName = 'ATLAS' | 'TETYANA' | 'GRISHA' | 'SYSTEM' | 'USER';
 
@@ -11,16 +12,17 @@ interface Message {
   agent: AgentName;
   text: string;
   timestamp: Date;
+  type?: 'text' | 'voice';
 }
 
 interface ChatPanelProps {
   messages: Message[];
+  onNewSession?: () => void;
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
-  // STRICT FILTER: Only User and Agents (ATLAS, GRISHA, TETYANA)
-  // Hide SYSTEM logs from chat stream
-  const filteredMessages = messages.filter((m) => m.agent !== 'SYSTEM');
+const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onNewSession }) => {
+  // STRICT FILTER: Only voice messages as requested
+  const filteredMessages = messages.filter((m) => m.type === 'voice');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -28,7 +30,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
   const scrollToBottom = () => {
     if (scrollContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-      const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 150;
       if (isAtBottom) {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }
@@ -58,15 +60,30 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col p-4 font-mono overflow-hidden">
+    <div className="flex-1 flex flex-col p-4 font-mono h-full overflow-hidden relative">
       {/* Absolute Positioned Header to align with top line */}
-      <div className="absolute top-[-38px] right-0 flex items-center gap-1.5 opacity-30 shrink-0 uppercase tracking-[0.4em] text-[6px] font-bold select-none">
-        <div className="w-[5px] h-[5px] rounded-full border border-white/20"></div>
-        <span>communication::hud</span>
+      <div className="absolute top-[-38px] right-0 flex items-center gap-3 opacity-30 hover:opacity-100 transition-opacity shrink-0 uppercase tracking-[0.4em] text-[6px] font-bold select-none cursor-default">
+        <div className="flex items-center gap-1.5">
+          <div className="w-[5px] h-[5px] rounded-full border border-white/20"></div>
+          <span>communication::hud</span>
+        </div>
+
+        {/* New Session Plus Button */}
+        <button
+          onClick={onNewSession}
+          className="bg-white/5 hover:bg-white/20 border border-white/10 rounded px-1.5 py-0.5 transition-colors flex items-center justify-center group"
+          title="New Session"
+        >
+          <span className="text-[10px] leading-none group-hover:scale-110 transition-transform">+</span>
+        </button>
       </div>
 
       {/* Main Chat Stream */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto pr-1 scrollbar-thin">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto pr-1 scrollbar-thin"
+        style={{ height: '0', minHeight: '100%' }}
+      >
         {filteredMessages.length === 0 ? (
           <div className="h-full flex items-center justify-center opacity-10 italic text-[9px] tracking-[0.5em] uppercase">
             Waiting for neural link...

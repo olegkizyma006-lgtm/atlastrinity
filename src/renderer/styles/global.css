@@ -479,15 +479,18 @@ body {
 }
 
 .right-panel-body {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   height: 100%;
   width: 100%;
   position: relative;
   overflow: hidden;
   flex: 1;
   min-height: 0;
-  padding-bottom: 120px;
+}
+
+.scrollbar-thin {
+  overscroll-behavior-y: contain;
 }
 
 .status-bar {

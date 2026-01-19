@@ -3,7 +3,8 @@
  * Premium Design System Integration
  */
 
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import NeuralCore from './components/NeuralCore';
 import ExecutionLog from './components/ExecutionLog.tsx';
 import AgentStatus from './components/AgentStatus.tsx';
@@ -26,6 +27,7 @@ interface ChatMessage {
   agent: AgentName;
   text: string;
   timestamp: Date;
+  type?: 'text' | 'voice';
 }
 
 interface SystemMetrics {
@@ -100,10 +102,12 @@ const App: React.FC = () => {
 
           if (data.messages && data.messages.length > 0) {
             setChatHistory(
-              data.messages.map((m: { agent: AgentName; text: string; timestamp: number }) => ({
-                ...m,
-                timestamp: new Date(m.timestamp * 1000),
-              }))
+              data.messages.map(
+                (m: { agent: AgentName; text: string; timestamp: number; type: 'text' | 'voice' }) => ({
+                  ...m,
+                  timestamp: new Date(m.timestamp * 1000),
+                })
+              )
             );
           }
         }
@@ -167,12 +171,30 @@ const App: React.FC = () => {
     }
   };
 
+  const handleNewSession = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/session/reset', {
+        method: 'POST',
+      });
+      if (response.ok) {
+        setLogs([]);
+        setChatHistory([]);
+        setSystemState('IDLE');
+        setCurrentTask('');
+        addLog('ATLAS', 'Нова сесія розпочата', 'success');
+      }
+    } catch (err) {
+      console.error('Failed to reset session:', err);
+    }
+  };
+
   // Derived messages for ChatPanel
   const chatMessages = chatHistory.map((m) => ({
     id: `chat-${m.timestamp.getTime()}-${Math.random()}`,
     agent: m.agent,
     text: m.text,
     timestamp: m.timestamp,
+    type: m.type,
   }));
 
   return (
@@ -204,8 +226,8 @@ const App: React.FC = () => {
         <div className="right-panel-body">
           {/* Chat Area - Flexible Height */}
 
-          <div className="chat-panel-container">
-            <ChatPanel messages={chatMessages} />
+          <div className="chat-panel-container flex-1">
+            <ChatPanel messages={chatMessages} onNewSession={handleNewSession} />
           </div>
         </div>
       </div>

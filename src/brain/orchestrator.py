@@ -97,6 +97,28 @@ class Trinity:
 
         logger.info(f"[GRISHA] Auditor ready. Vision: {self.grisha.llm.model_name}")
 
+    async def reset_session(self):
+        """Reset the current session and start a fresh one"""
+        self.state = {
+            "messages": [],
+            "system_state": SystemState.IDLE.value,
+            "current_plan": None,
+            "step_results": [],
+            "error": None,
+            "logs": [],
+        }
+        # Clear IDs so they are regenerated on next run
+        if "db_session_id" in self.state:
+            del self.state["db_session_id"]
+        if "db_task_id" in self.state:
+            del self.state["db_task_id"]
+            
+        if state_manager.available:
+            state_manager.clear_session("current_session")
+            
+        await self._log("Нова сесія розпочата", "system")
+        return {"status": "success"}
+
     def _build_graph(self):
         workflow = StateGraph(TrinityState)
 
@@ -365,6 +387,7 @@ class Trinity:
                         "agent": "USER",
                         "text": m.content,
                         "timestamp": datetime.now().timestamp(),
+                        "type": "text",
                     }
                 )
             elif isinstance(m, AIMessage):
@@ -375,6 +398,7 @@ class Trinity:
                         "agent": agent_name,
                         "text": m.content,
                         "timestamp": datetime.now().timestamp(),
+                        "type": "voice",
                     }
                 )
 

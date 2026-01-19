@@ -143,6 +143,12 @@ async def health():
     return {"status": "ok", "version": "1.0.1"}
 
 
+@app.post("/api/session/reset")
+async def reset_session():
+    """Reset current session"""
+    return await trinity.reset_session()
+
+
 @app.get("/api/state")
 async def get_state():
     """Get current system state for UI polling"""
