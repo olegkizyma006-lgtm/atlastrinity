@@ -83,6 +83,8 @@ mcp:
 
   github:
     enabled: true
+    # Advanced GitHub API: Pull Requests, Issues, Search, Repository Management.
+    # Requires GITHUB_TOKEN in your .env file.
 
   whisper_stt:
     enabled: true

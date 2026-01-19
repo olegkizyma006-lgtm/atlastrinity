@@ -1101,6 +1101,89 @@
             ]
         }
     },
+    "search_repositories": {
+        "server": "github",
+        "description": "Search for repositories on GitHub.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "q": {
+                    "type": "string",
+                    "description": "The search query."
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "q"
+            ]
+        }
+    },
+    "list_pull_requests": {
+        "server": "github",
+        "description": "List pull requests in a repository.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "owner": {
+                    "type": "string"
+                },
+                "repo": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "open",
+                        "closed",
+                        "all"
+                    ]
+                }
+            },
+            "required": [
+                "owner",
+                "repo"
+            ]
+        }
+    },
+    "merge_pull_request": {
+        "server": "github",
+        "description": "Merge a pull request.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "owner": {
+                    "type": "string"
+                },
+                "repo": {
+                    "type": "string"
+                },
+                "pull_number": {
+                    "type": "integer"
+                },
+                "commit_title": {
+                    "type": "string"
+                },
+                "merge_method": {
+                    "type": "string",
+                    "enum": [
+                        "merge",
+                        "squash",
+                        "rebase"
+                    ]
+                }
+            },
+            "required": [
+                "owner",
+                "repo",
+                "pull_number"
+            ]
+        }
+    },
     "search_nodes": {
         "server": "memory",
         "alias_for": "search"

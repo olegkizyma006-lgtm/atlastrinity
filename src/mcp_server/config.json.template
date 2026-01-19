@@ -43,11 +43,10 @@
       },
       "description": "Dynamic problem-solving through thought sequences (Critical for Grisha)",
       "disabled": false,
-      "tier": 1,
+      "tier": 2,
       "agents": [
         "atlas",
-        "tetyana",
-        "grisha"
+        "tetyana"
       ]
     },
     "_comment_tier2": "=== TIER 2: HIGH PRIORITY (Рекомендовані) ===",
@@ -168,8 +167,9 @@
       },
       "description": "Advanced GitHub API integration (PRs, Issues, Search, File Ops). Requires GITHUB_TOKEN.",
       "disabled": false,
-      "tier": 3,
+      "tier": 2,
       "agents": [
+        "atlas",
         "tetyana",
         "grisha"
       ]

@@ -231,7 +231,10 @@
             "create_issue",
             "list_pull_requests",
             "create_pull_request",
-            "merge_pull_request"
+            "merge_pull_request",
+            "get_repository",
+            "list_branches",
+            "create_branch"
         ],
         "when_to_use": "Accessing external code repositories, checking user status on GitHub."
     },

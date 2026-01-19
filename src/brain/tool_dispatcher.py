@@ -46,6 +46,11 @@ class ToolDispatcher:
         "node_details", "related_nodes", "traverse"
     ]
 
+    GITHUB_SYNONYMS = [
+        "github", "repo", "repository", "pull_request", "pr", "issue", "issues",
+        "gh", "git_hub"
+    ]
+
     
     MACOS_MAP = {
         "click": "macos-use_click_and_traverse",
@@ -269,8 +274,18 @@ class ToolDispatcher:
              server = "memory"
              resolved_tool = tool_lower if tool_lower in ["create_entities", "add_observations", "get_entity", "list_entities", "create_relation"] else tool_name
              return server, resolved_tool, args
+
+        # Priority 3: GitHub Routing
+        if tool_name in self.GITHUB_SYNONYMS or explicit_server == "github" or any(kw in tool_lower for kw in ["pull_request", "pr", "issue", "repo_"]):
+             server = "github"
+             # Canonicalize common hallucinated tools
+             if tool_name in ["github", "gh"]:
+                  resolved_tool = "get_file_contents" # Default action
+             else:
+                  resolved_tool = tool_name
+             return server, resolved_tool, args
              
-        # Priority 3: Standard resolution (Registry-based)
+        # Priority 4: Standard resolution (Registry-based)
         server, resolved_tool, normalized_args = self._resolve_tool_and_args(tool_name, args, explicit_server)
         
         # Override for 'search' ambiguity
