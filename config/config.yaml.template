@@ -78,6 +78,17 @@ mcp:
     enabled: true
     headless: true
 
+  duckduckgo-search:
+    enabled: true
+
+  github:
+    enabled: true
+
+  whisper-stt:
+    enabled: true
+    model: large-v3-turbo
+    language: uk
+
 orchestrator:
   task_timeout: 3600
   max_recursion_depth: 5
