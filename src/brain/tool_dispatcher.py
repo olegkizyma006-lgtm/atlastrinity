@@ -236,21 +236,28 @@ class ToolDispatcher:
                     "unknown_tool": True
                 }
 
-            # 6. Track metrics
+            # 6. Validate and normalize arguments before calling MCP
+            validated_args = self._validate_args(resolved_tool, normalized_args)
+            if validated_args.get("__validation_error__"):
+                error_msg = validated_args.pop("__validation_error__")
+                logger.warning(f"[DISPATCHER] Argument validation failed for {resolved_tool}: {error_msg}")
+                return {
+                    "success": False,
+                    "error": f"Invalid arguments for '{resolved_tool}': {error_msg}",
+                    "validation_error": True
+                }
+            
+            # 7. Track metrics
             self._total_calls += 1
             if server == "macos-use":
                 self._macos_use_calls += 1
 
-            # 7. Metrics & Final Dispatch via MCPManager
-            logger.info(f"[DISPATCHER] Calling {server}.{resolved_tool} with {list(normalized_args.keys())}")
+            # 8. Metrics & Final Dispatch via MCPManager
+            logger.info(f"[DISPATCHER] Calling {server}.{resolved_tool} with {list(validated_args.keys())}")
             
-            # Ensure args is a dict
-            if not isinstance(normalized_args, dict):
-                normalized_args = {}
-                
-            result = await self.mcp_manager.call_tool(server, resolved_tool, normalized_args)
+            result = await self.mcp_manager.call_tool(server, resolved_tool, validated_args)
             
-            # 8. Check for "Tool not found" errors from MCP and provide guidance
+            # 9. Check for "Tool not found" errors from MCP and provide guidance
             if isinstance(result, dict) and result.get("error"):
                 error_msg = str(result.get("error", ""))
                 if "not found" in error_msg.lower() or "-32602" in error_msg:
@@ -262,6 +269,60 @@ class ToolDispatcher:
         except Exception as e:
             logger.error(f"[DISPATCHER] Dispatch failed: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
+    
+    def _validate_args(self, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate and normalize arguments according to tool schema.
+        Returns args with __validation_error__ key if validation failed.
+        """
+        from .mcp_registry import get_tool_schema
+        
+        schema = get_tool_schema(tool_name)
+        if not schema:
+            # No schema found - pass through without validation
+            return args if isinstance(args, dict) else {}
+        
+        validated = dict(args) if isinstance(args, dict) else {}
+        
+        # Check required arguments
+        required = schema.get("required", [])
+        missing = [r for r in required if r not in validated or validated[r] is None]
+        if missing:
+            validated["__validation_error__"] = f"Missing required arguments: {', '.join(missing)}"
+            return validated
+        
+        # Type conversion
+        types_map = schema.get("types", {})
+        for key, expected_type in types_map.items():
+            if key in validated and validated[key] is not None:
+                try:
+                    value = validated[key]
+                    if expected_type == "str" and not isinstance(value, str):
+                        validated[key] = str(value)
+                    elif expected_type == "int" and not isinstance(value, int):
+                        validated[key] = int(float(value))
+                    elif expected_type == "float" and not isinstance(value, (int, float)):
+                        validated[key] = float(value)
+                    elif expected_type == "bool" and not isinstance(value, bool):
+                        validated[key] = str(value).lower() in ("true", "1", "yes")
+                    elif expected_type == "list" and not isinstance(value, list):
+                        if isinstance(value, str):
+                            # Try to parse as JSON list
+                            import json
+                            try:
+                                parsed = json.loads(value)
+                                if isinstance(parsed, list):
+                                    validated[key] = parsed
+                                else:
+                                    validated[key] = [value]
+                            except json.JSONDecodeError:
+                                validated[key] = [value]
+                        else:
+                            validated[key] = [value]
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"[DISPATCHER] Type conversion failed for {key}: {e}")
+        
+        return validated
 
     def _infer_tool_from_args(self, args: Dict[str, Any]) -> str:
         """Infers tool name from common argument patterns when missing."""

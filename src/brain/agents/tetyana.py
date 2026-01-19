@@ -181,38 +181,28 @@ class Tetyana(BaseAgent):
             if (
                 isinstance(notes_result, dict)
                 and notes_result.get("success")
-                and notes_result.get("notes")
             ):
-                notes = notes_result.get("notes") or [notes_result] if isinstance(notes_result, dict) else []
-                if notes and len(notes) > 0:
-                    note_content = notes_result.get("content", "") or notes_result.get("body", "")
+                # Extract note content from various possible structures
+                note_content = None
+                
+                # Try direct content field
+                note_content = notes_result.get("content") or notes_result.get("body")
+                
+                # Try from notes list
+                if not note_content and notes_result.get("notes"):
+                    notes = notes_result.get("notes", [])
+                    if isinstance(notes, list) and len(notes) > 0:
+                        first_note = notes[0]
+                        if isinstance(first_note, dict):
+                            note_content = first_note.get("content") or first_note.get("body")
+                        elif isinstance(first_note, str):
+                            note_content = first_note
 
-                    # Normalize read_note result
-                    note_content = None
-                    if isinstance(note_result, dict) and note_result.get("success"):
-                        note_content = note_result.get("content", "")
-                    elif hasattr(note_result, "structuredContent") and isinstance(
-                        getattr(note_result, "structuredContent"), dict
-                    ):
-                        note_content = note_result.structuredContent.get("result", {}).get(
-                            "content", ""
-                        )
-                    elif (
-                        hasattr(note_result, "content")
-                        and len(note_result.content) > 0
-                        and hasattr(note_result.content[0], "text")
-                    ):
-                        try:
-                            note_parsed = json.loads(note_result.content[0].text)
-                            note_content = note_parsed.get("content", "")
-                        except Exception:
-                            note_content = None
-
-                    if note_content:
-                        logger.info(
-                            f"[TETYANA] Retrieved Grisha's feedback from notes for step {step_id}"
-                        )
-                        return note_content
+                if note_content:
+                    logger.info(
+                        f"[TETYANA] Retrieved Grisha's feedback from notes for step {step_id}"
+                    )
+                    return note_content
         except Exception as e:
             logger.warning(f"[TETYANA] Could not retrieve from notes: {e}")
 
