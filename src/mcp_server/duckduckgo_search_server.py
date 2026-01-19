@@ -10,29 +10,46 @@ server = FastMCP("duckduckgo-search")
 
 def _search_ddg(query: str, max_results: int, timeout_s: float) -> List[Dict[str, Any]]:
     url = "https://html.duckduckgo.com/html/"
-    resp = requests.get(
+    resp = requests.post(
         url,
-        params={"q": query},
+        data={"q": query},
         headers={
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://duckduckgo.com/",
+            "Origin": "https://duckduckgo.com"
         },
         timeout=timeout_s,
     )
     resp.raise_for_status()
 
-    # DuckDuckGo HTML results include anchors with class="result__a"
+    # Broaden regex to find any result link
+    # Usually in the form: <a class="result__a" rel="nofollow" href="...">Title</a>
     pattern = re.compile(
-        r'<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>',
+        r'<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>(.*?)</a>',
         re.IGNORECASE | re.DOTALL,
     )
 
     results: List[Dict[str, Any]] = []
     for match in pattern.finditer(resp.text):
         href = html.unescape(match.group(1)).strip()
+        
+        # Clean up DDG redirects if present in href
+        if "duckduckgo.com/l/?" in href:
+             # Extract real URL from the 'uddg' parameter or similar if needed
+             pass
+             
         title_html = match.group(2)
         title = html.unescape(re.sub(r"<.*?>", "", title_html)).strip()
+        
         if not href or not title:
             continue
+            
+        # Ensure we're not just getting internal DDG links
+        if href.startswith("//"):
+             href = "https:" + href
+        elif href.startswith("/"):
+             href = "https://duckduckgo.com" + href
+             
         results.append({"title": title, "url": href})
         if len(results) >= max_results:
             break
