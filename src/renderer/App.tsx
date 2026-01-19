@@ -199,24 +199,24 @@ const App: React.FC = () => {
         <NeuralCore state={systemState} activeAgent={activeAgent} />
       </div>
 
-      {/* Right Panel - Chat + Input */}
+      {/* Right Panel - Chat */}
       <div className="panel right-panel glass-panel">
-        <div className="w-full h-full flex flex-col relative">
+        <div className="right-panel-body">
           {/* Chat Area - Flexible Height */}
 
-          <div className="chat-panel-container flex-1 min-h-0 overflow-hidden relative">
+          <div className="chat-panel-container">
             <ChatPanel messages={chatMessages} />
           </div>
-
-          {/* Input Area - Docked at Bottom */}
-          <div className="command-dock pt-2 border-t border-white/5 bg-black/20 px-2 pb-2">
-            <CommandLine
-              onCommand={handleCommand}
-              isVoiceEnabled={isVoiceEnabled}
-              onToggleVoice={() => setIsVoiceEnabled(!isVoiceEnabled)}
-            />
-          </div>
         </div>
+      </div>
+
+      {/* Floating Input Dock */}
+      <div className="command-dock command-dock-floating">
+        <CommandLine
+          onCommand={handleCommand}
+          isVoiceEnabled={isVoiceEnabled}
+          onToggleVoice={() => setIsVoiceEnabled(!isVoiceEnabled)}
+        />
       </div>
 
       {/* Bottom Status Bar - Integrated with AgentStatus */}

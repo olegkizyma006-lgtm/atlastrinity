@@ -401,6 +401,7 @@ body {
   color: var(--atlas-blue);
   background: radial-gradient(circle at center, #0B1021 0%, #020202 85%, #000000 100%);
   position: relative;
+  overflow: hidden;
 }
 
 /* Panel Structure */
@@ -475,6 +476,18 @@ body {
 
 .right-panel {
   grid-row: 1;
+}
+
+.right-panel-body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 120px;
 }
 
 .status-bar {
@@ -554,18 +567,30 @@ body {
 .command-dock {
   --command-dock-height: 84px;
   flex-shrink: 0;
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
   z-index: 3;
   min-height: var(--command-dock-height);
-  padding: 8px 10px 10px;
+  padding: 10px 10px 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(10px);
 }
 
+.command-dock-floating {
+  position: fixed;
+  right: 20px;
+  bottom: 36px;
+  width: calc(350px - 20px);
+  max-width: calc(100vw - 40px);
+  z-index: 6;
+  box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.4);
+}
+
 .chat-panel-container {
-  padding-bottom: var(--command-dock-height, 84px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .command-textarea {
