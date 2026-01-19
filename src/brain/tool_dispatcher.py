@@ -161,6 +161,20 @@ class ToolDispatcher:
         """Update the currently tracked PID for macOS automation."""
         self._current_pid = pid
 
+    # Common hallucinated tool names that LLMs generate but don't exist
+    HALLUCINATED_TOOLS = {
+        "evaluate": "No 'evaluate' tool exists. Use vibe_code_review for code evaluation or execute_command for running tests.",
+        "assess": "No 'assess' tool exists. Use vibe_code_review for assessment.",
+        "verify": "No 'verify' tool exists. Use execute_command to run verification commands.",
+        "validate": "No 'validate' tool exists. Use execute_command to run validation scripts.",
+        "check": "No 'check' tool exists. Use execute_command for running check commands.",
+        "test": "No 'test' tool exists. Use execute_command('npm test') or similar.",
+        "compile": "No 'compile' tool exists. Use execute_command with appropriate build command.",
+        "build": "No 'build' tool exists. Use execute_command('npm run build') or similar.",
+        "deploy": "No 'deploy' tool exists. Use execute_command with deployment scripts.",
+        "run": "Use execute_command for running arbitrary commands.",
+    }
+
     async def resolve_and_dispatch(
         self, 
         tool_name: Optional[str], 
@@ -177,17 +191,27 @@ class ToolDispatcher:
             if not isinstance(args, dict):
                 args = {}
             
-            # 2. Heuristic inference if tool_name is missing
+            # 2. Check for known hallucinated tools first
+            if tool_name in self.HALLUCINATED_TOOLS:
+                suggestion = self.HALLUCINATED_TOOLS[tool_name]
+                logger.warning(f"[DISPATCHER] Hallucinated tool detected: '{tool_name}'. {suggestion}")
+                return {
+                    "success": False, 
+                    "error": f"Tool '{tool_name}' does not exist. {suggestion}",
+                    "hallucinated": True
+                }
+            
+            # 3. Heuristic inference if tool_name is missing
             if not tool_name:
                 tool_name = self._infer_tool_from_args(args)
             
-            # 3. Handle Dot Notation (server.tool)
+            # 4. Handle Dot Notation (server.tool)
             if "." in tool_name:
                 parts = tool_name.split(".", 1)
                 explicit_server = parts[0]
                 tool_name = parts[1]
             
-            # 4. Intelligent Routing with macOS-use Priority
+            # 5. Intelligent Routing with macOS-use Priority
             server, resolved_tool, normalized_args = self._intelligent_routing(
                 tool_name, args, explicit_server
             )
@@ -197,9 +221,22 @@ class ToolDispatcher:
                 return await self._handle_system(resolved_tool, normalized_args)
             
             if not server:
-                return {"success": False, "error": f"Could not resolve server for tool: {tool_name}"}
+                # Provide helpful suggestions for unknown tools
+                from .mcp_registry import get_all_tool_names
+                all_tools = get_all_tool_names()
+                
+                # Find similar tool names (simple substring match)
+                similar = [t for t in all_tools if tool_name in t.lower() or t.lower() in tool_name][:5]
+                suggestion = f" Did you mean: {', '.join(similar)}" if similar else ""
+                
+                logger.warning(f"[DISPATCHER] Unknown tool: '{tool_name}'.{suggestion}")
+                return {
+                    "success": False, 
+                    "error": f"Could not resolve server for tool: '{tool_name}'.{suggestion}",
+                    "unknown_tool": True
+                }
 
-            # 5. Track metrics
+            # 6. Track metrics
             self._total_calls += 1
             if server == "macos-use":
                 self._macos_use_calls += 1
@@ -211,7 +248,16 @@ class ToolDispatcher:
             if not isinstance(normalized_args, dict):
                 normalized_args = {}
                 
-            return await self.mcp_manager.call_tool(server, resolved_tool, normalized_args)
+            result = await self.mcp_manager.call_tool(server, resolved_tool, normalized_args)
+            
+            # 8. Check for "Tool not found" errors from MCP and provide guidance
+            if isinstance(result, dict) and result.get("error"):
+                error_msg = str(result.get("error", ""))
+                if "not found" in error_msg.lower() or "-32602" in error_msg:
+                    logger.warning(f"[DISPATCHER] Tool not found on server: {server}.{resolved_tool}")
+                    result["suggestion"] = f"Tool '{resolved_tool}' may not exist on server '{server}'. Check available tools with list_tools."
+            
+            return result
 
         except Exception as e:
             logger.error(f"[DISPATCHER] Dispatch failed: {e}", exc_info=True)

@@ -95,7 +95,8 @@ async def get_node_details(node_id: str) -> Dict[str, Any]:
     from src.brain.db.schema import KGNode
     
     await db_manager.initialize()
-    async with await db_manager.get_session() as session:
+    session = await db_manager.get_session()
+    try:
         stmt = select(KGNode).where(KGNode.id == node_id)
         res = await session.execute(stmt)
         node = res.scalar()
@@ -107,6 +108,8 @@ async def get_node_details(node_id: str) -> Dict[str, Any]:
             "attributes": node.attributes,
             "last_updated": node.last_updated.isoformat() if node.last_updated else None
         }
+    finally:
+        await session.close()
 
 
 @server.tool()
@@ -116,7 +119,8 @@ async def get_related_nodes(node_id: str) -> Dict[str, Any]:
     from src.brain.db.schema import KGEdge
     
     await db_manager.initialize()
-    async with await db_manager.get_session() as session:
+    session = await db_manager.get_session()
+    try:
         stmt = select(KGEdge).where(
             or_(KGEdge.source_id == node_id, KGEdge.target_id == node_id)
         )
@@ -133,6 +137,8 @@ async def get_related_nodes(node_id: str) -> Dict[str, Any]:
                 } for e in edges
             ]
         }
+    finally:
+        await session.close()
 
 
 if __name__ == "__main__":

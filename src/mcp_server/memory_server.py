@@ -100,12 +100,14 @@ async def add_observations(name: str, observations: List[str]) -> Dict[str, Any]
     from sqlalchemy import select
     from brain.db.schema import KGNode
     
-    async with await db_manager.get_session() as session:
+    session = await db_manager.get_session()
+    try:
         stmt = select(KGNode).where(KGNode.id == node_id)
         res = await session.execute(stmt)
         node = res.scalar()
         
         if not node:
+            await session.close()
             return {"error": f"Entity '{name}' not found. Use create_entities first."}
         
         attr = node.attributes or {}
@@ -122,6 +124,8 @@ async def add_observations(name: str, observations: List[str]) -> Dict[str, Any]
             attributes=attr,
             sync_to_vector=True
         )
+    finally:
+        await session.close()
 
     return {"success": True, "name": name, "observations_count": len(merged)}
 
@@ -137,7 +141,8 @@ async def get_entity(name: str) -> Dict[str, Any]:
     from sqlalchemy import select
     from brain.db.schema import KGNode
     
-    async with await db_manager.get_session() as session:
+    session = await db_manager.get_session()
+    try:
         stmt = select(KGNode).where(KGNode.id == node_id)
         res = await session.execute(stmt)
         node = res.scalar()
@@ -152,6 +157,8 @@ async def get_entity(name: str) -> Dict[str, Any]:
             "observations": node.attributes.get("observations", []),
             "last_updated": node.last_updated.isoformat() if node.last_updated else None
         }
+    finally:
+        await session.close()
 
 
 @server.tool()
@@ -164,10 +171,13 @@ async def list_entities() -> Dict[str, Any]:
     from sqlalchemy import select
     from brain.db.schema import KGNode
     
-    async with await db_manager.get_session() as session:
+    session = await db_manager.get_session()
+    try:
         stmt = select(KGNode.id).where(KGNode.type == "ENTITY")
         res = await session.execute(stmt)
         names = [str(row[0]).replace("entity:", "") for row in res.all()]
+    finally:
+        await session.close()
         
     return {"success": True, "names": sorted(names), "count": len(names)}
 
@@ -227,7 +237,8 @@ async def search(query: str, limit: int = 10) -> Dict[str, Any]:
     from brain.db.schema import KGNode
     
     await db_manager.initialize()
-    async with await db_manager.get_session() as session:
+    session = await db_manager.get_session()
+    try:
         stmt = select(KGNode).where(
             or_(
                 KGNode.id.ilike(f"%{q}%"),
@@ -244,6 +255,8 @@ async def search(query: str, limit: int = 10) -> Dict[str, Any]:
                 "entityType": n.attributes.get("entity_type", "ENTITY"),
                 "observations": n.attributes.get("observations", [])
             })
+    finally:
+        await session.close()
             
     return {"success": True, "results": results, "count": len(results), "method": "sql_fallback"}
 
@@ -295,11 +308,14 @@ async def delete_entity(name: str) -> Dict[str, Any]:
     from brain.db.schema import KGNode
     from sqlalchemy import delete
     
-    async with await db_manager.get_session() as session:
+    session = await db_manager.get_session()
+    try:
         # Delete from structured DB (SQLite)
         stmt = delete(KGNode).where(KGNode.id == node_id)
         await session.execute(stmt)
         await session.commit()
+    finally:
+        await session.close()
     
     # Delete from ChromaDB
     if long_term_memory.available:

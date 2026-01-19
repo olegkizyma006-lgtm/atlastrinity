@@ -1129,10 +1129,13 @@ async def vibe_check_db(ctx: Context, query: str) -> Dict[str, Any]:
         if not db_manager.available:
             return {"success": False, "error": "Database not initialized"}
 
-        async with await db_manager.get_session() as session:
+        session = await db_manager.get_session()
+        try:
             res = await session.execute(text(query))
             rows = [dict(r) for r in res.mappings().all()]
             return {"success": True, "count": len(rows), "data": rows}
+        finally:
+            await session.close()
 
     except Exception as e:
         logger.error(f"Database query error: {e}")
@@ -1157,20 +1160,21 @@ async def vibe_get_system_context(ctx: Context) -> Dict[str, Any]:
         if not db_manager.available:
             return {"success": False, "error": "Database not initialized"}
 
-        async with await db_manager.get_session() as session:
+        db_session = await db_manager.get_session()
+        try:
             # Latest session
-            res = await session.execute(text("SELECT id, started_at FROM sessions ORDER BY started_at DESC LIMIT 1"))
+            res = await db_session.execute(text("SELECT id, started_at FROM sessions ORDER BY started_at DESC LIMIT 1"))
             session_row = res.mappings().first()
             session_id = str(session_row['id']) if session_row else None
 
             # Latest tasks
             tasks = []
             if session_id:
-                tasks_res = await session.execute(text("SELECT id, goal, status, created_at FROM tasks WHERE session_id = :sid ORDER BY created_at DESC LIMIT 5"), {"sid": session_id})
+                tasks_res = await db_session.execute(text("SELECT id, goal, status, created_at FROM tasks WHERE session_id = :sid ORDER BY created_at DESC LIMIT 5"), {"sid": session_id})
                 tasks = [dict(r) for r in tasks_res.mappings().all()]
 
             # Recent errors
-            errors_res = await session.execute(text("SELECT timestamp, source, message FROM logs WHERE level IN ('ERROR', 'WARNING') ORDER BY timestamp DESC LIMIT 5"))
+            errors_res = await db_session.execute(text("SELECT timestamp, source, message FROM logs WHERE level IN ('ERROR', 'WARNING') ORDER BY timestamp DESC LIMIT 5"))
             errors = [dict(r) for r in errors_res.mappings().all()]
 
             return {
@@ -1181,6 +1185,8 @@ async def vibe_get_system_context(ctx: Context) -> Dict[str, Any]:
                 "system_root": SYSTEM_ROOT,
                 "project_root": VIBE_WORKSPACE,
             }
+        finally:
+            await db_session.close()
     except Exception as e:
         logger.error(f"Database query error in vibe_get_system_context: {e}")
         return {"success": False, "error": str(e)}
