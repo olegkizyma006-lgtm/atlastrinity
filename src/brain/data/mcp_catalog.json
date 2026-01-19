@@ -125,7 +125,7 @@
         "name": "memory",
         "tier": 2,
         "category": "knowledge",
-        "description": "Knowledge Graph-based long-term memory (PostgreSQL + ChromaDB)",
+        "description": "Knowledge Graph-based long-term memory (SQLite + ChromaDB)",
         "capabilities": [
             "Entity and relationship tracking (SQLite)",
             "Observation and fact management",

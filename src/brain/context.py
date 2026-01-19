@@ -62,6 +62,7 @@ class SharedContext:
     max_recursive_depth: int = 5
     current_step_id: Optional[int] = None
     total_steps: int = 0
+    available_mcp_catalog: str = ""
 
     def __post_init__(self):
         # Detect if application is packaged (binary/app mode)

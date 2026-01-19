@@ -237,6 +237,7 @@ def ensure_postgres(force_check: bool = False) -> bool:
                 if first_run:
                     flag_file.touch()
                 return True
+    return False
 
 
 def ensure_database(force_check: bool = False) -> bool:
@@ -245,9 +246,9 @@ def ensure_database(force_check: bool = False) -> bool:
     For SQLite the DB is file-based and considered available if the config root is writable.
     """
     # Lazy import to avoid circulars
-    from .config_loader import get_config_value
+    from .config_loader import config
 
-    db_url = get_config_value("database", "url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
+    db_url = config.get("database.url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
     if db_url.startswith("sqlite"):
         try:
             CONFIG_ROOT.mkdir(parents=True, exist_ok=True)
@@ -262,19 +263,6 @@ def ensure_database(force_check: bool = False) -> bool:
     else:
         # Fallback to existing postgres check for non-sqlite URLs
         return ensure_postgres(force_check=force_check)
-
-            # Fallback check if pg_isready missing
-            res = subprocess.run(
-                ["brew", "services", "info", "postgresql@17", "--json"],
-                capture_output=True,
-                text=True,
-            )
-            if '"running":true' in res.stdout.replace(" ", ""):
-                logger.info("[Services] ✓ PostgreSQL service reported running.")
-                return True
-
-    logger.error("[Services] ✗ PostgreSQL check failed.")
-    return False
 
 
 def ensure_chrome(force_check: bool = False) -> bool:
@@ -324,22 +312,22 @@ async def ensure_all_services(force_check: bool = False):
         docker_ok = await asyncio.to_thread(ensure_docker, force_check)
         ServiceStatus.details["docker"] = "ok" if docker_ok else "failed"
 
-        # Check PostgreSQL
-        ServiceStatus.status_message = "Checking PostgreSQL..."
-        postgres_ok = await asyncio.to_thread(ensure_postgres, force_check)
-        ServiceStatus.details["postgres"] = "ok" if postgres_ok else "failed"
+        # Check Database (respects config: SQLite or PostgreSQL)
+        ServiceStatus.status_message = "Checking Database..."
+        db_ok = await asyncio.to_thread(ensure_database, force_check)
+        ServiceStatus.details["database"] = "ok" if db_ok else "failed"
 
         # Check Chrome (non-blocking, just file check)
         chrome_ok = await asyncio.to_thread(ensure_chrome, force_check)
         ServiceStatus.details["chrome"] = "ok" if chrome_ok else "missing"
 
-        if redis_ok and docker_ok and postgres_ok:
+        if redis_ok and docker_ok and db_ok:
             ServiceStatus.is_ready = True
             ServiceStatus.status_message = "System services ready"
             logger.info("[Services] All system services are ready.")
         else:
             ServiceStatus.status_message = "Some services failed to start"
-            logger.warning(f"[Services] Readiness: Redis={redis_ok}, Docker={docker_ok}")
+            logger.warning(f"[Services] Readiness: Redis={redis_ok}, Docker={docker_ok}, DB={db_ok}")
 
     except Exception as e:
         ServiceStatus.status_message = f"Service check error: {str(e)}"

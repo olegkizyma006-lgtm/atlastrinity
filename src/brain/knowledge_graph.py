@@ -21,7 +21,7 @@ logger = logging.getLogger("brain.knowledge_graph")
 class KnowledgeGraph:
     """
     Manages the Knowledge Graph.
-    - Stores nodes/edges in PostgreSQL (Structured)
+    - Stores nodes/edges in SQLite (Structured)
     - Syncs text content to ChromaDB (Semantic)
     """
 
@@ -32,7 +32,7 @@ class KnowledgeGraph:
         self,
         node_type: str,
         node_id: str,
-        attributes: Dict[str, Any] = None,
+        attributes: Dict[str, Any] = {},
         sync_to_vector: bool = True,
     ) -> bool:
         """

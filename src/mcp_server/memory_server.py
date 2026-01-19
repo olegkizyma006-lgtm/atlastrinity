@@ -9,9 +9,9 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 root = os.path.join(current_dir, "..", "..")
 sys.path.insert(0, os.path.abspath(root))
 
-from src.brain.db.manager import db_manager  # noqa: E402
-from src.brain.knowledge_graph import knowledge_graph  # noqa: E402
-from src.brain.memory import long_term_memory  # noqa: E402
+from brain.db.manager import db_manager  # noqa: E402
+from brain.knowledge_graph import knowledge_graph  # noqa: E402
+from brain.memory import long_term_memory  # noqa: E402
 
 server = FastMCP("memory")
 
@@ -59,7 +59,7 @@ async def create_entities(entities: List[Dict[str, Any]]) -> Dict[str, Any]:
 
         node_id = _get_id(name)
         
-        # Attributes for Postgres
+        # Attributes for SQLite
         attributes = {
             "entity_type": n["entityType"],
             "observations": n["observations"],
@@ -75,7 +75,7 @@ async def create_entities(entities: List[Dict[str, Any]]) -> Dict[str, Any]:
         )
         
         if success:
-            created.append(name) # Simplification: Postgres upsert doesn't differentiate easily here
+            created.append(name) # Simplification: SQLite upsert doesn't differentiate easily here
         
     return {"success": True, "created": created, "backend": "sqlite+chromadb"}
 
@@ -98,7 +98,7 @@ async def add_observations(name: str, observations: List[str]) -> Dict[str, Any]
     
     # Get existing
     from sqlalchemy import select
-    from src.brain.db.schema import KGNode
+    from brain.db.schema import KGNode
     
     async with await db_manager.get_session() as session:
         stmt = select(KGNode).where(KGNode.id == node_id)
@@ -135,7 +135,7 @@ async def get_entity(name: str) -> Dict[str, Any]:
     node_id = _get_id(name)
     
     from sqlalchemy import select
-    from src.brain.db.schema import KGNode
+    from brain.db.schema import KGNode
     
     async with await db_manager.get_session() as session:
         stmt = select(KGNode).where(KGNode.id == node_id)
@@ -162,7 +162,7 @@ async def list_entities() -> Dict[str, Any]:
     await db_manager.initialize()
     
     from sqlalchemy import select
-    from src.brain.db.schema import KGNode
+    from brain.db.schema import KGNode
     
     async with await db_manager.get_session() as session:
         stmt = select(KGNode.id).where(KGNode.type == "ENTITY")
@@ -196,23 +196,35 @@ async def search(query: str, limit: int = 10) -> Dict[str, Any]:
         )
         
         formatted = []
-        if results and results["documents"]:
-            for i, doc in enumerate(results["documents"][0]):
-                meta = results["metadatas"][0][i]
+        if results and isinstance(results.get("documents"), list) and results.get("documents"):
+            docs_list = results.get("documents") or [[]]
+            docs = docs_list[0] if docs_list else []
+            
+            metas_list = results.get("metadatas") or [[]]
+            metas = metas_list[0] if metas_list else []
+            
+            ids_list = results.get("ids") or [[]]
+            ids = ids_list[0] if ids_list else []
+            
+            dists_list = results.get("distances") or [[]]
+            dists = dists_list[0] if dists_list else []
+            
+            for i, doc in enumerate(docs):
+                meta = metas[i] if i < len(metas) else {}
                 # Filter to only show ENTITY types in this tool
-                if meta.get("type") == "ENTITY":
+                if isinstance(meta, dict) and meta.get("type") == "ENTITY":
                     formatted.append({
-                        "name": str(results["ids"][0][i]).replace("entity:", ""),
+                        "name": str(ids[i]).replace("entity:", "") if i < len(ids) else "unknown",
                         "entityType": meta.get("entity_type", "ENTITY"),
                         "observations": meta.get("observations", []),
-                        "score": 1.0 - (results["distances"][0][i] if "distances" in results else 0.5)
+                        "score": 1.0 - (dists[i] if i < len(dists) else 0.5)
                     })
         
         return {"success": True, "results": formatted, "count": len(formatted), "method": "semantic"}
 
     # 2. Fallback to SQL ILIKE search if Chroma is down
     from sqlalchemy import select, or_
-    from src.brain.db.schema import KGNode
+    from brain.db.schema import KGNode
     
     await db_manager.initialize()
     async with await db_manager.get_session() as session:
@@ -280,7 +292,7 @@ async def delete_entity(name: str) -> Dict[str, Any]:
     await db_manager.initialize()
     node_id = _get_id(name)
 
-    from src.brain.db.schema import KGNode
+    from brain.db.schema import KGNode
     from sqlalchemy import delete
     
     async with await db_manager.get_session() as session:
