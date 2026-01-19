@@ -159,61 +159,18 @@ def check_system_tools():
 
 
 def ensure_database():
-    """Перевіряє наявність бази даних та створює її, якщо потрібно"""
-    print_step("Налаштування бази даних PostgreSQL...")
-    db_name = "atlastrinity_db"
+    """Initialize SQLite database in global config folder"""
+    print_step("Налаштування бази даних (SQLite)...")
+    db_path = CONFIG_ROOT / "atlastrinity.db"
 
-    # 1. Спроба підключення до postgres (системної) для створення цільової БД
+    # 1. Check if database file exists
     try:
-        # Перевіряємо чи існує база
-        check_cmd = [
-            "psql",
-            "-U",
-            "dev",
-            "-d",
-            "postgres",
-            "-t",
-            "-c",
-            f"SELECT 1 FROM pg_database WHERE datname='{db_name}';",
-        ]
-        result = subprocess.run(check_cmd, capture_output=True, text=True)
-
-        if "1" in result.stdout:
-            print_success(f"База даних {db_name} вже існує")
-        
-        # Explicit check for critical tables
-        recovery_check = [
-            "psql", "-U", "dev", "-d", db_name, "-t", "-c", 
-            "SELECT to_regclass('recovery_attempts');"
-        ]
-        res = subprocess.run(recovery_check, capture_output=True, text=True)
-        if "recovery_attempts" in res.stdout:
-             print_success("Таблиця 'recovery_attempts' перевірена.")
+        if db_path.exists():
+            print_success(f"SQLite база даних вже існує: {db_path}")
         else:
-            print_info(f"Створення бази даних {db_name}...")
-            # Ensure role 'dev' exists, attempt to create if missing
-            try:
-                rc = subprocess.run(
-                    ["psql", "-tAc", "SELECT 1 FROM pg_roles WHERE rolname='dev';"],
-                    capture_output=True,
-                    text=True,
-                )
-                if rc.returncode == 0 and rc.stdout.strip() != "1":
-                    print_info("Роль 'dev' не знайдена — намагаємось створити...")
-                    try:
-                        subprocess.run(["createuser", "-s", "dev"], check=True)
-                        print_success("Роль 'dev' створено")
-                    except subprocess.CalledProcessError as e:
-                        print_warning(f"Не вдалося створити роль 'dev': {e}")
-                        print_info("Створіть роль вручну: createuser -s dev")
-            except Exception:
-                print_info("Не вдалось перевірити роль 'dev' (psql може бути недоступен).")
+            print_info(f"Створення нової SQLite бази: {db_path}...")
 
-            create_cmd = ["createdb", "-U", "dev", db_name]
-            subprocess.run(create_cmd, check=True)
-            print_success(f"Базу даних {db_name} створено успішно")
-
-        # 2. Ініціалізація таблиць через SQLAlchemy шім
+        # 2. Initialize tables via SQLAlchemy
         print_info("Ініціалізація таблиць (SQLAlchemy)...")
         venv_python = str(VENV_PATH / "bin" / "python")
         init_cmd = [
@@ -229,7 +186,7 @@ def ensure_database():
 
     except Exception as e:
         print_warning(f"Помилка при налаштуванні БД: {e}")
-        print_info("Переконайтесь, що PostgreSQL запущений і користувач 'dev' має права superuser.")
+        print_info("Переконайтесь, що aiosqlite встановлено: pip install aiosqlite")
 
 
 def _brew_formula_installed(formula: str) -> bool:
@@ -263,10 +220,9 @@ def install_brew_deps():
         )
         return False
 
-    # Формули (CLI tools)
+    # Формули (CLI tools) - SQLite doesn't need server, only Redis for caching
     formulas = {
-        "postgresql@17": "pg_isready",  # PostgreSQL з перевіркою через pg_isready
-        "redis": "redis-cli",  # Redis з перевіркою через redis-cli
+        "redis": "redis-cli",  # Redis для кешування активних сесій
     }
 
     # Casks (GUI apps)
@@ -331,9 +287,9 @@ def install_brew_deps():
                 print_warning(f"Не вдалося встановити {cask}: {e}")
 
     # === Запуск сервісів ===
-    print_step("Запуск сервісів (PostgreSQL, Redis)...")
+    print_step("Запуск сервісів (Redis)...")
 
-    services = ["postgresql@17", "redis"]
+    services = ["redis"]  # SQLite doesn't need a server
     for service in services:
         try:
             # Ensure formula installed first for formula-backed services
@@ -615,11 +571,70 @@ def download_models():
         print_warning(f"Помилка завантаження TTS: {e}")
 
 
+def backup_databases():
+    """Архівує SQLite базу та ChromaDB для синхронізації через Git"""
+    print_step("Створення резервних копій баз даних...")
+    
+    backup_dir = PROJECT_ROOT / "backups" / "databases"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 1. Backup SQLite database
+    sqlite_src = CONFIG_ROOT / "atlastrinity.db"
+    if sqlite_src.exists():
+        sqlite_dst = backup_dir / "atlastrinity.db"
+        shutil.copy2(sqlite_src, sqlite_dst)
+        print_success(f"SQLite база збережена: {sqlite_dst}")
+    else:
+        print_warning("SQLite база не знайдена, пропускаємо.")
+    
+    # 2. Backup ChromaDB (vector database)
+    chroma_src = CONFIG_ROOT / "memory"
+    if chroma_src.exists():
+        chroma_dst = backup_dir / "memory"
+        if chroma_dst.exists():
+            shutil.rmtree(chroma_dst)
+        shutil.copytree(chroma_src, chroma_dst)
+        print_success(f"ChromaDB (векторна база) збережена: {chroma_dst}")
+    else:
+        print_warning("ChromaDB не знайдена, пропускаємо.")
+    
+    print_info(f"Резервні копії збережено в: {backup_dir}")
+    print_info("Тепер ви можете зробити: git add backups/ && git commit -m 'backup: database snapshot'")
+
+
+def restore_databases():
+    """Відновлює бази даних з архіву"""
+    print_step("Відновлення баз даних з резервних копій...")
+    
+    backup_dir = PROJECT_ROOT / "backups" / "databases"
+    if not backup_dir.exists():
+        print_warning("Резервні копії не знайдено. Виконайте git pull або backup_databases().")
+        return
+    
+    # 1. Restore SQLite
+    sqlite_src = backup_dir / "atlastrinity.db"
+    if sqlite_src.exists():
+        sqlite_dst = CONFIG_ROOT / "atlastrinity.db"
+        shutil.copy2(sqlite_src, sqlite_dst)
+        print_success(f"SQLite база відновлена: {sqlite_dst}")
+    
+    # 2. Restore ChromaDB
+    chroma_src = backup_dir / "memory"
+    if chroma_src.exists():
+        chroma_dst = CONFIG_ROOT / "memory"
+        if chroma_dst.exists():
+            shutil.rmtree(chroma_dst)
+        shutil.copytree(chroma_src, chroma_dst)
+        print_success(f"ChromaDB відновлена: {chroma_dst}")
+    
+    print_success("Бази даних успішно відновлено!")
+
+
 def check_services():
     """Перевіряє запущені сервіси"""
     print_step("Перевірка системних сервісів...")
 
-    services = {"redis": "Redis", "postgresql@17": "PostgreSQL"}
+    services = {"redis": "Redis"}  # SQLite is file-based, no service needed
 
     for service, label in services.items():
         try:
@@ -641,11 +656,7 @@ def check_services():
                     print_success(f"{label} запущено (CLI)")
                     continue
 
-            # Fallback: check functional ping (Postgres only - if linked)
-            if service == "postgresql@17" and shutil.which("pg_isready"):
-                if subprocess.run(["pg_isready"], capture_output=True).returncode == 0:
-                    print_success(f"{label} запущено (CLI)")
-                    continue
+
 
             print_warning(f"{label} НЕ запущено. Спробуйте: brew services start {service}")
 
@@ -673,6 +684,12 @@ def main():
 
     check_python_version()
     ensure_directories()
+    
+    # Auto-restore databases if backups exist (from git clone)
+    backup_dir = PROJECT_ROOT / "backups" / "databases"
+    if backup_dir.exists() and not (CONFIG_ROOT / "atlastrinity.db").exists():
+        print_info("Виявлено резервні копії баз даних у репозиторії...")
+        restore_databases()
 
     if not check_system_tools():
         print_error("Homebrew є обов'язковим! Встановіть його та спробуйте знову.")
