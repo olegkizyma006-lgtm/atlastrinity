@@ -39,6 +39,8 @@ interface SystemMetrics {
   net_down_unit: string;
 }
 
+const API_BASE = 'http://127.0.0.1:8000';
+
 const App: React.FC = () => {
   const [systemState, setSystemState] = useState<SystemState>('IDLE');
   const [activeAgent, setActiveAgent] = useState<AgentName>('ATLAS');
@@ -72,19 +74,27 @@ const App: React.FC = () => {
 
   const [currentTask, setCurrentTask] = useState<string>('');
 
-  const fetchSessions = async () => {
+  const fetchSessions = async (retryCount = 0) => {
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/sessions');
+      const response = await fetch(`${API_BASE}/api/sessions`);
+      if (!response.ok) throw new Error('Failed to fetch');
       const data = await response.json();
       setSessions(data);
     } catch (err) {
-      console.error('Failed to fetch sessions:', err);
+      if (retryCount < 5) {
+        // Retry with exponential backoff if server is still starting
+        const delay = Math.pow(2, retryCount) * 1000;
+        console.warn(`[BRAIN] Session fetch failed, retrying in ${delay}ms... (Attempt ${retryCount + 1}/5)`);
+        setTimeout(() => fetchSessions(retryCount + 1), delay);
+      } else {
+        console.error('Failed to fetch sessions after retries:', err);
+      }
     }
   };
 
   const pollState = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/state');
+      const response = await fetch(`${API_BASE}/api/state`);
       if (response.ok) {
         const data = await response.json();
         if (data) {
@@ -113,7 +123,16 @@ const App: React.FC = () => {
         }
       }
     } catch (err) {
-      // Silent fail to avoid flooding console if server is starting up
+      if (err instanceof TypeError && err.message === 'Failed to fetch') {
+        const now = Date.now();
+        // Only log connection refused if it persists beyond initial startup (5s)
+        if (!window.hasOwnProperty('startTime')) (window as any).startTime = now;
+        if (now - (window as any).startTime > 5000) {
+          console.warn(`[BRAIN] Connection refused. Is the Python server running on ${API_BASE}?`);
+        }
+      } else {
+        console.error('[BRAIN] Polling error:', err);
+      }
     }
   };
 
@@ -130,7 +149,7 @@ const App: React.FC = () => {
     addLog('ATLAS', `Command: ${cmd}`, 'action');
     setSystemState('PROCESSING');
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/chat', {
+      const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ request: cmd }),
@@ -178,7 +197,7 @@ const App: React.FC = () => {
   const handleNewSession = async () => {
     console.log('Starting new session...');
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/session/reset', {
+      const response = await fetch(`${API_BASE}/api/session/reset`, {
         method: 'POST',
       });
       if (response.ok) {
@@ -197,7 +216,7 @@ const App: React.FC = () => {
   const handleRestoreSession = async (sessionId: string) => {
     console.log(`Restoring session: ${sessionId}`);
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/sessions/restore', {
+      const response = await fetch(`${API_BASE}/api/sessions/restore`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: sessionId }),
@@ -232,12 +251,28 @@ const App: React.FC = () => {
       <div className="pulsing-border left"></div>
       <div className="pulsing-border right"></div>
 
+      {/* Global Title Bar Controls (Positioned near traffic lights) */}
+      <div className="fixed top-2 left-20 z-[100] flex items-center gap-2 pointer-events-auto">
+        <button
+          onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+          className={`titlebar-btn group ${isHistoryOpen ? 'active' : ''}`}
+          title="Session History"
+        >
+          <span className="text-[10px] group-hover:scale-110 transition-transform">⌛</span>
+        </button>
+        <button
+          onClick={handleNewSession}
+          className="titlebar-btn group"
+          title="New Session"
+        >
+          <span className="text-[12px] group-hover:scale-110 transition-transform">+</span>
+        </button>
+      </div>
+
       {/* Left Panel - Execution Log */}
       <aside className="panel glass-panel left-panel relative">
         <ExecutionLog
           logs={logs}
-          onNewSession={handleNewSession}
-          onToggleHistory={() => setIsHistoryOpen(!isHistoryOpen)}
         />
 
         {/* Session History Sidebar Overlay */}

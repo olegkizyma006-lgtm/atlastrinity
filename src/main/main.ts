@@ -80,9 +80,7 @@ async function createWindow(): Promise<void> {
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#00000000',
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      webSecurity: false, // Allow local connections from file://
+      devTools: isDev,
     },
   });
 

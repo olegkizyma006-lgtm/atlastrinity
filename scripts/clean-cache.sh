@@ -29,8 +29,8 @@ rm -rf ~/.config/atlastrinity/screenshots/*.png 2>/dev/null
 
 # Вбивство завислих процесів
 echo "  • Вбивство завислих процесів (port 8000, MCP servers)..."
-# Вбиваємо все на порту 8000 (brain.server)
-lsof -ti :8000 | xargs kill -9 2>/dev/null || true
+# Вбиваємо все на порту 8000/8088 (brain.server)
+lsof -ti :8000 -ti :8088 | xargs kill -9 2>/dev/null || true
 # Вбиваємо основні MCP сервери за маскою
 pkill -9 -f vibe_server 2>/dev/null || true
 pkill -9 -f memory_server 2>/dev/null || true
