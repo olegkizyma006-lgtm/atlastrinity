@@ -41,7 +41,7 @@ from .base_agent import BaseAgent  # noqa: E402
 class StepResult:
     """Result of step execution"""
 
-    step_id: int
+    step_id: str
     success: bool
     result: str
     screenshot_path: Optional[str] = None

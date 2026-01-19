@@ -39,7 +39,7 @@ from .base_agent import BaseAgent  # noqa: E402
 class VerificationResult:
     """Verification result"""
 
-    step_id: int
+    step_id: str
     verified: bool
     confidence: float  # 0.0 - 1.0
     description: str
@@ -754,7 +754,7 @@ class Grisha(BaseAgent):
 
     async def _save_rejection_report(
         self,
-        step_id: int,
+        step_id: str,
         step: Dict[str, Any],
         verification: VerificationResult,
         task_id: Optional[str] = None,

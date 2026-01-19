@@ -551,7 +551,7 @@ class Atlas(BaseAgent):
             logger.error(f"[ATLAS] Sequential thinking failed: {e}")
             return {"success": False, "error": str(e)}
 
-    async def get_grisha_report(self, step_id: int) -> Optional[str]:
+    async def get_grisha_report(self, step_id: str) -> Optional[str]:
         """Retrieve Grisha's detailed rejection report from notes or memory"""
         from ..mcp_manager import mcp_manager  # noqa: E402
 
@@ -622,7 +622,7 @@ class Atlas(BaseAgent):
 
         return None
 
-    async def help_tetyana(self, step_id: int, error: str) -> Dict[str, Any]:
+    async def help_tetyana(self, step_id: str, error: str) -> Dict[str, Any]:
         """Helps Tetyana when she is stuck, using shared context and Grisha's feedback for better solutions"""
         from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
 
