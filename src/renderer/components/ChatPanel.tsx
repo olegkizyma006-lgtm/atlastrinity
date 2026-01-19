@@ -21,8 +21,8 @@ interface ChatPanelProps {
 }
 
 const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onNewSession }) => {
-  // STRICT FILTER: Only voice messages as requested
-  const filteredMessages = messages.filter((m) => m.type === 'voice');
+  // FILTER: Only voice messages and user messages
+  const filteredMessages = messages.filter((m) => m.type === 'voice' || m.agent === 'USER');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
