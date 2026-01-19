@@ -37,7 +37,7 @@ def _normalize_entity(ent: Dict[str, Any]) -> Dict[str, Any]:
 @server.tool()
 async def create_entities(entities: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Create or update multiple entities in the knowledge graph (PostgreSQL + ChromaDB).
+    Create or update multiple entities in the knowledge graph (SQLite + ChromaDB).
 
     Args:
         entities: List of entity dictionaries. Each must have a 'name' field.
@@ -77,7 +77,7 @@ async def create_entities(entities: List[Dict[str, Any]]) -> Dict[str, Any]:
         if success:
             created.append(name) # Simplification: Postgres upsert doesn't differentiate easily here
         
-    return {"success": True, "created": created, "backend": "postgresql+chromadb"}
+    return {"success": True, "created": created, "backend": "sqlite+chromadb"}
 
 
 @server.tool()
@@ -271,7 +271,7 @@ async def search_nodes(query: str, limit: int = 10) -> Dict[str, Any]:
 @server.tool()
 async def delete_entity(name: str) -> Dict[str, Any]:
     """
-    Delete an entity from the knowledge graph (PostgreSQL + ChromaDB).
+    Delete an entity from the knowledge graph (SQLite + ChromaDB).
     """
     name = str(name or "").strip()
     if not name:
@@ -284,7 +284,7 @@ async def delete_entity(name: str) -> Dict[str, Any]:
     from sqlalchemy import delete
     
     async with await db_manager.get_session() as session:
-        # Delete from Postgres
+        # Delete from structured DB (SQLite)
         stmt = delete(KGNode).where(KGNode.id == node_id)
         await session.execute(stmt)
         await session.commit()

@@ -147,7 +147,8 @@ class SystemConfig:
                 "repository_path": str(PROJECT_ROOT),  # Path to Trinity source code for self-healing
             },
             "database": {
-                "url": os.getenv("DATABASE_URL", "postgresql+asyncpg://dev:postgres@localhost/atlastrinity_db")
+                # Default to local SQLite (async via aiosqlite). Use DATABASE_URL env var to override.
+                "url": os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
             },
             "logging": {"level": "INFO", "max_log_size": 10485760, "backup_count": 5},
         }

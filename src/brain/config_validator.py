@@ -76,6 +76,8 @@ YAML_SCHEMA = {
         "max_recursion_depth": {"_type": "int", "_range": (1, 20)},
         "task_timeout": {"_type": "int", "_range": (10, 3600)},
         "subtask_timeout": {"_type": "int", "_range": (10, 1800)},
+        "recovery_voice_agent": {"_type": "str", "_enum": ["atlas", "grisha"]},
+        "validate_failed_steps_with_grisha": {"_type": "bool"},
     },
     "mcp": {"_type": "dict"},
     "security": {

@@ -85,10 +85,7 @@ SYSTEM_ROOT = str(PROJECT_ROOT)
 LOG_DIR = str(CONFIG_ROOT / "logs")
 INSTRUCTIONS_DIR = str(Path(VIBE_WORKSPACE) / "instructions")
 VIBE_SESSION_DIR = Path.home() / ".vibe" / "logs" / "session"
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://dev:postgres@localhost/atlastrinity_db"
-)
+DATABASE_URL = get_config_value("database", "url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
 
 # ANSI escape code pattern for stripping colors
 ANSI_ESCAPE: Pattern = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
@@ -1113,8 +1110,9 @@ async def vibe_check_db(ctx: Context, query: str) -> Dict[str, Any]:
     Returns:
         Query results as list of dictionaries
     """
-    import asyncpg
-    
+    from sqlalchemy import text
+    from src.brain.db.manager import db_manager
+
     # Prevent destructive operations
     forbidden = ["DROP", "DELETE", "UPDATE", "INSERT", "TRUNCATE", "ALTER"]
     if any(f in query.upper() for f in forbidden):
@@ -1122,26 +1120,21 @@ async def vibe_check_db(ctx: Context, query: str) -> Dict[str, Any]:
             "success": False,
             "error": "Only SELECT queries are allowed for safety",
         }
-    
+
+    # Use central DB manager when available
     try:
-        conn = await asyncpg.connect(DATABASE_URL)
-        try:
-            rows = await conn.fetch(query)
-            result = [dict(r) for r in rows]
-            return {
-                "success": True,
-                "count": len(result),
-                "data": result,
-            }
-        finally:
-            await conn.close()
-    
+        await db_manager.initialize()
+        if not db_manager.available:
+            return {"success": False, "error": "Database not initialized"}
+
+        async with await db_manager.get_session() as session:
+            res = await session.execute(text(query))
+            rows = [dict(r) for r in res.mappings().all()]
+            return {"success": True, "count": len(rows), "data": rows}
+
     except Exception as e:
         logger.error(f"Database query error: {e}")
-        return {
-            "success": False,
-            "error": str(e),
-        }
+        return {"success": False, "error": str(e)}
 
 
 @server.tool()
@@ -1165,46 +1158,39 @@ async def vibe_get_system_context(ctx: Context) -> Dict[str, Any]:
             )
             session_id = str(session['id']) if session else None
             
-            # Latest tasks
-            tasks = await conn.fetch(
-                "SELECT id, goal, status, created_at FROM tasks "
-                "WHERE session_id = $1 ORDER BY created_at DESC LIMIT 5",
-                session_id
-            )
-            
-            # Recent errors
-            errors = await conn.fetch(
-                "SELECT timestamp, source, message FROM logs "
-                "WHERE level IN ('ERROR', 'WARNING') "
-                "ORDER BY timestamp DESC LIMIT 5"
-            )
-            
-            return {
-                "success": True,
-                "current_session_id": session_id,
-                "recent_tasks": [dict(t) for t in tasks],
-                "recent_errors": [dict(e) for e in errors],
-                "system_root": SYSTEM_ROOT,
-                "project_root": VIBE_WORKSPACE,
-            }
-        finally:
-            await conn.close()
-    
-    except Exception as e:
-        logger.error(f"Failed to get system context: {e}")
-        return {
-            "success": False,
-            "error": str(e),
-        }
+            from sqlalchemy import text
+            from src.brain.db.manager import db_manager
 
+            try:
+                await db_manager.initialize()
+                if not db_manager.available:
+                    return {"success": False, "error": "Database not initialized"}
 
-# =============================================================================
-# SERVER STARTUP
-# =============================================================================
+                async with await db_manager.get_session() as session:
+                    # Latest session
+                    res = await session.execute(text("SELECT id, started_at FROM sessions ORDER BY started_at DESC LIMIT 1"))
+                    session_row = res.mappings().first()
+                    session_id = str(session_row['id']) if session_row else None
 
-if __name__ == "__main__":
-    import sys
-    
+                    # Latest tasks
+                    tasks_res = await session.execute(text("SELECT id, goal, status, created_at FROM tasks WHERE session_id = :sid ORDER BY created_at DESC LIMIT 5"), {"sid": session_id})
+                    tasks = [dict(r) for r in tasks_res.mappings().all()]
+
+                    # Recent errors
+                    errors_res = await session.execute(text("SELECT timestamp, source, message FROM logs WHERE level IN ('ERROR', 'WARNING') ORDER BY timestamp DESC LIMIT 5"))
+                    errors = [dict(r) for r in errors_res.mappings().all()]
+
+                    return {
+                        "success": True,
+                        "current_session_id": session_id,
+                        "recent_tasks": tasks,
+                        "recent_errors": errors,
+                        "system_root": SYSTEM_ROOT,
+                        "project_root": VIBE_WORKSPACE,
+                    }
+            except Exception as e:
+                logger.error(f"Database query error: {e}")
+                return {"success": False, "error": str(e)}
     logger.info("[VIBE] MCP Server starting...")
     prepare_workspace_and_instructions()
     cleanup_old_instructions()
