@@ -88,9 +88,13 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
                   className="text-[6.5px] font-medium tracking-[0.2em] uppercase"
                   style={{
                     color:
-                      log.agent === 'USER'
-                        ? 'var(--user-turquoise, #00E5FF)'
-                        : 'var(--atlas-blue)',
+                      log.agent === 'GRISHA'
+                        ? 'var(--grisha-orange)'
+                        : log.agent === 'TETYANA'
+                          ? 'var(--tetyana-green)'
+                          : log.agent === 'USER'
+                            ? 'var(--user-turquoise)'
+                            : 'var(--atlas-blue)',
                     fontFamily: 'Outfit',
                   }}
                 >
@@ -121,7 +125,9 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
                       ? 'text-green-400'
                       : log.message.includes('[VIBE-LIVE]')
                         ? 'text-blue-300'
-                        : 'text-white/50 group-hover:text-white/85'
+                        : log.agent === 'USER'
+                          ? 'text-[#00E5FF]'
+                          : 'text-[#00A3FF] group-hover:text-[#33B5FF]'
                   }`}
                 style={{ fontFamily: 'JetBrains Mono' }}
               >

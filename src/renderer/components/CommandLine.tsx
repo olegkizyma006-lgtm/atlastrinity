@@ -432,11 +432,10 @@ const CommandLine: React.FC<CommandLineProps> = ({
             onClick={onToggleVoice}
             className={`control-btn ${isVoiceEnabled ? 'active' : ''}`}
             title="Toggle Voice (TTS)"
-            style={{ width: '42px', height: '42px' }}
           >
             <svg
-              width="18"
-              height="18"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -488,8 +487,8 @@ const CommandLine: React.FC<CommandLineProps> = ({
             title="Toggle Smart Mic (STT)"
           >
             <svg
-              width="16"
-              height="16"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -524,8 +523,8 @@ const CommandLine: React.FC<CommandLineProps> = ({
             title="Send Command (Enter)"
           >
             <svg
-              width="20"
-              height="20"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"

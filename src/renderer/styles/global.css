@@ -599,7 +599,7 @@ body {
 .command-dock-floating {
   position: fixed;
   right: 20px;
-  bottom: 36px;
+  bottom: 4px;
   width: calc(350px - 20px);
   max-width: calc(100vw - 40px);
   z-index: 6;
@@ -716,8 +716,8 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   box-shadow: 0 0 10px rgba(0, 163, 255, 0.1);
   -webkit-app-region: no-drag;
 }
@@ -799,8 +799,8 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  width: 42px;
-  height: 42px;
+  width: 28px;
+  height: 28px;
 }
 
 .send-btn.active {

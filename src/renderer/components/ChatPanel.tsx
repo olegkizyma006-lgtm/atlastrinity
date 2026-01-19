@@ -42,15 +42,24 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
     scrollToBottom();
   }, [filteredMessages]);
 
-  const getAgentColor = (agent: string) => {
+  const getHeaderColor = (agent: string) => {
     const a = agent.toUpperCase().trim();
     switch (a) {
+      case 'GRISHA':
+        return 'var(--grisha-orange, #FFB800)';
+      case 'TETYANA':
+        return 'var(--tetyana-green, #00FF88)';
       case 'USER':
         return 'var(--user-turquoise, #00E5FF)';
       default:
-        // All agents and system go blue
         return 'var(--atlas-blue, #00A3FF)';
     }
+  };
+
+  const getMessageTextColor = (agent: string) => {
+    return agent.toUpperCase().trim() === 'USER' 
+      ? 'var(--user-turquoise, #00E5FF)' 
+      : 'var(--atlas-blue, #00A3FF)';
   };
 
   return (
@@ -74,13 +83,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
                   <div className="flex items-center gap-4 filter grayscale opacity-20 group-hover:grayscale-0 group-hover:opacity-40 transition-all duration-500">
                     <span
                       className="text-[6.5px] font-medium tracking-[0.1em] uppercase"
-                      style={{ color: getAgentColor(msg.agent), fontFamily: 'Outfit' }}
+                      style={{ color: getHeaderColor(msg.agent), fontFamily: 'Outfit' }}
                     >
                       {msg.agent}
                     </span>
                     <span
                       className="text-[6.5px] font-mono tracking-tighter uppercase font-medium"
-                      style={{ color: getAgentColor(msg.agent) }}
+                      style={{ color: getHeaderColor(msg.agent) }}
                     >
                       {msg.timestamp.toLocaleTimeString([], {
                         hour: '2-digit',
@@ -92,8 +101,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
                 </div>
 
                 <div
-                  className="text-[10px] font-[200] leading-relaxed break-words pl-0.5 py-0.5 message-text transition-colors"
-                  style={{ fontFamily: 'Outfit', letterSpacing: '0.01em' }}
+                  className="text-[10px] font-[300] leading-relaxed break-words pl-0.5 py-0.5 message-text transition-colors"
+                  style={{ 
+                    fontFamily: 'Outfit', 
+                    letterSpacing: '0.01em',
+                    color: getMessageTextColor(msg.agent)
+                  }}
                 >
                   {msg.text}
                 </div>
