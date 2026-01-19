@@ -213,17 +213,25 @@
     },
     "github": {
         "name": "github",
-        "tier": 3,
+        "description": "Full-cycle GitHub integration for repository management, code search, issues, and PRs.",
+        "tier": 2,
         "category": "integration",
-        "description": "GitHub API interactions",
+        "priority_note": "Requires GITHUB_TOKEN in .env",
         "capabilities": [
             "Fetch file contents",
             "User profile information",
             "Repository management (via API)"
         ],
         "key_tools": [
-            "github_whoami",
-            "get_file_contents"
+            "get_file_contents",
+            "create_or_update_file",
+            "search_code",
+            "search_repositories",
+            "list_issues",
+            "create_issue",
+            "list_pull_requests",
+            "create_pull_request",
+            "merge_pull_request"
         ],
         "when_to_use": "Accessing external code repositories, checking user status on GitHub."
     },

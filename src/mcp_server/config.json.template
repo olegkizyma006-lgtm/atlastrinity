@@ -157,13 +157,16 @@
       ]
     },
     "github": {
-      "command": "python3",
+      "command": "npx",
       "connect_timeout": 60,
       "args": [
-        "-m",
-        "src.mcp_server.github_server"
+        "-y",
+        "@modelcontextprotocol/server-github"
       ],
-      "description": "GitHub API access for file content and user info (requires GITHUB_TOKEN).",
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "description": "Advanced GitHub API integration (PRs, Issues, Search, File Ops). Requires GITHUB_TOKEN.",
       "disabled": false,
       "tier": 3,
       "agents": [

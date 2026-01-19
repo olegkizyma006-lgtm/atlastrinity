@@ -943,6 +943,164 @@
         },
         "description": "Internal tool to restart an MCP server"
     },
+    "create_or_update_file": {
+        "server": "github",
+        "description": "Create or update a file in a repository.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "owner": {
+                    "type": "string"
+                },
+                "repo": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "sha": {
+                    "type": "string",
+                    "description": "Required when updating an existing file"
+                },
+                "branch": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "owner",
+                "repo",
+                "path",
+                "content",
+                "message"
+            ]
+        }
+    },
+    "search_code": {
+        "server": "github",
+        "description": "Search for code across GitHub.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "q": {
+                    "type": "string",
+                    "description": "The search query (e.g. 'filename:config.json')"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "per_page": {
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "q"
+            ]
+        }
+    },
+    "list_issues": {
+        "server": "github",
+        "description": "List issues in a repository.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "owner": {
+                    "type": "string"
+                },
+                "repo": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "open",
+                        "closed",
+                        "all"
+                    ]
+                },
+                "assignee": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "owner",
+                "repo"
+            ]
+        }
+    },
+    "create_issue": {
+        "server": "github",
+        "description": "Create a new issue.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "owner": {
+                    "type": "string"
+                },
+                "repo": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "body": {
+                    "type": "string"
+                },
+                "assignees": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": [
+                "owner",
+                "repo",
+                "title"
+            ]
+        }
+    },
+    "create_pull_request": {
+        "server": "github",
+        "description": "Create a new pull request.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "owner": {
+                    "type": "string"
+                },
+                "repo": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "head": {
+                    "type": "string",
+                    "description": "The name of the branch where your changes are implemented."
+                },
+                "base": {
+                    "type": "string",
+                    "description": "The name of the branch you want the changes pulled into."
+                },
+                "body": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "owner",
+                "repo",
+                "title",
+                "head",
+                "base"
+            ]
+        }
+    },
     "search_nodes": {
         "server": "memory",
         "alias_for": "search"
