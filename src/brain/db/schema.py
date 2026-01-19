@@ -8,8 +8,45 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+# Database-agnostic UUID and JSON support
+from sqlalchemy.types import TypeDecorator, CHAR
+import uuid
+
+class GUID(TypeDecorator):
+    """Platform-independent GUID type.
+    Uses PostgreSQL's UUID type, otherwise uses CHAR(32), storing as string without hyphens.
+    """
+    impl = CHAR
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+            return dialect.type_descriptor(PG_UUID())
+        else:
+            return dialect.type_descriptor(CHAR(36))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        elif dialect.name == 'postgresql':
+            return str(value)
+        else:
+            if not isinstance(value, uuid.UUID):
+                return str(uuid.UUID(value))
+            else:
+                return str(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        else:
+            if not isinstance(value, uuid.UUID):
+                return uuid.UUID(value)
+            else:
+                return value
 
 
 class Base(DeclarativeBase):
@@ -19,10 +56,10 @@ class Base(DeclarativeBase):
 class Session(Base):
     __tablename__ = "sessions"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
     started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    metadata_blob: Mapped[Dict[str, Any]] = mapped_column(JSONB, default={})
+    metadata_blob: Mapped[Dict[str, Any]] = mapped_column(JSON, default={})
 
     tasks: Mapped[List["Task"]] = relationship(
         back_populates="session", cascade="all, delete-orphan"
@@ -32,7 +69,7 @@ class Session(Base):
 class Task(Base):
     __tablename__ = "tasks"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
     session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("sessions.id"))
 
     goal: Mapped[str] = mapped_column(Text)
@@ -53,7 +90,7 @@ class Task(Base):
 class TaskStep(Base):
     __tablename__ = "task_steps"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
     task_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tasks.id"))
 
     sequence_number: Mapped[str] = mapped_column(String(50))
@@ -73,7 +110,7 @@ class TaskStep(Base):
 class ToolExecution(Base):
     __tablename__ = "tool_executions"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
     step_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("task_steps.id"))
     
     # Direct task association for faster audits
@@ -81,7 +118,7 @@ class ToolExecution(Base):
 
     server_name: Mapped[str] = mapped_column(String(100))
     tool_name: Mapped[str] = mapped_column(String(100))
-    arguments: Mapped[Dict[str, Any]] = mapped_column(JSONB)
+    arguments: Mapped[Dict[str, Any]] = mapped_column(JSON)
     result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -97,7 +134,7 @@ class LogEntry(Base):
     level: Mapped[str] = mapped_column(String(20))
     source: Mapped[str] = mapped_column(String(50))
     message: Mapped[str] = mapped_column(Text)
-    metadata_blob: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    metadata_blob: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
 
 # Knowledge Graph Nodes (Vertices)
@@ -106,7 +143,7 @@ class KGNode(Base):
 
     id: Mapped[str] = mapped_column(Text, primary_key=True)  # URI: file://..., task:uuid
     type: Mapped[str] = mapped_column(String(50))  # FILE, TASK, TOOL, CONCEPT
-    attributes: Mapped[Dict[str, Any]] = mapped_column(JSONB, default={})
+    attributes: Mapped[Dict[str, Any]] = mapped_column(JSON, default={})
 
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -128,14 +165,14 @@ class AgentMessage(Base):
     """Typed messages between agents for reliable communication"""
     __tablename__ = "agent_messages"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
     session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("sessions.id"))
 
     from_agent: Mapped[str] = mapped_column(String(20))  # atlas, tetyana, grisha
     to_agent: Mapped[str] = mapped_column(String(20))
     message_type: Mapped[str] = mapped_column(String(50))  # rejection, help_request, feedback
     step_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    payload: Mapped[Dict[str, Any]] = mapped_column(JSONB)
+    payload: Mapped[Dict[str, Any]] = mapped_column(JSON)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -147,7 +184,7 @@ class RecoveryAttempt(Base):
     __tablename__ = "recovery_attempts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    step_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("task_steps.id"))
+    step_id: Mapped[uuid.UUID] = mapped_column(GUID(), ForeignKey("task_steps.id"))
 
     depth: Mapped[int] = mapped_column(Integer)  # recursion depth
     recovery_method: Mapped[str] = mapped_column(String(50))  # vibe, atlas_help, retry
@@ -167,8 +204,8 @@ class ConversationSummary(Base):
     session_id: Mapped[str] = mapped_column(String(100), index=True)
     
     summary: Mapped[str] = mapped_column(Text)
-    key_entities: Mapped[List[str]] = mapped_column(JSONB, default=[]) # List of names/concepts
+    key_entities: Mapped[List[str]] = mapped_column(JSON, default=[]) # List of names/concepts
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    metadata_blob: Mapped[Dict[str, Any]] = mapped_column(JSONB, default={})
+    metadata_blob: Mapped[Dict[str, Any]] = mapped_column(JSON, default={})
 

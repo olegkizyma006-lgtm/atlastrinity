@@ -17,10 +17,9 @@ interface Message {
 
 interface ChatPanelProps {
   messages: Message[];
-  onNewSession?: () => void;
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onNewSession }) => {
+const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
   // FILTER: Only voice messages and user messages
   const filteredMessages = messages.filter((m) => m.type === 'voice' || m.agent === 'USER');
 
@@ -61,22 +60,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onNewSession }) => {
 
   return (
     <div className="flex-1 flex flex-col p-4 font-mono h-full overflow-hidden relative">
-      {/* Absolute Positioned Header to align with top line */}
-      <div className="absolute top-[-38px] right-0 flex items-center gap-3 opacity-30 hover:opacity-100 transition-opacity shrink-0 uppercase tracking-[0.4em] text-[6px] font-bold select-none cursor-default">
-        <div className="flex items-center gap-1.5">
-          <div className="w-[5px] h-[5px] rounded-full border border-white/20"></div>
-          <span>communication::hud</span>
-        </div>
-
-        {/* New Session Plus Button */}
-        <button
-          onClick={onNewSession}
-          className="bg-white/5 hover:bg-white/20 border border-white/10 rounded px-1.5 py-0.5 transition-colors flex items-center justify-center group"
-          title="New Session"
-        >
-          <span className="text-[10px] leading-none group-hover:scale-110 transition-transform">+</span>
-        </button>
-      </div>
+      <div style={{ height: '32px' }} /> {/* Spacer for title bar area */}
 
       {/* Main Chat Stream */}
       <div
@@ -114,8 +98,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onNewSession }) => {
                 </div>
 
                 <div
-                  className="text-[8.5px] font-[200] leading-relaxed break-words pl-0.5 py-0.5 text-white/50 group-hover:text-white/85 transition-colors"
-                  style={{ fontFamily: 'Outfit', letterSpacing: '0.02em' }}
+                  className="text-[10px] font-[200] leading-relaxed break-words pl-0.5 py-0.5 message-text transition-colors"
+                  style={{ fontFamily: 'Outfit', letterSpacing: '0.01em' }}
                 >
                   {msg.text}
                 </div>

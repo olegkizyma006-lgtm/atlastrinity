@@ -153,7 +153,7 @@ async def reset_session():
 async def get_sessions():
     """List all available sessions"""
     from .state_manager import state_manager
-    return state_manager.list_sessions()
+    return await state_manager.list_sessions()
 
 
 @app.post("/api/sessions/restore")

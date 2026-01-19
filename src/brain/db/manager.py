@@ -9,10 +9,16 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from .schema import Base
+from ..config import CONFIG_ROOT
 from ..config_loader import config
 
-# Primary connection string from config, fallback to env
-DB_URL = config.get("database.url", os.getenv("DATABASE_URL", "postgresql+asyncpg://dev:postgres@localhost/atlastrinity_db"))
+# Primary connection string from config, fallback to SQLite in global folder
+# Default: ~/.config/atlastrinity/atlastrinity.db
+DEFAULT_DB_PATH = CONFIG_ROOT / "atlastrinity.db"
+DB_URL = config.get(
+    "database.url", 
+    os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{DEFAULT_DB_PATH}")
+)
 
 
 class DatabaseManager:

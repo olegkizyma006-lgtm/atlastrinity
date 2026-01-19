@@ -692,9 +692,9 @@ body {
 }
 
 .command-textarea-extended:focus {
-  border-color: rgba(0, 163, 255, 0.3);
-  background: rgba(0, 163, 255, 0.05);
-  box-shadow: 0 0 10px rgba(0, 163, 255, 0.2);
+  border-color: rgba(0, 163, 255, 0.6);
+  background: rgba(0, 163, 255, 0.04);
+  box-shadow: 0 0 15px rgba(0, 163, 255, 0.15);
 }
 
 .command-textarea-extended::placeholder {
@@ -704,77 +704,131 @@ body {
 
 /* Control Buttons for Command Line */
 .control-btn {
-  background: rgba(0, 163, 255, 0.05);
-  border: 1px solid rgba(0, 163, 255, 0.1);
-  color: var(--atlas-blue);
-  opacity: 0.6;
+  background: #020617;
+  border: 1px solid rgba(0, 163, 255, 0.4);
+  color: #00A3FF;
+  opacity: 0.8;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 6px;
   width: 32px;
   height: 32px;
+  box-shadow: 0 0 10px rgba(0, 163, 255, 0.1);
+  -webkit-app-region: no-drag;
 }
 
 .control-btn:hover {
   opacity: 1;
-  background: rgba(0, 163, 255, 0.1);
-  border-color: rgba(0, 163, 255, 0.3);
-  transform: translateY(-1px);
-}
-
-.control-btn.active {
-  opacity: 1;
-  background: rgba(0, 255, 65, 0.1);
-  border-color: rgba(0, 255, 65, 0.3);
-  color: var(--tetyana-green);
-}
-
-.control-btn.listening {
-  opacity: 1;
-  background: rgba(255, 140, 0, 0.1);
-  border-color: rgba(255, 140, 0, 0.3);
-  color: var(--grisha-orange);
-  animation: pulse 1.5s infinite;
-}
-
-/* Send Button */
-.send-btn {
-  background: rgba(0, 163, 255, 0.05);
-  border: 1px solid rgba(0, 163, 255, 0.1);
-  color: var(--atlas-blue);
-  opacity: 0.3;
-  cursor: not-allowed;
-  transition: all 0.2s;
-  padding: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  width: 36px;
-  height: 36px;
-}
-
-.send-btn:hover {
-  opacity: 0.5;
-}
-
-.send-btn.active {
-  opacity: 1;
-  cursor: pointer;
-  background: rgba(0, 163, 255, 0.1);
-  border-color: rgba(0, 163, 255, 0.3);
-  color: var(--atlas-blue);
+  background: #0f172a;
+  border-color: rgba(0, 163, 255, 0.7);
+  box-shadow: 0 0 15px rgba(0, 163, 255, 0.3);
+  transform: translateY(-2px);
 }
 
 .send-btn.active:hover {
   background: rgba(0, 163, 255, 0.2);
   border-color: rgba(0, 163, 255, 0.5);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 163, 255, 0.3);
+  box-shadow: 0 0 15px rgba(0, 163, 255, 0.2);
+}
+
+/* Title Bar Buttons */
+.titlebar-btn {
+  background: #020617;
+  border: 1px solid rgba(0, 163, 255, 0.3);
+  color: rgba(0, 163, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  width: 18px;
+  height: 18px;
+  position: relative;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-btn:hover {
+  background: #0f172a;
+  border-color: rgba(0, 163, 255, 0.6);
+  color: #00A3FF;
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(0, 163, 255, 0.4);
+}
+
+.titlebar-btn.active {
+  background: rgba(0, 163, 255, 0.15);
+  border-color: rgba(0, 163, 255, 1);
+  color: #00A3FF;
+  box-shadow: 0 0 20px rgba(0, 163, 255, 0.5), inset 0 0 8px rgba(0, 163, 255, 0.2);
+}
+
+.control-btn.active {
+  opacity: 1;
+  background: rgba(0, 255, 65, 0.08);
+  border: 1px solid rgba(0, 255, 65, 0.6);
+  color: #00FF41;
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.3), inset 0 0 10px rgba(0, 255, 65, 0.1);
+}
+
+.control-btn.listening {
+  opacity: 1;
+  background: rgba(255, 140, 0, 0.1);
+  border-color: rgba(255, 140, 0, 0.5);
+  color: var(--grisha-orange);
+  animation: pulse 1.5s infinite;
+  box-shadow: 0 0 15px rgba(255, 140, 0, 0.2);
+}
+
+.send-btn {
+  background: rgba(0, 163, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.2);
+  cursor: not-allowed;
+  transition: all 0.3s ease;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  width: 42px;
+  height: 42px;
+}
+
+.send-btn.active {
+  opacity: 1;
+  cursor: pointer;
+  background: rgba(0, 163, 255, 0.05);
+  border-color: rgba(0, 163, 255, 0.3);
+  color: var(--atlas-blue);
+}
+
+/* Chat History Styling Refinement */
+.chat-message-container {
+  transition: all 0.3s ease;
+}
+
+.chat-message-container:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.message-text {
+  font-weight: 300;
+  letter-spacing: 0.01em;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+}
+
+.message-text:hover {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .pt-4 {
@@ -900,6 +954,109 @@ body {
   50% {
     opacity: 0;
   }
+}
+
+/* Base Position Utilities */
+.fixed {
+  position: fixed;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.relative {
+  position: relative;
+}
+
+.inset-0 {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.z-max {
+  z-index: 9999;
+}
+
+.z-100 {
+  z-index: 100 !important;
+}
+
+.z-50 {
+  z-index: 50 !important;
+}
+
+.pointer-events-auto {
+  pointer-events: auto;
+}
+
+.pointer-events-none {
+  pointer-events: none;
+}
+
+/* Flexbox Extras */
+.flex-1 {
+  flex: 1 1 0%;
+}
+
+.shrink-0 {
+  flex-shrink: 0;
+}
+
+.grow {
+  flex-grow: 1;
+}
+
+.items-start {
+  align-items: flex-start;
+}
+
+.items-end {
+  align-items: flex-end;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+/* Spacing Helpers */
+.gap-1 {
+  gap: 4px;
+}
+
+.gap-1\.5 {
+  gap: 6px;
+}
+
+.gap-2 {
+  gap: 8px;
+}
+
+.gap-3 {
+  gap: 12px;
+}
+
+.gap-4 {
+  gap: 16px;
+}
+
+.gap-8 {
+  gap: 32px;
+}
+
+/* Sizing Helpers */
+.h-full {
+  height: 100%;
+}
+
+.w-full {
+  width: 100%;
 }
 
 /* Fix for Grisha Visibility */

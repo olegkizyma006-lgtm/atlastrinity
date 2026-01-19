@@ -84,10 +84,11 @@ const App: React.FC = () => {
       if (retryCount < 5) {
         // Retry with exponential backoff if server is still starting
         const delay = Math.pow(2, retryCount) * 1000;
-        console.warn(`[BRAIN] Session fetch failed, retrying in ${delay}ms... (Attempt ${retryCount + 1}/5)`);
+        // Only warn after some retries or it gets annoying
+        if (retryCount > 2) {
+          console.warn(`[BRAIN] Session fetch still failing, retrying in ${delay}ms... (Attempt ${retryCount + 1}/5)`);
+        }
         setTimeout(() => fetchSessions(retryCount + 1), delay);
-      } else {
-        console.error('Failed to fetch sessions after retries:', err);
       }
     }
   };
@@ -123,13 +124,9 @@ const App: React.FC = () => {
         }
       }
     } catch (err) {
+      // SILENT during connection refused to clean up console
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
-        const now = Date.now();
-        // Only log connection refused if it persists beyond initial startup (5s)
-        if (!window.hasOwnProperty('startTime')) (window as any).startTime = now;
-        if (now - (window as any).startTime > 5000) {
-          console.warn(`[BRAIN] Connection refused. Is the Python server running on ${API_BASE}?`);
-        }
+        // Do nothing, silence the console spam
       } else {
         console.error('[BRAIN] Polling error:', err);
       }
@@ -138,10 +135,20 @@ const App: React.FC = () => {
 
   // Initialize & Poll State
   useEffect(() => {
-    pollState();
-    fetchSessions();
-    const interval = setInterval(pollState, 1500); // Polling every 1.5s
-    return () => clearInterval(interval);
+    let interval: NodeJS.Timeout;
+
+    // Delay initial connection attempts by 5 seconds to allow Python server to start
+    // This prevents ERR_CONNECTION_REFUSED from "tearing the eye" in the dev console
+    const startupTimeout = setTimeout(() => {
+      pollState();
+      fetchSessions();
+      interval = setInterval(pollState, 1500); // Polling every 1.5s
+    }, 7000);
+
+    return () => {
+      clearTimeout(startupTimeout);
+      if (interval) clearInterval(interval);
+    };
   }, []);
 
   const handleCommand = async (cmd: string) => {
@@ -251,21 +258,36 @@ const App: React.FC = () => {
       <div className="pulsing-border left"></div>
       <div className="pulsing-border right"></div>
 
-      {/* Global Title Bar Controls (Positioned near traffic lights) */}
-      <div className="fixed top-2 left-20 z-[100] flex items-center gap-2 pointer-events-auto">
+      {/* Global Title Bar Controls (Positioned exactly near traffic lights) */}
+      <div
+        className="fixed flex items-center gap-2 pointer-events-auto"
+        style={{ top: '12px', left: '78px', WebkitAppRegion: 'no-drag', zIndex: 10001 } as any}
+      >
         <button
-          onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+          onClick={() => {
+            console.log('History clicked');
+            setIsHistoryOpen(!isHistoryOpen);
+          }}
           className={`titlebar-btn group ${isHistoryOpen ? 'active' : ''}`}
           title="Session History"
         >
-          <span className="text-[10px] group-hover:scale-110 transition-transform">⌛</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="12 8 12 12 14 14"></polyline>
+            <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"></path>
+          </svg>
         </button>
         <button
-          onClick={handleNewSession}
+          onClick={() => {
+            console.log('New Session clicked');
+            handleNewSession();
+          }}
           className="titlebar-btn group"
           title="New Session"
         >
-          <span className="text-[12px] group-hover:scale-110 transition-transform">+</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
         </button>
       </div>
 

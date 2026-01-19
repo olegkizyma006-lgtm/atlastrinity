@@ -111,46 +111,67 @@ class StateManager:
         """Directly get session data by ID."""
         return self.restore_session(session_id)
 
-    def list_sessions(self) -> List[Dict[str, Any]]:
-        """List all available sessions with summaries."""
-        if not self.available:
-            return []
+    async def list_sessions(self) -> List[Dict[str, Any]]:
+        """List all available sessions with summaries from Redis and DB."""
+        sessions_map = {}
 
-        sessions = []
-        try:
-            pattern = self._key("session", "*")
-            for key in self.redis.scan_iter(pattern):
-                data = self.redis.get(key)
-                if data:
-                    try:
-                        state = json.loads(data)
-                        session_id = key.split(":")[-1]
-                        
-                        # Use the first user message as theme if not explicitly set
-                        theme = state.get("_theme", "Untitled Session")
-                        if theme == "Untitled Session":
-                            msgs = state.get("messages", [])
-                            for m in msgs:
-                                if isinstance(m, dict) and m.get("type") == "human":
-                                    theme = m.get("content", "")[:30] + "..."
-                                    break
-                                elif hasattr(m, "content") and "HumanMessage" in str(type(m)):
-                                    theme = m.content[:30] + "..."
-                                    break
+        # 1. Fetch from Redis (Active but ephemeral)
+        if self.available:
+            try:
+                pattern = self._key("session", "*")
+                for key in self.redis.scan_iter(pattern):
+                    data = self.redis.get(key)
+                    if data:
+                        try:
+                            state = json.loads(data)
+                            session_id = key.split(":")[-1]
+                            theme = state.get("_theme", "Untitled Session")
+                            if theme == "Untitled Session":
+                                msgs = state.get("messages", [])
+                                for m in msgs:
+                                    if isinstance(m, dict) and m.get("type") == "human":
+                                        theme = m.get("content", "")[:40] + "..."
+                                        break
+                            
+                            sessions_map[session_id] = {
+                                "id": session_id,
+                                "theme": theme,
+                                "saved_at": state.get("_saved_at", datetime.now().isoformat()),
+                                "source": "redis"
+                            }
+                        except Exception as e:
+                            logger.error(f"[STATE] Error parsing redis session {key}: {e}")
+            except Exception as e:
+                logger.error(f"[STATE] Failed to list redis sessions: {e}")
 
-                        sessions.append({
-                            "id": session_id,
-                            "theme": theme,
-                            "saved_at": state.get("_saved_at", ""),
-                        })
-                    except Exception as e:
-                        logger.error(f"[STATE] Error parsing session {key}: {e}")
+        # 2. Fetch from DB (Persistent History)
+        from .db.manager import db_manager
+        if db_manager.available:
+            try:
+                from sqlalchemy import select
+                from .db.schema import Session as DBSession
+                async with await db_manager.get_session() as session:
+                    stmt = select(DBSession).order_by(DBSession.started_at.desc()).limit(50)
+                    result = await session.execute(stmt)
+                    db_sessions = result.scalars().all()
+                    
+                    for ds in db_sessions:
+                        sid = str(ds.id)
+                        # We prefer Redis state if it exists (might be newer)
+                        if sid not in sessions_map:
+                            meta = ds.metadata_blob or {}
+                            sessions_map[sid] = {
+                                "id": sid,
+                                "theme": meta.get("theme") or f"Session {ds.started_at.strftime('%Y-%m-%d %H:%M')}",
+                                "saved_at": ds.started_at.isoformat(),
+                                "source": "db"
+                            }
+            except Exception as e:
+                logger.error(f"[STATE] Failed to list DB sessions: {e}")
 
-            # Sort by saved_at desc
-            sessions.sort(key=lambda x: x["saved_at"], reverse=True)
-        except Exception as e:
-            logger.error(f"[STATE] Failed to list sessions: {e}")
-
+        # Sort combined list by saved_at desc
+        sessions = list(sessions_map.values())
+        sessions.sort(key=lambda x: x["saved_at"], reverse=True)
         return sessions
 
     def checkpoint(self, session_id: str, step_id: int, step_result: Dict[str, Any]) -> bool:

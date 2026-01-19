@@ -18,11 +18,9 @@ interface LogEntry {
 
 interface ExecutionLogProps {
   logs: LogEntry[];
-  onNewSession?: () => void;
-  onToggleHistory?: () => void;
 }
 
-const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs, onNewSession, onToggleHistory }) => {
+const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
   // Filter out noisy connection logs
   const filteredLogs = logs.filter(
     (l) => !l.message.includes('Connected to') && !l.message.includes('health check')
@@ -73,34 +71,7 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs, onNewSession, onToggl
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden font-mono relative">
-      {/* Window Header - Absolute Positioned to align with traffic lights */}
-      <div className="absolute top-[-38px] left-[110px] right-0 flex items-center justify-between gap-1.5 opacity-30 hover:opacity-100 transition-opacity shrink-0 select-none px-4">
-        <span className="text-[6px] tracking-[0.4em] uppercase font-bold text-white/50">
-          core::log_stream
-        </span>
-
-        <div className="flex items-center gap-1.5">
-          {/* History Button */}
-          <button
-            onClick={onToggleHistory}
-            className="control-btn"
-            style={{ width: '22px', height: '22px', padding: '4px' }}
-            title="Session History"
-          >
-            <span className="text-[9px] leading-none group-hover:scale-110 transition-transform">⌛</span>
-          </button>
-
-          {/* New Session Button */}
-          <button
-            onClick={onNewSession}
-            className="control-btn"
-            style={{ width: '22px', height: '22px', padding: '4px' }}
-            title="New Session"
-          >
-            <span className="text-[12px] leading-none group-hover:scale-110 transition-transform">+</span>
-          </button>
-        </div>
-      </div>
+      <div style={{ height: '32px' }} /> {/* Spacer for title bar area */}
 
       <div
         ref={scrollContainerRef}
