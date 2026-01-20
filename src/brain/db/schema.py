@@ -143,7 +143,9 @@ class KGNode(Base):
     __tablename__ = "kg_nodes"
 
     id: Mapped[str] = mapped_column(Text, primary_key=True)  # URI: file://..., task:uuid
-    type: Mapped[str] = mapped_column(String(50))  # FILE, TASK, TOOL, CONCEPT
+    type: Mapped[str] = mapped_column(String(50))  # FILE, TASK, TOOL, CONCEPT, DATASET
+    namespace: Mapped[str] = mapped_column(String(100), default="global", index=True)
+    task_id: Mapped[Optional[uuid.UUID]] = mapped_column(GUID(), ForeignKey("tasks.id"), nullable=True)
     attributes: Mapped[Dict[str, Any]] = mapped_column(JSON, default={})
 
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -157,6 +159,7 @@ class KGEdge(Base):
     source_id: Mapped[str] = mapped_column(ForeignKey("kg_nodes.id"))
     target_id: Mapped[str] = mapped_column(ForeignKey("kg_nodes.id"))
     relation: Mapped[str] = mapped_column(String(50))  # CREATED, MODIFIED, READ, USED
+    namespace: Mapped[str] = mapped_column(String(100), default="global", index=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

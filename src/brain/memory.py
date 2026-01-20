@@ -270,7 +270,7 @@ class LongTermMemory:
             logger.error(f"[MEMORY] Failed to recall tasks: {e}")
             return []
 
-    def add_knowledge_node(self, node_id: str, text: str, metadata: Dict[str, Any]) -> bool:
+    def add_knowledge_node(self, node_id: str, text: str, metadata: Dict[str, Any], namespace: str = "global", task_id: str = "") -> bool:
         """Add a knowledge graph node to vector store."""
         if not self.available:
             return False

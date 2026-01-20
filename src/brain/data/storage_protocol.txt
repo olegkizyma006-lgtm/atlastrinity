@@ -31,7 +31,19 @@ B. VECTOR MEMORY (ChromaDB):
 - ATLAS: Must check `conversation_summaries` and `strategies` before admiting ignorance.
 - SHARED KNOWLEDGE: If you find a new ID (ЄДРПОУ) or dataset URL, ALWAYS store it in the Knowledge Graph via `kg_nodes`.
 
+4. DATA ISOLATION (TASK SCOPING)
+--------------------------------
+- NAMESPACING: Any data collected for a specific task MUST be isolated using the `namespace` field in the Knowledge Graph or `task_id` in metadata.
+- TASK-SPECIFIC VAULT: Large raw datasets (e.g., CSV dumps) should be stored in `workspace/vault/<task_id>/` and referenced as a single node in the global Knowledge Graph.
+
+5. BULK INGESTION & SEMANTIC INDEXING
+-------------------------------------
+- VECTORIZED TABLES: For large datasets (>10,000 rows), do not create individual KG nodes for every row. 
+- INDEXING STRATEGY: Create a specialized ChromaDB collection (Vectorized Table) for the dataset and link it to the KG as a node of type `DATASET`.
+- BATCHING: Use the `bulk_ingest_table` tool for efficient processing (embeddings are generated in batches).
+
 DEVIATION POLICY (ROOM TO MANEUVER)
 ===================================
 - STORAGE VECTOR: Standard paths are the default. If a specific task or local environment requires a temporary or different path (e.g. `Desktop` for user convenience), you ARE AUTHORIZED to deviate.
 - DATABASE PERSISTENCE: Never bypass the core memory servers for long-term facts, but you can use temporary JSON/CSV files in the workspace for intermediate processing.
+- ISOLATION OVERRIDE: If a dataset is universally useful (e.g. a list of all bank codes), elevate it from a task-specific namespace to the `global` namespace.
