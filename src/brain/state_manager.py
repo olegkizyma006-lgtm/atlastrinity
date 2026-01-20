@@ -10,14 +10,16 @@ Redis-based state persistence for:
 import json
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     import redis.asyncio as redis
+
     REDIS_AVAILABLE = True
 except ImportError:
     try:
         import redis
+
         REDIS_AVAILABLE = True
     except ImportError:
         REDIS_AVAILABLE = False
@@ -49,16 +51,16 @@ class StateManager:
         redis_url = os.getenv("REDIS_URL") or config.get("state.redis_url")
 
         if redis_url:
-            self.redis: Optional[Any] = redis.Redis.from_url(
+            self.redis: Any | None = redis.Redis.from_url(
                 redis_url, decode_responses=True, socket_connect_timeout=2
             )
             logger.info("[STATE] Redis connected via URL")
         else:
-            self.redis: Optional[Any] = redis.Redis(
+            self.redis: Any | None = redis.Redis(
                 host=host, port=port, decode_responses=True, socket_connect_timeout=2
             )
             logger.info(f"[STATE] Redis connected at {host}:{port}")
-        
+
         # Connection will be tested lazily or in initialize
         self.available = True
 
@@ -66,23 +68,22 @@ class StateManager:
         """Generate Redis key with prefix."""
         return f"{self.prefix}:{':'.join(parts)}"
 
-    def _serialize_state(self, state: Dict[str, Any]) -> str:
+    def _serialize_state(self, state: dict[str, Any]) -> str:
         """Serialize state, handling LangChain messages correctly."""
         from langchain_core.messages import message_to_dict
-        
+
         serialized = state.copy()
         if "messages" in serialized:
             serialized["messages"] = [
-                message_to_dict(m) if not isinstance(m, dict) else m 
-                for m in serialized["messages"]
+                message_to_dict(m) if not isinstance(m, dict) else m for m in serialized["messages"]
             ]
-        
+
         return json.dumps(serialized, default=str)
 
-    def _deserialize_state(self, data: str) -> Dict[str, Any]:
+    def _deserialize_state(self, data: str) -> dict[str, Any]:
         """Deserialize state, reconstructing LangChain messages defensively."""
         from langchain_core.messages import messages_from_dict
-        
+
         try:
             state = json.loads(data)
             if "messages" in state:
@@ -90,24 +91,26 @@ class StateManager:
                 # DEFENSIVE: Only attempt to restore if we have a list of dicts
                 if isinstance(msgs, list):
                     valid_dicts = [m for m in msgs if isinstance(m, dict) and "type" in m]
-                    
+
                     if valid_dicts:
                         # Reconstruct objects
                         state["messages"] = messages_from_dict(valid_dicts)
                     else:
                         # Legacy data or empty - start fresh for messages
-                        logger.warning(f"[STATE] No valid dict messages found. Found {len(msgs)} legacy/string items. Start fresh history.")
+                        logger.warning(
+                            f"[STATE] No valid dict messages found. Found {len(msgs)} legacy/string items. Start fresh history."
+                        )
                         state["messages"] = []
                 else:
                     state["messages"] = []
-            
+
             return state
         except Exception as e:
             logger.error(f"[STATE] Deserialization failed: {e}")
             # Return a minimal valid state so orchestrator doesn't crash
             return {"messages": [], "system_state": "IDLE"}
 
-    async def save_session(self, session_id: str, state: Dict[str, Any]) -> bool:
+    async def save_session(self, session_id: str, state: dict[str, Any]) -> bool:
         """
         Save full session state.
         """
@@ -118,7 +121,7 @@ class StateManager:
             key = self._key("session", session_id)
             state_to_save = state.copy()
             state_to_save["_saved_at"] = datetime.now().isoformat()
-            
+
             await self.redis.set(key, self._serialize_state(state_to_save))
             await self.redis.expire(key, 86400 * 7)  # 7 days TTL
             logger.info(f"[STATE] Session saved: {session_id}")
@@ -127,7 +130,7 @@ class StateManager:
             logger.error(f"[STATE] Failed to save session: {e}")
             return False
 
-    async def restore_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+    async def restore_session(self, session_id: str) -> dict[str, Any] | None:
         """
         Restore session state.
         """
@@ -146,11 +149,11 @@ class StateManager:
 
         return None
 
-    async def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+    async def get_session(self, session_id: str) -> dict[str, Any] | None:
         """Directly get session data by ID."""
         return await self.restore_session(session_id)
 
-    async def list_sessions(self) -> List[Dict[str, Any]]:
+    async def list_sessions(self) -> list[dict[str, Any]]:
         """List all available sessions with summaries from Redis and DB."""
         sessions_map = {}
 
@@ -171,12 +174,12 @@ class StateManager:
                                     if isinstance(m, dict) and m.get("type") == "human":
                                         theme = m.get("content", "")[:40] + "..."
                                         break
-                            
+
                             sessions_map[session_id] = {
                                 "id": session_id,
                                 "theme": theme,
                                 "saved_at": state.get("_saved_at", datetime.now().isoformat()),
-                                "source": "redis"
+                                "source": "redis",
                             }
                         except Exception as e:
                             logger.error(f"[STATE] Error parsing redis session {key}: {e}")
@@ -185,15 +188,18 @@ class StateManager:
 
         # 2. Fetch from DB (Persistent History)
         from .db.manager import db_manager
+
         if db_manager.available:
             try:
                 from sqlalchemy import select
+
                 from .db.schema import Session as DBSession
+
                 async with await db_manager.get_session() as session:
                     stmt = select(DBSession).order_by(DBSession.started_at.desc()).limit(50)
                     result = await session.execute(stmt)
                     db_sessions = result.scalars().all()
-                    
+
                     for ds in db_sessions:
                         sid = str(ds.id)
                         # We prefer Redis state if it exists (might be newer)
@@ -201,9 +207,10 @@ class StateManager:
                             meta = ds.metadata_blob or {}
                             sessions_map[sid] = {
                                 "id": sid,
-                                "theme": meta.get("theme") or f"Session {ds.started_at.strftime('%Y-%m-%d %H:%M')}",
+                                "theme": meta.get("theme")
+                                or f"Session {ds.started_at.strftime('%Y-%m-%d %H:%M')}",
                                 "saved_at": ds.started_at.isoformat(),
-                                "source": "db"
+                                "source": "db",
                             }
             except Exception as e:
                 logger.error(f"[STATE] Failed to list DB sessions: {e}")
@@ -213,7 +220,7 @@ class StateManager:
         sessions.sort(key=lambda x: x["saved_at"], reverse=True)
         return sessions
 
-    async def checkpoint(self, session_id: str, step_id: int, step_result: Dict[str, Any]) -> bool:
+    async def checkpoint(self, session_id: str, step_id: int, step_result: dict[str, Any]) -> bool:
         """
         Save checkpoint for a specific step.
 
@@ -239,7 +246,7 @@ class StateManager:
             logger.error(f"[STATE] Failed to checkpoint: {e}")
             return False
 
-    async def get_last_checkpoint(self, session_id: str) -> Optional[Dict[str, Any]]:
+    async def get_last_checkpoint(self, session_id: str) -> dict[str, Any] | None:
         """Get the most recent checkpoint for a session."""
         if not self.available or not self.redis:
             return None
@@ -271,7 +278,7 @@ class StateManager:
             logger.error(f"[STATE] Failed to get checkpoint: {e}")
             return None
 
-    async def set_current_task(self, task_description: str, task_id: Optional[str] = None) -> bool:
+    async def set_current_task(self, task_description: str, task_id: str | None = None) -> bool:
         """Save the current active task."""
         if not self.available or not self.redis:
             return False
@@ -289,7 +296,7 @@ class StateManager:
             logger.error(f"[STATE] Failed to set current task: {e}")
             return False
 
-    async def get_current_task(self) -> Optional[Dict[str, Any]]:
+    async def get_current_task(self) -> dict[str, Any] | None:
         """Get the current active task (for recovery after restart)."""
         if not self.available or not self.redis:
             return None
@@ -324,7 +331,7 @@ class StateManager:
             logger.error(f"[STATE] Failed to clear session: {e}")
             return False
 
-    async def publish_event(self, channel: str, data: Dict[str, Any]) -> bool:
+    async def publish_event(self, channel: str, data: dict[str, Any]) -> bool:
         """
         Broadcast an event via Redis Pub/Sub.
 
@@ -344,7 +351,7 @@ class StateManager:
             logger.error(f"[STATE] Failed to publish event: {e}")
             return False
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Get state manager statistics."""
         if not self.available or not self.redis:
             return {"available": False}

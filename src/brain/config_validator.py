@@ -12,7 +12,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 
@@ -36,14 +36,14 @@ class ValidationResult:
 
     file_path: Path
     valid: bool
-    issues: List[ValidationIssue] = field(default_factory=list)
+    issues: list[ValidationIssue] = field(default_factory=list)
 
     @property
-    def errors(self) -> List[ValidationIssue]:
+    def errors(self) -> list[ValidationIssue]:
         return [i for i in self.issues if i.level == "error"]
 
     @property
-    def warnings(self) -> List[ValidationIssue]:
+    def warnings(self) -> list[ValidationIssue]:
         return [i for i in self.issues if i.level == "warning"]
 
 
@@ -138,11 +138,11 @@ class ConfigValidator:
 
     def _validate_against_schema(
         self,
-        data: Dict,
-        schema: Dict,
+        data: dict,
+        schema: dict,
         path: str = "",
-        issues: Optional[List[ValidationIssue]] = None,
-    ) -> List[ValidationIssue]:
+        issues: list[ValidationIssue] | None = None,
+    ) -> list[ValidationIssue]:
         """Recursively validate data against schema."""
         if issues is None:
             issues = []
@@ -209,7 +209,7 @@ class ConfigValidator:
 
         return issues
 
-    def _check_env_vars(self, data: Any, path: str = "") -> List[ValidationIssue]:
+    def _check_env_vars(self, data: Any, path: str = "") -> list[ValidationIssue]:
         """Check for undefined environment variable placeholders."""
         issues = []
 
@@ -244,24 +244,18 @@ class ConfigValidator:
             return ValidationResult(
                 file_path=path,
                 valid=False,
-                issues=[
-                    ValidationIssue(
-                        level="error", path=str(path), message="File not found"
-                    )
-                ],
+                issues=[ValidationIssue(level="error", path=str(path), message="File not found")],
             )
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
         except yaml.YAMLError as e:
             return ValidationResult(
                 file_path=path,
                 valid=False,
                 issues=[
-                    ValidationIssue(
-                        level="error", path=str(path), message=f"YAML parse error: {e}"
-                    )
+                    ValidationIssue(level="error", path=str(path), message=f"YAML parse error: {e}")
                 ],
             )
 
@@ -285,24 +279,18 @@ class ConfigValidator:
             return ValidationResult(
                 file_path=path,
                 valid=False,
-                issues=[
-                    ValidationIssue(
-                        level="error", path=str(path), message="File not found"
-                    )
-                ],
+                issues=[ValidationIssue(level="error", path=str(path), message="File not found")],
             )
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
         except json.JSONDecodeError as e:
             return ValidationResult(
                 file_path=path,
                 valid=False,
                 issues=[
-                    ValidationIssue(
-                        level="error", path=str(path), message=f"JSON parse error: {e}"
-                    )
+                    ValidationIssue(level="error", path=str(path), message=f"JSON parse error: {e}")
                 ],
             )
 
@@ -332,7 +320,11 @@ class ConfigValidator:
                 value = server_config[key]
                 expected_type = spec.get("_type")
 
-                if expected_type and isinstance(expected_type, str) and not self._check_type(value, expected_type):
+                if (
+                    expected_type
+                    and isinstance(expected_type, str)
+                    and not self._check_type(value, expected_type)
+                ):
                     issues.append(
                         ValidationIssue(
                             level="error",
@@ -342,7 +334,11 @@ class ConfigValidator:
                         )
                     )
 
-                if "_range" in spec and isinstance(spec["_range"], tuple) and not self._check_range(value, spec["_range"]):
+                if (
+                    "_range" in spec
+                    and isinstance(spec["_range"], tuple)
+                    and not self._check_range(value, spec["_range"])
+                ):
                     issues.append(
                         ValidationIssue(
                             level="warning",
@@ -361,7 +357,7 @@ class ConfigValidator:
             issues=issues,
         )
 
-    def validate_all(self) -> List[ValidationResult]:
+    def validate_all(self) -> list[ValidationResult]:
         """Validate all configuration files."""
         results = []
 
@@ -387,7 +383,7 @@ class ConfigValidator:
 
         return results
 
-    def log_results(self, results: List[ValidationResult]) -> bool:
+    def log_results(self, results: list[ValidationResult]) -> bool:
         """Log validation results and return True if all valid."""
         all_valid = True
 

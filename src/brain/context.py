@@ -9,7 +9,6 @@ of the current working directory and recent operations.
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
 
 # Get the actual user home directory
 ACTUAL_HOME = os.path.expanduser("~")
@@ -40,35 +39,36 @@ class SharedContext:
     documents_directory: str = f"{ACTUAL_HOME}/Documents"
     downloads_directory: str = f"{ACTUAL_HOME}/Downloads"
     desktop_directory: str = f"{ACTUAL_HOME}/Desktop"
-    
+
     # Execution context
     is_packaged: bool = False
 
     # File tracking
-    recent_files: List[str] = field(default_factory=list)
-    created_directories: List[str] = field(default_factory=list)
+    recent_files: list[str] = field(default_factory=list)
+    created_directories: list[str] = field(default_factory=list)
 
     # Operation history (for debugging)
     operation_count: int = 0
     last_operation: str = ""
-    last_update: Optional[datetime] = None
+    last_update: datetime | None = None
     available_tools_summary: str = ""
 
     # Goal tracking for agent coordination
     current_goal: str = ""
-    parent_goal: Optional[str] = None
-    goal_stack: List[str] = field(default_factory=list)
+    parent_goal: str | None = None
+    goal_stack: list[str] = field(default_factory=list)
     recursive_depth: int = 0
     max_recursive_depth: int = 5
-    current_step_id: Optional[int] = None
+    current_step_id: int | None = None
     total_steps: int = 0
     available_mcp_catalog: str = ""
 
     def __post_init__(self):
         # Detect if application is packaged (binary/app mode)
         import sys
+
         self.is_packaged = getattr(sys, "frozen", False)
-        
+
         # Auto-detect CWD on startup
         try:
             cwd = os.getcwd()
@@ -175,7 +175,7 @@ class SharedContext:
                 "applications": self.applications_directory,
                 "documents": self.documents_directory,
                 "downloads": self.downloads_directory,
-                "desktop": self.desktop_directory
+                "desktop": self.desktop_directory,
             },
             "is_packaged": self.is_packaged,
             "operation_count": self.operation_count,
@@ -185,7 +185,9 @@ class SharedContext:
             "parent_goal": self.parent_goal,
             "goal_depth": len(self.goal_stack),
             "recursive_depth": self.recursive_depth,
-            "step_progress": f"{self.current_step_id}/{self.total_steps}" if self.total_steps else "—",
+            "step_progress": f"{self.current_step_id}/{self.total_steps}"
+            if self.total_steps
+            else "—",
         }
 
     def push_goal(self, goal: str, total_steps: int = 0) -> None:
@@ -232,25 +234,27 @@ class SharedContext:
             return ""
 
         lines = []
-        
+
         # Build Hierarchy Path
         hierarchy = []
         if self.goal_stack:
-            hierarchy = self.goal_stack + [self.current_goal]
+            hierarchy = [*self.goal_stack, self.current_goal]
         else:
             hierarchy = [self.current_goal]
-            
+
         lines.append("🎯 GOAL HIERARCHY:")
         for idx, g in enumerate(hierarchy):
             indent = "  " * idx
             prefix = "└─" if idx > 0 else "●"
             lines.append(f"{indent}{prefix} {g}")
-        
+
         if self.total_steps > 0:
             lines.append(f"\n📝 PROGRESS: Step {self.current_step_id or 0}/{self.total_steps}")
-            
+
         if self.recursive_depth > 0:
-            lines.append(f"🔄 RECURSION DEPTH: {self.recursive_depth} (max: {self.max_recursive_depth})")
+            lines.append(
+                f"🔄 RECURSION DEPTH: {self.recursive_depth} (max: {self.max_recursive_depth})"
+            )
 
         return "\n".join(lines)
 

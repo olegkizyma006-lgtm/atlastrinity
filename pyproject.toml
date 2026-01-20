@@ -26,3 +26,97 @@ force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
 skip_glob = ["dist_venv/*", "node_modules/*", ".venv/*"]
+
+[tool.ruff]
+# Same as Black.
+line-length = 100
+indent-width = 4
+# Assume Python 3.12
+target-version = "py312"
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+[tool.ruff.lint]
+# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
+select = ["E4", "E7", "E9", "F", "B", "I", "N", "UP", "PL", "RUF"]
+ignore = [
+    "E501",   # Line too long
+    "RUF001", # Ambiguous unicode character (Ukrainian project)
+    "PLR0913", # Too many arguments
+    "PLR0912", # Too many branches
+    "PLR0915", # Too many statements
+    "PLW0603", # Global statement
+    "PLR2004", # Magic numbers
+    "PLC0415", # Late imports
+    "PLR0911", # Too many return statements
+    "B904",    # Raise from
+    "RUF012",  # Mutable class attributes
+    "N811",    # Constant imported as non-constant
+    "PLW1510", # subprocess.run without check
+    "RUF006",  # asyncio.create_task reference
+    "B008",    # function call in defaults
+    "RUF002",  # Ambiguous docstring characters
+    "RUF003",  # Ambiguous comment characters
+    "N806",    # Variable in function should be lowercase
+    "E722",    # Bare except
+    "RUF100",  # Unused noqa directive
+    "E741",    # Ambiguous variable name
+    "F401",    # Unused import
+    "PLW2901", # Loop variable overwritten
+    "B007",    # Unused loop variable
+    "PLW1509", # preexec_fn unsafe
+    "N802",    # Function name lowercase
+    "B023",    # Loop variable in nested function
+    "B025",    # Duplicate exception
+    "RUF059",  # Unused unpacked variable
+]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["E402", "PLC0415", "F403", "F405", "E722", "E741", "RUF052"]
+"scripts/**/*.py" = ["E402", "PLC0415", "F403", "F405", "E722", "E741"]
+"example_vibe_prompt_usage.py" = ["E402"]
+"src/mcp_server/*.py" = ["PLC0415"] # Late imports for performance
+"src/brain/voice/tts.py" = ["E402", "F401"] # Special initialization and lazy checks
+"src/brain/server.py" = ["E402", "F401"] # Env load before imports
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"

@@ -1,7 +1,7 @@
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 
@@ -15,7 +15,6 @@ except ImportError:  # pragma: no cover
 
 import re
 
-
 from .config import CONFIG_ROOT, MCP_DIR, PROJECT_ROOT, deep_merge
 
 
@@ -23,7 +22,7 @@ class SystemConfig:
     """Singleton for system configuration with synchronization logic."""
 
     _instance = None
-    _config: Dict[str, Any] = {}
+    _config: dict[str, Any] = {}
 
     def __new__(cls):
         if cls._instance is None:
@@ -79,13 +78,13 @@ class SystemConfig:
             self._config = self._get_defaults()
             return
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 loaded = yaml.safe_load(f) or {}
                 self._config = deep_merge(self._get_defaults(), loaded)
         except Exception:
             self._config = self._get_defaults()
 
-    def _get_defaults(self) -> Dict[str, Any]:
+    def _get_defaults(self) -> dict[str, Any]:
         """Default configuration with fallback to environment variables."""
         base_defaults = {
             "agents": {
@@ -126,10 +125,7 @@ class SystemConfig:
                     "enabled": True,
                     "model": os.getenv("SEQUENTIAL_THINKING_MODEL", "raptor-mini"),
                 },
-                "vibe": {
-                    "enabled": True,
-                    "workspace": str(CONFIG_ROOT / "vibe_workspace")
-                }
+                "vibe": {"enabled": True, "workspace": str(CONFIG_ROOT / "vibe_workspace")},
             },
             "security": {
                 "dangerous_commands": ["rm -r", "mkfs"],
@@ -147,22 +143,24 @@ class SystemConfig:
             },
             "system": {
                 "workspace_path": "${CONFIG_ROOT}/workspace",
-                "repository_path": str(PROJECT_ROOT),  # Path to Trinity source code for self-healing
+                "repository_path": str(
+                    PROJECT_ROOT
+                ),  # Path to Trinity source code for self-healing
             },
             "database": {
                 # Default to local SQLite (async via aiosqlite). Use DATABASE_URL env var to override.
-                "url": os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
+                "url": os.getenv(
+                    "DATABASE_URL", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db"
+                )
             },
-            "state": {
-                "redis_url": os.getenv("REDIS_URL", "redis://localhost:6379/0")
-            },
+            "state": {"redis_url": os.getenv("REDIS_URL", "redis://localhost:6379/0")},
             "logging": {"level": "INFO", "max_log_size": 10485760, "backup_count": 5},
         }
 
         template_yaml = PROJECT_ROOT / "config" / "config.yaml.template"
         if template_yaml.exists():
             try:
-                with open(template_yaml, "r", encoding="utf-8") as f:
+                with open(template_yaml, encoding="utf-8") as f:
                     template = yaml.safe_load(f) or {}
                 return deep_merge(base_defaults, template)
             except Exception:
@@ -173,6 +171,7 @@ class SystemConfig:
     def _substitute_placeholders(self, value: Any) -> Any:
         """Substitute ${VAR} placeholders recursively in strings, lists, or dicts."""
         if isinstance(value, str):
+
             def replace_match(match):
                 var_name = match.group(1)
                 if var_name == "PROJECT_ROOT":
@@ -183,15 +182,15 @@ class SystemConfig:
                     return str(Path.home())
                 # Fallback to environment variables
                 return os.getenv(var_name, match.group(0))
-            
+
             return re.sub(r"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}", replace_match, value)
-        
+
         if isinstance(value, list):
             return [self._substitute_placeholders(item) for item in value]
-        
+
         if isinstance(value, dict):
             return {k: self._substitute_placeholders(v) for k, v in value.items()}
-            
+
         return value
 
     def get(self, key_path: str, default: Any = None) -> Any:
@@ -202,7 +201,7 @@ class SystemConfig:
                 value = value[key]
             else:
                 return default
-        
+
         return self._substitute_placeholders(value)
 
     def get_api_key(self, key_name: str) -> str:
@@ -220,16 +219,16 @@ class SystemConfig:
 
         return self.get(f"api.{key_name}", "")
 
-    def get_agent_config(self, agent_name: str) -> Dict[str, Any]:
+    def get_agent_config(self, agent_name: str) -> dict[str, Any]:
         """Returns specific agent configuration."""
         return self.get(f"agents.{agent_name}", {})
 
-    def get_security_config(self) -> Dict[str, Any]:
+    def get_security_config(self) -> dict[str, Any]:
         """Returns security configuration."""
         return self.get("security", {})
 
     @property
-    def all(self) -> Dict[str, Any]:
+    def all(self) -> dict[str, Any]:
         return self._config
 
 

@@ -8,8 +8,8 @@ Sleep & Consolidation - Nightly learning process that:
 """
 
 import os
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from .logger import logger
 from .memory import long_term_memory
@@ -25,11 +25,11 @@ class ConsolidationModule:
     """
 
     def __init__(self):
-        self.last_consolidation: Optional[datetime] = None
+        self.last_consolidation: datetime | None = None
         self.idle_threshold = timedelta(hours=2)
         self.log_path = os.path.join(os.path.expanduser("~/.config/atlastrinity/logs"), "brain.log")
 
-    async def run_consolidation(self, llm=None) -> Dict[str, Any]:
+    async def run_consolidation(self, llm=None) -> dict[str, Any]:
         """
         Main consolidation process using DB data and LLM.
         """
@@ -43,7 +43,7 @@ class ConsolidationModule:
 
         try:
             # 1. Fetch recent tasks (last 24h)
-            cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+            cutoff = datetime.now(UTC) - timedelta(hours=24)
             tasks_data = await self._fetch_tasks_from_db(cutoff)
             logger.info(f"[CONSOLIDATION] Fetched {len(tasks_data)} tasks from DB")
 
@@ -75,7 +75,7 @@ class ConsolidationModule:
             # we've already done this in orchestrator, so here we might group them)
             # For now, let's just log stats
 
-            self.last_consolidation = datetime.now(timezone.utc)
+            self.last_consolidation = datetime.now(UTC)
 
             stats = {
                 "timestamp": self.last_consolidation.isoformat(),
@@ -93,7 +93,7 @@ class ConsolidationModule:
             logger.error(f"[CONSOLIDATION] Failed: {e}")
             return {"error": str(e)}
 
-    async def _fetch_tasks_from_db(self, cutoff: datetime) -> List[Dict[str, Any]]:
+    async def _fetch_tasks_from_db(self, cutoff: datetime) -> list[dict[str, Any]]:
         """Fetch tasks and their steps from the configured SQL database (SQLite by default)."""
         from sqlalchemy import select
 
@@ -133,8 +133,8 @@ class ConsolidationModule:
         return results
 
     async def _distill_lesson_via_llm(
-        self, llm, task_data: Dict[str, Any]
-    ) -> Optional[Dict[str, str]]:
+        self, llm, task_data: dict[str, Any]
+    ) -> dict[str, str] | None:
         """Uses LLM to turn a failure into a generalized rule/lesson."""
         import json
 
@@ -174,7 +174,7 @@ class ConsolidationModule:
             logger.warning(f"LLM Lesson distillation failed: {e}")
             return None
 
-    def should_consolidate(self, last_activity: Optional[datetime] = None) -> bool:
+    def should_consolidate(self, last_activity: datetime | None = None) -> bool:
         """Check if consolidation should run."""
         now = datetime.now()
 

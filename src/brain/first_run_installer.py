@@ -20,10 +20,11 @@ import os
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Dict, Optional, Any
+
 from .logger import logger
 
 # Import config paths
@@ -62,7 +63,7 @@ class SetupProgress:
     progress: float  # 0.0 - 1.0
     message: str
     success: bool = True
-    error: Optional[str] = None
+    error: str | None = None
 
 
 # Progress callback type
@@ -94,7 +95,7 @@ class FirstRunInstaller:
     Orchestrates first-run setup on a new Mac
     """
 
-    def __init__(self, progress_callback: Optional[ProgressCallback] = None):
+    def __init__(self, progress_callback: ProgressCallback | None = None):
         self.callback = progress_callback or self._default_callback
         self.errors: list[str] = []
 
@@ -113,7 +114,7 @@ class FirstRunInstaller:
         progress: float,
         message: str,
         success: bool = True,
-        error: Optional[str] = None,
+        error: str | None = None,
     ):
         """Report progress to callback"""
         self.callback(
@@ -164,7 +165,7 @@ class FirstRunInstaller:
         self._report(SetupStep.CHECK_SYSTEM, 1.0, f"macOS {mac_ver} (ARM64) ✓")
         return True
 
-    def check_permissions(self) -> Dict[str, bool]:
+    def check_permissions(self) -> dict[str, bool]:
         """Check Accessibility and Screen Recording permissions"""
         self._report(SetupStep.CHECK_PERMISSIONS, 0.0, "Перевірка дозволів...")
 
@@ -178,7 +179,7 @@ class FirstRunInstaller:
             permissions["accessibility"] = AXIsProcessTrusted()
         except ImportError:
             # Fallback: try AppleScript test
-            code, out, _ = _run_command(
+            code, _out, _ = _run_command(
                 [
                     "osascript",
                     "-e",
@@ -208,7 +209,7 @@ class FirstRunInstaller:
             f"Accessibility: {'✓' if permissions['accessibility'] else '✗'}, "
             f"Screen Recording: {'✓' if permissions['screen_recording'] else '✗'}",
         )
-        
+
         if not permissions["accessibility"] or not permissions["screen_recording"]:
             print("\n" + "!" * 40)
             print("⚠️  PERMISSION ACTION REQUIRED:")
@@ -220,7 +221,12 @@ class FirstRunInstaller:
                 print("   2. Ensure AtlasTrinity is enabled")
             print("!" * 40 + "\n")
             # Open the settings pane automatically
-            _run_command(["open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"])
+            _run_command(
+                [
+                    "open",
+                    "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+                ]
+            )
 
         return permissions
 
@@ -297,7 +303,7 @@ class FirstRunInstaller:
     # ============ SERVICES ============
 
     def _install_brew_package(
-        self, step: SetupStep, formula: str, cask: bool = False, check_cmd: Optional[str] = None
+        self, step: SetupStep, formula: str, cask: bool = False, check_cmd: str | None = None
     ) -> bool:
         """Generic brew install helper"""
         self._report(step, 0.0, f"Перевірка {formula}...")
@@ -321,7 +327,7 @@ class FirstRunInstaller:
             cmd.append("--cask")
         cmd.append(formula)
 
-        code, stdout, stderr = _run_command(cmd, timeout=600)
+        code, _stdout, stderr = _run_command(cmd, timeout=600)
 
         if code == 0:
             self._report(step, 1.0, f"{formula} встановлено ✓")
@@ -349,27 +355,27 @@ class FirstRunInstaller:
     def install_vibe(self) -> bool:
         """Install Mistral Vibe CLI"""
         self._report(SetupStep.INSTALL_VIBE, 0.0, "Перевірка Vibe CLI...")
-        
+
         if shutil.which("vibe"):
             self._report(SetupStep.INSTALL_VIBE, 1.0, "Vibe CLI вже встановлено ✓")
             return True
-            
+
         self._report(SetupStep.INSTALL_VIBE, 0.3, "Встановлення Vibe CLI...")
-        
+
         # Install via official script
         cmd = "curl -fsSL https://get.vibe.sh | sh"
-        code, stdout, stderr = _run_command_async(cmd, timeout=300)
-        
+        code, _stdout, stderr = _run_command_async(cmd, timeout=300)
+
         if code == 0:
             self._report(SetupStep.INSTALL_VIBE, 1.0, "Vibe CLI успішно встановлено ✓")
             return True
         else:
             self._report(
-                SetupStep.INSTALL_VIBE, 
-                1.0, 
-                "Помилка встановлення Vibe CLI", 
-                success=False, 
-                error=stderr[:100]
+                SetupStep.INSTALL_VIBE,
+                1.0,
+                "Помилка встановлення Vibe CLI",
+                success=False,
+                error=stderr[:100],
             )
             return False
 
@@ -377,9 +383,15 @@ class FirstRunInstaller:
         """Install PostgreSQL (skipped if using SQLite backend)"""
         from .config_loader import config as sys_config
 
-        db_url = sys_config.get("database.url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
+        db_url = sys_config.get(
+            "database.url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db"
+        )
         if db_url.startswith("sqlite"):
-            self._report(SetupStep.INSTALL_POSTGRES, 1.0, "SQLite is configured as the DB backend; skipping PostgreSQL installation.")
+            self._report(
+                SetupStep.INSTALL_POSTGRES,
+                1.0,
+                "SQLite is configured as the DB backend; skipping PostgreSQL installation.",
+            )
             return True
 
         return self._install_brew_package(
@@ -392,7 +404,10 @@ class FirstRunInstaller:
 
         # Only include PostgreSQL service if backend requires it
         from .config_loader import config as sys_config
-        db_url = sys_config.get("database.url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
+
+        db_url = sys_config.get(
+            "database.url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db"
+        )
 
         services = ["redis"]
         if not db_url.startswith("sqlite"):
@@ -441,7 +456,9 @@ class FirstRunInstaller:
     async def _ensure_postgres_role(self, username: str = "dev") -> bool:
         """Ensure the specified role exists in Postgres."""
         try:
-            rc, out, _ = _run_command(["psql", "-tAc", f"SELECT 1 FROM pg_roles WHERE rolname='{username}';"])
+            _rc, out, _ = _run_command(
+                ["psql", "-tAc", f"SELECT 1 FROM pg_roles WHERE rolname='{username}';"]
+            )
             if "1" not in out:
                 self._report(SetupStep.CREATE_DATABASE, 0.1, f"Створення ролі '{username}'...")
                 code, _, stderr = _run_command(["createuser", "-s", username])
@@ -459,7 +476,10 @@ class FirstRunInstaller:
 
         # Use config.get
         from .config_loader import config as sys_config
-        db_url = sys_config.get("database.url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db")
+
+        db_url = sys_config.get(
+            "database.url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db"
+        )
 
         if db_url.startswith("sqlite"):
             # For SQLite, ensure file/directory exists and return
@@ -471,14 +491,20 @@ class FirstRunInstaller:
                 self._report(SetupStep.CREATE_DATABASE, 1.0, "SQLite database ensured.")
                 return True
             except Exception as e:
-                self._report(SetupStep.CREATE_DATABASE, 1.0, "Failed to ensure SQLite DB", success=False, error=str(e))
+                self._report(
+                    SetupStep.CREATE_DATABASE,
+                    1.0,
+                    "Failed to ensure SQLite DB",
+                    success=False,
+                    error=str(e),
+                )
                 return False
 
         db_name = "atlastrinity_db"
         username = os.environ.get("USER", "dev")
 
         # Wait for PostgreSQL to be ready
-        for attempt in range(10):
+        for _attempt in range(10):
             code, _, _ = _run_command(["pg_isready"], timeout=5)
             if code == 0:
                 break
@@ -546,14 +572,18 @@ class FirstRunInstaller:
 
     def build_macos_use(self) -> bool:
         """Build macOS native helpers (placeholder)."""
-        self._report(SetupStep.BUILD_MACOS_USE, 0.0, "Building macOS native helpers (placeholder)...")
+        self._report(
+            SetupStep.BUILD_MACOS_USE, 0.0, "Building macOS native helpers (placeholder)..."
+        )
         # TODO: implement build steps for macos-use native helper binary
         self._report(SetupStep.BUILD_MACOS_USE, 1.0, "macos-use build skipped (placeholder).")
         return True
 
     def download_tts_models(self) -> bool:
         """Download Ukrainian TTS models (silently)"""
-        self._report(SetupStep.DOWNLOAD_TTS, 0.2, "Завантаження ukrainian-tts (може тривати довго)...")
+        self._report(
+            SetupStep.DOWNLOAD_TTS, 0.2, "Завантаження ukrainian-tts (може тривати довго)..."
+        )
 
         try:
             # Trigger download by importing TTS
@@ -648,18 +678,23 @@ class FirstRunInstaller:
 
         # 6. Database (important)
         await self.create_database()
-        
+
         # 7. Native Binaries (macos-use)
         self.build_macos_use()
 
         # 8. Models (can be downloaded later)
         self.download_tts_models()
         self.download_stt_models()
-        
+
         # 9. Project Workspace
         try:
             from .config_loader import config as sys_config
-            project_ws = Path(sys_config.get("system.workspace_path", str(CONFIG_ROOT / "workspace"))).expanduser().absolute()
+
+            project_ws = (
+                Path(sys_config.get("system.workspace_path", str(CONFIG_ROOT / "workspace")))
+                .expanduser()
+                .absolute()
+            )
             project_ws.mkdir(parents=True, exist_ok=True)
             self._report(SetupStep.SETUP_COMPLETE, 0.9, f"Робоча папка {project_ws.name} готова ✓")
         except Exception:

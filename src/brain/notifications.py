@@ -10,7 +10,6 @@ Human-in-the-Loop system for:
 import os
 import subprocess
 from datetime import datetime
-from typing import List
 
 from .logger import logger
 
@@ -26,8 +25,8 @@ class NotificationManager:
     """
 
     def __init__(self):
-        self.pending_decisions: List[dict] = []
-        self.notification_history: List[dict] = []
+        self.pending_decisions: list[dict] = []
+        self.notification_history: list[dict] = []
 
     def send_notification(
         self, title: str, message: str, sound: bool = True, subtitle: str = ""
@@ -201,7 +200,7 @@ class NotificationManager:
 
         return self.send_notification(title, message, sound=success)
 
-    def get_history(self, limit: int = 10) -> List[dict]:
+    def get_history(self, limit: int = 10) -> list[dict]:
         """Get recent notification history."""
         return self.notification_history[-limit:]
 

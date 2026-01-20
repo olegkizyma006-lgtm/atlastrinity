@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 logger = logging.getLogger("brain.message_bus")
@@ -17,6 +17,7 @@ logger = logging.getLogger("brain.message_bus")
 
 class MessageType(Enum):
     """Types of messages that can be sent between agents"""
+
     REJECTION = "rejection"  # Grisha -> Tetyana: step verification failed
     HELP_REQUEST = "help_request"  # Tetyana -> Atlas: need assistance
     CHAT = "chat"  # User <-> Agents: conversational messages
@@ -28,17 +29,18 @@ class MessageType(Enum):
 @dataclass
 class AgentMsg:
     """Typed message for inter-agent communication"""
+
     from_agent: str  # atlas, tetyana, grisha, vibe
     to_agent: str  # atlas, tetyana, grisha, or "all"
     message_type: MessageType
-    payload: Dict[str, Any]
-    step_id: Optional[str] = None
-    session_id: Optional[UUID] = None
-    message_id: Optional[UUID] = None
+    payload: dict[str, Any]
+    step_id: str | None = None
+    session_id: UUID | None = None
+    message_id: UUID | None = None
     timestamp: datetime = field(default_factory=datetime.now)
-    read_at: Optional[datetime] = None
+    read_at: datetime | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for DB storage"""
         return {
             "from_agent": self.from_agent,
@@ -54,7 +56,7 @@ class AgentMsg:
 class MessageBus:
     """
     Typed inter-agent communication bus with optional DB persistence.
-    
+
     Features:
     - Typed messages with MessageType enum
     - In-memory queue for fast access
@@ -63,7 +65,7 @@ class MessageBus:
     """
 
     def __init__(self):
-        self._queue: Dict[str, List[AgentMsg]] = {
+        self._queue: dict[str, list[AgentMsg]] = {
             "atlas": [],
             "tetyana": [],
             "grisha": [],
@@ -77,6 +79,7 @@ class MessageBus:
         """Initialize DB connection for persistence"""
         try:
             from .db.manager import db_manager
+
             self._db_available = db_manager.available
             if self._db_available:
                 logger.info("[MESSAGE_BUS] DB persistence enabled")
@@ -87,10 +90,10 @@ class MessageBus:
     async def send(self, msg: AgentMsg) -> bool:
         """
         Send message to target agent.
-        
+
         Args:
             msg: The message to send
-            
+
         Returns:
             True if sent successfully
         """
@@ -117,19 +120,16 @@ class MessageBus:
             return False
 
     async def receive(
-        self,
-        agent: str,
-        message_type: Optional[MessageType] = None,
-        mark_read: bool = True
-    ) -> List[AgentMsg]:
+        self, agent: str, message_type: MessageType | None = None, mark_read: bool = True
+    ) -> list[AgentMsg]:
         """
         Receive pending messages for an agent.
-        
+
         Args:
             agent: The receiving agent name
             message_type: Optional filter by message type
             mark_read: Whether to mark messages as read
-            
+
         Returns:
             List of pending messages
         """
@@ -189,7 +189,7 @@ class MessageBus:
             logger.warning(f"[MESSAGE_BUS] DB persist failed: {e}")
             return False
 
-    async def clear(self, agent: Optional[str] = None):
+    async def clear(self, agent: str | None = None):
         """Clear message queue for agent or all"""
         if agent:
             self._queue[agent.lower()] = []

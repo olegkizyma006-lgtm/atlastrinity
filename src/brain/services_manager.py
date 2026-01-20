@@ -376,10 +376,12 @@ async def ensure_all_services(force_check: bool = False):
             logger.info("[Services] All system services are ready.")
         else:
             ServiceStatus.status_message = "Some services failed to start"
-            logger.warning(f"[Services] Readiness: Redis={redis_ok}, Docker={docker_ok}, DB={db_ok}")
+            logger.warning(
+                f"[Services] Readiness: Redis={redis_ok}, Docker={docker_ok}, DB={db_ok}"
+            )
 
     except Exception as e:
-        ServiceStatus.status_message = f"Service check error: {str(e)}"
+        ServiceStatus.status_message = f"Service check error: {e!s}"
         logger.error(f"[Services] Error in ensure_all_services: {e}")
 
     return ServiceStatus.is_ready

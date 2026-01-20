@@ -56,7 +56,7 @@ def sync_yaml_config(src_path: Path, dst_path: Path) -> bool:
 
     try:
         # Завантажуємо bundle config
-        with open(src_path, "r", encoding="utf-8") as f:
+        with open(src_path, encoding="utf-8") as f:
             bundle_config = yaml.safe_load(f) or {}
 
         if not dst_path.exists():
@@ -74,7 +74,7 @@ def sync_yaml_config(src_path: Path, dst_path: Path) -> bool:
             return True
 
         # Файл існує - merge
-        with open(dst_path, "r", encoding="utf-8") as f:
+        with open(dst_path, encoding="utf-8") as f:
             user_config = yaml.safe_load(f) or {}
 
         # Backup
@@ -107,7 +107,7 @@ def sync_json_config(src_path: Path, dst_path: Path) -> bool:
     try:
         dst_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(src_path, "r", encoding="utf-8") as f:
+        with open(src_path, encoding="utf-8") as f:
             bundle_config = json.load(f) or {}
 
         if not dst_path.exists():
@@ -116,7 +116,7 @@ def sync_json_config(src_path: Path, dst_path: Path) -> bool:
             print(f"[Production Setup] ✓ Created: {dst_path.name}")
             return True
 
-        with open(dst_path, "r", encoding="utf-8") as f:
+        with open(dst_path, encoding="utf-8") as f:
             user_config = json.load(f) or {}
 
         merged = deep_merge(bundle_config, user_config)

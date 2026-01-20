@@ -1,8 +1,7 @@
-
 # Setup paths (for standalone run if needed)
 import os
 import sys
-from typing import Any, Dict, Optional
+from typing import Any
 
 from mcp.server import FastMCP
 
@@ -17,10 +16,10 @@ server = FastMCP("graph")
 
 
 @server.tool()
-async def get_graph_json(namespace: Optional[str] = None) -> Dict[str, Any]:
+async def get_graph_json(namespace: str | None = None) -> dict[str, Any]:
     """
     Returns the Knowledge Graph in JSON format.
-    
+
     Args:
         namespace: Optional filter (e.g. task_id or 'global').
     """
@@ -29,7 +28,7 @@ async def get_graph_json(namespace: Optional[str] = None) -> Dict[str, Any]:
 
 
 @server.tool()
-async def generate_mermaid(node_type: Optional[str] = None, namespace: Optional[str] = None) -> str:
+async def generate_mermaid(node_type: str | None = None, namespace: str | None = None) -> str:
     """
     Generates a Mermaid.js flowchart representation of the current Knowledge Graph.
 
@@ -90,12 +89,14 @@ async def generate_mermaid(node_type: Optional[str] = None, namespace: Optional[
 
     return mermaid
 
+
 @server.tool()
-async def get_node_details(node_id: str) -> Dict[str, Any]:
+async def get_node_details(node_id: str) -> dict[str, Any]:
     """Retrieve all attributes of a specific node."""
     from sqlalchemy import select
+
     from src.brain.db.schema import KGNode
-    
+
     await db_manager.initialize()
     session = await db_manager.get_session()
     try:
@@ -108,36 +109,32 @@ async def get_node_details(node_id: str) -> Dict[str, Any]:
             "id": node.id,
             "type": node.type,
             "attributes": node.attributes,
-            "last_updated": node.last_updated.isoformat() if node.last_updated else None
+            "last_updated": node.last_updated.isoformat() if node.last_updated else None,
         }
     finally:
         await session.close()
 
 
 @server.tool()
-async def get_related_nodes(node_id: str) -> Dict[str, Any]:
+async def get_related_nodes(node_id: str) -> dict[str, Any]:
     """Find all nodes directly connected to the specified node."""
-    from sqlalchemy import select, or_
+    from sqlalchemy import or_, select
+
     from src.brain.db.schema import KGEdge
-    
+
     await db_manager.initialize()
     session = await db_manager.get_session()
     try:
-        stmt = select(KGEdge).where(
-            or_(KGEdge.source_id == node_id, KGEdge.target_id == node_id)
-        )
+        stmt = select(KGEdge).where(or_(KGEdge.source_id == node_id, KGEdge.target_id == node_id))
         res = await session.execute(stmt)
         edges = res.scalars().all()
-        
+
         return {
             "node_id": node_id,
             "relations": [
-                {
-                    "source": e.source_id,
-                    "target": e.target_id,
-                    "relation": e.relation
-                } for e in edges
-            ]
+                {"source": e.source_id, "target": e.target_id, "relation": e.relation}
+                for e in edges
+            ],
         }
     finally:
         await session.close()
@@ -145,17 +142,20 @@ async def get_related_nodes(node_id: str) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     import sys
+
     try:
         server.run()
     except (BrokenPipeError, KeyboardInterrupt):
         sys.exit(0)
     except BaseException as e:
+
         def contains_broken_pipe(exc):
             if isinstance(exc, BrokenPipeError) or "Broken pipe" in str(exc):
                 return True
             if hasattr(exc, "exceptions"):
                 return any(contains_broken_pipe(inner) for inner in exc.exceptions)
             return False
+
         if contains_broken_pipe(e):
             sys.exit(0)
         raise

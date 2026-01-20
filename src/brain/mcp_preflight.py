@@ -1,10 +1,9 @@
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 
-def _run_cmd(cmd: List[str], timeout: int = 10) -> Tuple[int, str, str]:
+def _run_cmd(cmd: list[str], timeout: int = 10) -> tuple[int, str, str]:
     try:
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         return res.returncode, res.stdout or "", res.stderr or ""
@@ -12,7 +11,7 @@ def _run_cmd(cmd: List[str], timeout: int = 10) -> Tuple[int, str, str]:
         return 1, "", str(e)
 
 
-def _parse_package_arg(arg: str) -> Optional[Tuple[str, str]]:
+def _parse_package_arg(arg: str) -> tuple[str, str] | None:
     """Parse strings like 'pkg@1.2.3' or '@scope/pkg@1.2.3' and return (pkg, ver).
     Returns None if no explicit version present or arg is a file/path.
     """
@@ -35,7 +34,7 @@ def npm_package_exists(pkg: str, ver: str) -> bool:
     """Check if npm has pkg@ver available."""
     npm = shutil.which("npm") or "npm"
     cmd = [npm, "view", f"{pkg}@{ver}", "version"]
-    rc, out, err = _run_cmd(cmd)
+    rc, out, _err = _run_cmd(cmd)
     return rc == 0 and bool(out.strip())
 
 
@@ -60,7 +59,7 @@ def npm_registry_has_version(pkg: str, ver: str) -> bool:
             )
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = resp.read()
-                import json  # noqa: E402
+                import json
 
                 meta = json.loads(data.decode())
                 # Check dist-tags and versions
@@ -79,9 +78,7 @@ def npm_registry_has_version(pkg: str, ver: str) -> bool:
         else:
             # Direct version lookup is faster if we know the exact version string
             url = f"https://registry.npmjs.org/{encoded}/{ver}"
-            req = urllib.request.Request(
-                url, headers={"Accept": "application/json"}
-            )
+            req = urllib.request.Request(url, headers={"Accept": "application/json"})
             with urllib.request.urlopen(req, timeout=10) as resp:
                 return getattr(resp, "status", 200) == 200
     except urllib.error.HTTPError as e:
@@ -117,16 +114,16 @@ def python_module_importable(module: str) -> bool:
         pass
     # Fallback: try invoking python interpreter
     py = shutil.which("python3") or shutil.which("python") or sys.executable or "python"
-    rc, out, err = _run_cmd([py, "-c", f"import {module}"], timeout=5)
+    rc, _out, _err = _run_cmd([py, "-c", f"import {module}"], timeout=5)
     return rc == 0
 
 
-def _extract_modules_from_python_code(code: str) -> List[str]:
+def _extract_modules_from_python_code(code: str) -> list[str]:
     """Rudimentary parser to extract top-level module names from a python code snippet.
 
     Captures patterns like `from pkg.subpkg import something` and `import pkg, pkg2`.
     """
-    mods: List[str] = []
+    mods: list[str] = []
     # from <module> import ...
     for m in re.findall(r"\bfrom\s+([a-zA-Z0-9_\.]+)\b", code):
         mods.append(m)
@@ -158,18 +155,18 @@ def check_package_arg_for_tool(arg: str, tool_cmd: str = "npx") -> bool:
     return True
 
 
-def check_system_limits() -> List[str]:
+def check_system_limits() -> list[str]:
     """Check OS process limits and return list of human-readable issues found.
 
     Uses resource.getrlimit(RLIMIT_NPROC) where available and sysctl values on macOS
     to detect if per-user or global process limits are dangerously low.
     """
-    issues: List[str] = []
+    issues: list[str] = []
     try:
         import resource
 
         try:
-            soft, hard = resource.getrlimit(resource.RLIMIT_NPROC)
+            soft, _hard = resource.getrlimit(resource.RLIMIT_NPROC)
             if soft != resource.RLIM_INFINITY and soft < 1024:
                 issues.append(
                     f"Process limit per user is low: {soft} (soft). Consider increasing ulimit -u)"
@@ -190,7 +187,7 @@ def check_system_limits() -> List[str]:
         except Exception:
             pass
         try:
-            rc, out, err = _run_cmd(["sysctl", "-n", "kern.maxprocperuid"])
+            rc, out, _err = _run_cmd(["sysctl", "-n", "kern.maxprocperuid"])
             if rc == 0 and out.strip():
                 val = int(out.strip())
                 if val < 1024:
@@ -206,13 +203,13 @@ def check_system_limits() -> List[str]:
     return issues
 
 
-def scan_mcp_config_for_package_issues(config_path: Path) -> List[str]:
+def scan_mcp_config_for_package_issues(config_path: Path) -> list[str]:
     """Given a path to MCP config JSON, return list of issue strings found."""
-    import json  # noqa: E402
+    import json
 
-    issues: List[str] = []
+    issues: list[str] = []
     try:
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             cfg = json.load(f)
         servers = cfg.get("mcpServers", {})
         for name, s in servers.items():
@@ -224,7 +221,7 @@ def scan_mcp_config_for_package_issues(config_path: Path) -> List[str]:
                 continue
             first = args[0]
             # npm / bun checks (package@version syntax)
-            if cmd == "npx" or cmd == "bunx":
+            if cmd in {"npx", "bunx"}:
                 ok = check_package_arg_for_tool(first, tool_cmd=cmd)
                 if not ok:
                     issues.append(f"{name}: package {first} not found (command={cmd})")

@@ -1,12 +1,12 @@
 import sys
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, cast
 
 from mcp.server import FastMCP
 
-from src.brain.db.manager import db_manager  # noqa: E402
-from src.brain.knowledge_graph import knowledge_graph  # noqa: E402
-from src.brain.memory import long_term_memory  # noqa: E402
+from src.brain.db.manager import db_manager
+from src.brain.knowledge_graph import knowledge_graph
 from src.brain.logger import logger
+from src.brain.memory import long_term_memory
 
 server = FastMCP("memory")
 
@@ -19,7 +19,7 @@ def _get_id(name: str) -> str:
     return f"entity:{name}"
 
 
-def _normalize_entity(ent: Dict[str, Any]) -> Dict[str, Any]:
+def _normalize_entity(ent: dict[str, Any]) -> dict[str, Any]:
     name = str(ent.get("name", "")).strip()
     entity_type = str(ent.get("entityType", "concept")).strip() or "concept"
     observations = ent.get("observations") or []
@@ -30,7 +30,9 @@ def _normalize_entity(ent: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @server.tool()
-async def create_entities(entities: List[Dict[str, Any]], namespace: str = "global", task_id: Optional[str] = None) -> Dict[str, Any]:
+async def create_entities(
+    entities: list[dict[str, Any]], namespace: str = "global", task_id: str | None = None
+) -> dict[str, Any]:
     """
     Args:
         entities: List of entity dictionaries. Each must have a 'name' field.
@@ -42,7 +44,7 @@ async def create_entities(entities: List[Dict[str, Any]], namespace: str = "glob
 
     await db_manager.initialize()
 
-    created: List[str] = []
+    created: list[str] = []
 
     for ent in entities:
         n = _normalize_entity(ent)
@@ -51,13 +53,13 @@ async def create_entities(entities: List[Dict[str, Any]], namespace: str = "glob
             continue
 
         node_id = _get_id(name)
-        
+
         # Attributes for SQLite
         attributes = {
             "entity_type": n["entityType"],
             "observations": n["observations"],
             "description": f"Entity of type {n['entityType']} with {len(n['observations'])} observations.",
-            "content": "\n".join(n["observations"])
+            "content": "\n".join(n["observations"]),
         }
 
         success = await knowledge_graph.add_node(
@@ -66,20 +68,20 @@ async def create_entities(entities: List[Dict[str, Any]], namespace: str = "glob
             attributes=attributes,
             namespace=namespace,
             task_id=task_id,
-            sync_to_vector=True
+            sync_to_vector=True,
         )
-        
+
         if success:
-            created.append(name) # Simplification: SQLite upsert doesn't differentiate easily here
-        
+            created.append(name)  # Simplification: SQLite upsert doesn't differentiate easily here
+
     return {"success": True, "created": created, "backend": "sqlite+chromadb"}
 
 
 @server.tool()
-async def batch_add_nodes(nodes: List[Dict[str, Any]], namespace: str = "global") -> Dict[str, Any]:
+async def batch_add_nodes(nodes: list[dict[str, Any]], namespace: str = "global") -> dict[str, Any]:
     """
     Optimized batch insertion of multiple nodes into the Knowledge Graph.
-    
+
     Args:
         nodes: List of dicts, each with 'node_id', 'node_type', and 'attributes'.
         namespace: Isolation bucket for these nodes.
@@ -89,24 +91,27 @@ async def batch_add_nodes(nodes: List[Dict[str, Any]], namespace: str = "global"
 
 
 @server.tool()
-async def bulk_ingest_table(file_path: str, table_name: str, namespace: str = "global", task_id: Optional[str] = None) -> Dict[str, Any]:
+async def bulk_ingest_table(
+    file_path: str, table_name: str, namespace: str = "global", task_id: str | None = None
+) -> dict[str, Any]:
     """
     Ingest a large table (CSV/JSON/XLSX) into the Knowledge Graph as a DATASET node.
     This creates a summary node and indexes the content for semantic recall.
-    
+
     Args:
         file_path: Path to the data file.
         table_name: Name of the dataset for the KG.
         namespace: Isolation bucket.
         task_id: Optional association with a task.
     """
-    import pandas as pd
     from pathlib import Path
-    
+
+    import pandas as pd
+
     path = Path(file_path)
     if not path.exists():
         return {"error": f"File not found: {file_path}"}
-        
+
     try:
         # Load data
         if path.suffix.lower() == ".csv":
@@ -117,20 +122,20 @@ async def bulk_ingest_table(file_path: str, table_name: str, namespace: str = "g
             df = pd.read_excel(path)
         else:
             return {"error": f"Unsupported format: {path.suffix}"}
-            
+
         # Create a summary node in the KG
         row_count = len(df)
         cols = list(df.columns)
         summary = f"Dataset '{table_name}' with {row_count} rows and columns: {', '.join(cols)}."
-        
+
         attributes = {
             "description": summary,
             "row_count": row_count,
             "columns": cols,
             "file_path": str(path.absolute()),
-            "content": df.head(5).to_string() # Store preview 
+            "content": df.head(5).to_string(),  # Store preview
         }
-        
+
         node_id = f"dataset:{table_name.lower().replace(' ', '_')}"
         await knowledge_graph.add_node(
             node_type="DATASET",
@@ -138,26 +143,28 @@ async def bulk_ingest_table(file_path: str, table_name: str, namespace: str = "g
             attributes=attributes,
             namespace=namespace,
             task_id=task_id,
-            sync_to_vector=True
+            sync_to_vector=True,
         )
-        
+
         # Batch ingest the first 100 rows as sub-nodes if small, or just reference the table
         # For "Big Data", we standardly index the schema and a sample.
-        
+
         return {
-            "success": True, 
-            "node_id": node_id, 
-            "row_count": row_count, 
+            "success": True,
+            "node_id": node_id,
+            "row_count": row_count,
             "namespace": namespace,
-            "message": "Dataset indexed. Large tables are stored as summary nodes with vectorized samples."
+            "message": "Dataset indexed. Large tables are stored as summary nodes with vectorized samples.",
         }
-        
+
     except Exception as e:
         return {"error": str(e)}
 
 
 @server.tool()
-async def add_observations(name: str, observations: List[str], namespace: str = "global", task_id: Optional[str] = None) -> Dict[str, Any]:
+async def add_observations(
+    name: str, observations: list[str], namespace: str = "global", task_id: str | None = None
+) -> dict[str, Any]:
     """
     Args:
         name: The name of the entity to update
@@ -167,38 +174,39 @@ async def add_observations(name: str, observations: List[str], namespace: str = 
     name = str(name or "").strip()
     if not name:
         return {"error": "name is required"}
-    
+
     await db_manager.initialize()
     node_id = _get_id(name)
-    
+
     # Get existing
     from sqlalchemy import select
+
     from src.brain.db.schema import KGNode
-    
+
     session = await db_manager.get_session()
     try:
         stmt = select(KGNode).where(KGNode.id == node_id)
         res = await session.execute(stmt)
         node = res.scalar()
-        
+
         if not node:
             await session.close()
             return {"error": f"Entity '{name}' not found. Use create_entities first."}
-        
+
         attr = node.attributes or {}
         cur_obs = attr.get("observations", [])
         new_obs = [str(o) for o in observations if str(o).strip()]
         merged = list(dict.fromkeys([*cur_obs, *new_obs]))
-        
+
         attr["observations"] = merged
-        attr["content"] = "\n".join(merged) # Sync for vector embedding
-        
+        attr["content"] = "\n".join(merged)  # Sync for vector embedding
+
         await knowledge_graph.add_node(
             node_type="ENTITY",
             node_id=node_id,
             attributes=attr,
             namespace=node.namespace if hasattr(node, "namespace") else "global",
-            sync_to_vector=True
+            sync_to_vector=True,
         )
     finally:
         await session.close()
@@ -207,46 +215,48 @@ async def add_observations(name: str, observations: List[str], namespace: str = 
 
 
 @server.tool()
-async def get_entity(name: str) -> Dict[str, Any]:
+async def get_entity(name: str) -> dict[str, Any]:
     """
     Retrieve full details of a specific entity.
     """
     await db_manager.initialize()
     node_id = _get_id(name)
-    
+
     from sqlalchemy import select
+
     from src.brain.db.schema import KGNode
-    
+
     session = await db_manager.get_session()
     try:
         stmt = select(KGNode).where(KGNode.id == node_id)
         res = await session.execute(stmt)
         node = res.scalar()
-        
+
         if not node:
             return {"error": "not found"}
-            
+
         return {
             "success": True,
             "name": name,
             "entityType": node.attributes.get("entity_type", "ENTITY"),
             "observations": node.attributes.get("observations", []),
-            "last_updated": node.last_updated.isoformat() if node.last_updated else None
+            "last_updated": node.last_updated.isoformat() if node.last_updated else None,
         }
     finally:
         await session.close()
 
 
 @server.tool()
-async def list_entities() -> Dict[str, Any]:
+async def list_entities() -> dict[str, Any]:
     """
     List all entity names in the knowledge graph.
     """
     await db_manager.initialize()
-    
+
     from sqlalchemy import select
+
     from src.brain.db.schema import KGNode
-    
+
     session = await db_manager.get_session()
     try:
         stmt = select(KGNode.id).where(KGNode.type == "ENTITY")
@@ -254,12 +264,12 @@ async def list_entities() -> Dict[str, Any]:
         names = [str(row[0]).replace("entity:", "") for row in res.all()]
     finally:
         await session.close()
-        
+
     return {"success": True, "names": sorted(names), "count": len(names)}
 
 
 @server.tool()
-async def search(query: str, limit: int = 10, namespace: Optional[str] = None) -> Dict[str, Any]:
+async def search(query: str, limit: int = 10, namespace: str | None = None) -> dict[str, Any]:
     """
     Args:
         query: Text to search for within entity names, types, and observations
@@ -271,7 +281,7 @@ async def search(query: str, limit: int = 10, namespace: Optional[str] = None) -
         return {"error": "query is required"}
 
     lim = max(1, min(int(limit), 50))
-    
+
     # 1. Semantic search via ChromaDB (Fastest and smartest)
     if long_term_memory.available:
         where_filter = {"namespace": namespace} if namespace else None
@@ -279,71 +289,82 @@ async def search(query: str, limit: int = 10, namespace: Optional[str] = None) -
             query_texts=[q],
             n_results=lim,
             include=["documents", "metadatas", "distances"],
-            where=cast(Any, where_filter)
+            where=cast(Any, where_filter),
         )
-        
+
         formatted = []
         if results and isinstance(results.get("documents"), list) and results.get("documents"):
             docs_list = results.get("documents") or [[]]
             docs = docs_list[0] if docs_list else []
-            
+
             metas_list = results.get("metadatas") or [[]]
             metas = metas_list[0] if metas_list else []
-            
+
             ids_list = results.get("ids") or [[]]
             ids = ids_list[0] if ids_list else []
-            
+
             dists_list = results.get("distances") or [[]]
             dists = dists_list[0] if dists_list else []
-            
-            for i, doc in enumerate(docs):
+
+            for i, _doc in enumerate(docs):
                 meta = metas[i] if i < len(metas) else {}
                 # Filter to only show ENTITY types in this tool
                 if isinstance(meta, dict) and meta.get("type") == "ENTITY":
-                    formatted.append({
-                        "name": str(ids[i]).replace("entity:", "") if i < len(ids) else "unknown",
-                        "entityType": meta.get("entity_type", "ENTITY"),
-                        "observations": meta.get("observations", []),
-                        "score": 1.0 - (dists[i] if i < len(dists) else 0.5)
-                    })
-        
-        return {"success": True, "results": formatted, "count": len(formatted), "method": "semantic"}
+                    formatted.append(
+                        {
+                            "name": str(ids[i]).replace("entity:", "")
+                            if i < len(ids)
+                            else "unknown",
+                            "entityType": meta.get("entity_type", "ENTITY"),
+                            "observations": meta.get("observations", []),
+                            "score": 1.0 - (dists[i] if i < len(dists) else 0.5),
+                        }
+                    )
+
+        return {
+            "success": True,
+            "results": formatted,
+            "count": len(formatted),
+            "method": "semantic",
+        }
 
     # 2. Fallback to SQL ILIKE search if Chroma is down
-    from sqlalchemy import select, or_
+    from sqlalchemy import or_, select
+
     from src.brain.db.schema import KGNode
-    
+
     await db_manager.initialize()
     session = await db_manager.get_session()
     try:
         stmt = select(KGNode).where(
-            or_(
-                KGNode.id.ilike(f"%{q}%"),
-                KGNode.attributes["content"].astext.ilike(f"%{q}%")
-            )
+            or_(KGNode.id.ilike(f"%{q}%"), KGNode.attributes["content"].astext.ilike(f"%{q}%"))
         )
         if namespace:
             stmt = stmt.where(KGNode.namespace == namespace)
-        
+
         stmt = stmt.limit(lim)
         res = await session.execute(stmt)
         nodes = res.scalars().all()
-        
+
         results = []
         for n in nodes:
-            results.append({
-                "name": n.id.replace("entity:", ""),
-                "entityType": n.attributes.get("entity_type", "ENTITY"),
-                "observations": n.attributes.get("observations", [])
-            })
+            results.append(
+                {
+                    "name": n.id.replace("entity:", ""),
+                    "entityType": n.attributes.get("entity_type", "ENTITY"),
+                    "observations": n.attributes.get("observations", []),
+                }
+            )
     finally:
         await session.close()
-            
+
     return {"success": True, "results": results, "count": len(results), "method": "sql_fallback"}
 
 
 @server.tool()
-async def create_relation(source: str, target: str, relation: str, namespace: Optional[str] = None) -> Dict[str, Any]:
+async def create_relation(
+    source: str, target: str, relation: str, namespace: str | None = None
+) -> dict[str, Any]:
     """
     Create a relationship between two entities in the knowledge graph.
 
@@ -356,28 +377,28 @@ async def create_relation(source: str, target: str, relation: str, namespace: Op
     await db_manager.initialize()
     source_id = _get_id(source)
     target_id = _get_id(target)
-    
+
     success = await knowledge_graph.add_edge(
         source_id=source_id,
         target_id=target_id,
         relation=relation,
-        namespace=str(namespace) if namespace else "global"
+        namespace=str(namespace) if namespace else "global",
     )
-    
+
     if not success:
         return {"error": "Failed to create relation. Ensure both entities exist first."}
-        
+
     return {"success": True, "source": source, "target": target, "relation": relation}
 
 
 @server.tool()
-async def search_nodes(query: str, limit: int = 10, namespace: Optional[str] = None) -> Dict[str, Any]:
+async def search_nodes(query: str, limit: int = 10, namespace: str | None = None) -> dict[str, Any]:
     """Alias for search function to maintain compatibility"""
     return await search(query, limit, namespace)
 
 
 @server.tool()
-async def delete_entity(name: str, namespace: Optional[str] = None) -> Dict[str, Any]:
+async def delete_entity(name: str, namespace: str | None = None) -> dict[str, Any]:
     """
     Delete an entity from the knowledge graph (SQLite + ChromaDB).
     """
@@ -388,9 +409,10 @@ async def delete_entity(name: str, namespace: Optional[str] = None) -> Dict[str,
     await db_manager.initialize()
     node_id = _get_id(name)
 
-    from src.brain.db.schema import KGNode
     from sqlalchemy import delete
-    
+
+    from src.brain.db.schema import KGNode
+
     session = await db_manager.get_session()
     try:
         # Delete from structured DB (SQLite)
@@ -399,7 +421,7 @@ async def delete_entity(name: str, namespace: Optional[str] = None) -> Dict[str,
         await session.commit()
     finally:
         await session.close()
-    
+
     # Delete from ChromaDB
     if long_term_memory.available:
         try:
@@ -410,14 +432,10 @@ async def delete_entity(name: str, namespace: Optional[str] = None) -> Dict[str,
     return {"success": True, "deleted": True}
 
 
-
 @server.tool()
 async def ingest_verified_dataset(
-    file_path: str, 
-    dataset_name: str, 
-    namespace: str = "global", 
-    task_id: Optional[str] = None
-) -> Dict[str, Any]:
+    file_path: str, dataset_name: str, namespace: str = "global", task_id: str | None = None
+) -> dict[str, Any]:
     """
     High-Precision Ingestion Pipeline:
     1. Validates data quality and integrity.
@@ -425,9 +443,11 @@ async def ingest_verified_dataset(
     3. Indexes metadata in the Knowledge Graph.
     4. Syncs semantic preview to Vector Memory.
     """
-    import pandas as pd
-    from src.brain.data_guard import data_guard
     from pathlib import Path
+
+    import pandas as pd
+
+    from src.brain.data_guard import data_guard
 
     path = Path(file_path)
     if not path.exists():
@@ -450,16 +470,16 @@ async def ingest_verified_dataset(
     validation = data_guard.validate_dataframe(df, dataset_name)
     if not validation["is_worthy"]:
         return {
-            "success": False, 
-            "error": "Dataset rejected by Quality Guard", 
-            "validation_report": validation
+            "success": False,
+            "error": "Dataset rejected by Quality Guard",
+            "validation_report": validation,
         }
 
     # 3. Create Structured Table
     await db_manager.initialize()
     table_name = f"dataset_{dataset_name.lower().replace(' ', '_').replace('-', '_')}"
     db_success = await db_manager.create_table_from_df(table_name, df)
-    
+
     if not db_success:
         return {"success": False, "error": f"Failed to create structured table '{table_name}'"}
 
@@ -471,7 +491,7 @@ async def ingest_verified_dataset(
         "row_count": len(df),
         "columns": list(df.columns),
         "validation_score": 1.0 - validation["checks"]["null_ratio"],
-        "content_preview": df.head(10).to_string() # Semantic preview for vector search
+        "content_preview": df.head(10).to_string(),  # Semantic preview for vector search
     }
 
     kg_success = await knowledge_graph.add_node(
@@ -480,11 +500,12 @@ async def ingest_verified_dataset(
         attributes=attributes,
         namespace=namespace,
         task_id=task_id,
-        sync_to_vector=True
+        sync_to_vector=True,
     )
 
     # 5. Automated Semantic Linking (New)
     from src.brain.semantic_linker import semantic_linker
+
     links = await semantic_linker.discover_links(df, node_id, namespace=namespace)
     for link in links:
         await knowledge_graph.add_edge(
@@ -492,7 +513,7 @@ async def ingest_verified_dataset(
             target_id=link["target"],
             relation=link["relation"],
             attributes=link["attributes"],
-            namespace=namespace
+            namespace=namespace,
         )
 
     return {
@@ -501,48 +522,46 @@ async def ingest_verified_dataset(
         "table_name": table_name,
         "links_discovered": len(links),
         "validation_report": validation,
-        "message": f"Dataset '{dataset_name}' ingested and semantically linked ({len(links)} links) in {namespace}."
+        "message": f"Dataset '{dataset_name}' ingested and semantically linked ({len(links)} links) in {namespace}.",
     }
 
 
 @server.tool()
 async def trace_data_chain(
-    start_value: Any, 
-    start_dataset_id: str, 
-    namespace: str = "global",
-    max_depth: int = 3
-) -> Dict[str, Any]:
+    start_value: Any, start_dataset_id: str, namespace: str = "global", max_depth: int = 3
+) -> dict[str, Any]:
     """
-    Recursively follows LINKED_TO edges in the KG to reconstruct a unified record 
+    Recursively follows LINKED_TO edges in the KG to reconstruct a unified record
     accross multiple datasets.
     """
     from sqlalchemy import text
-    
+
     await db_manager.initialize()
     chain = []
     unified_record = {}
     visited_datasets = set()
-    
+
     current_targets = [(start_dataset_id, start_value)]
-    
+
     for _ in range(max_depth):
         next_targets = []
         for dataset_id, value in current_targets:
             if dataset_id in visited_datasets:
                 continue
             visited_datasets.add(dataset_id)
-            
+
             # A. Fetch dataset metadata
             async with await db_manager.get_session() as session:
                 from src.brain.db.schema import KGNode
+
                 ds_node = await session.get(KGNode, dataset_id)
                 if not ds_node:
                     continue
-                
+
                 table_name = ds_node.attributes.get("table_name")
                 if not table_name:
                     continue
-                
+
                 # B. Find the record in the SQLite table
                 # We search all columns for the value (could be optimized)
                 cols = ds_node.attributes.get("columns", [])
@@ -557,45 +576,57 @@ async def trace_data_chain(
                             row_dict = dict(row._mapping)
                             unified_record.update(row_dict)
                             chain.append({"dataset": dataset_id, "found_in_col": safe_col})
-                            
+
                             # C. Find linked datasets to jump further
                             graph = await knowledge_graph.get_graph_data(namespace=namespace)
-                            edges = [e for e in graph["edges"] if (e["source"] == dataset_id or e["target"] == dataset_id) and e["relation"] == "LINKED_TO"]
-                            
+                            edges = [
+                                e
+                                for e in graph["edges"]
+                                if (e["source"] == dataset_id or e["target"] == dataset_id)
+                                and e["relation"] == "LINKED_TO"
+                            ]
+
                             for edge in edges:
-                                other_ds = edge["target"] if edge["source"] == dataset_id else edge["source"]
+                                other_ds = (
+                                    edge["target"]
+                                    if edge["source"] == dataset_id
+                                    else edge["source"]
+                                )
                                 shared_key = edge.get("attributes", {}).get("shared_key")
                                 if shared_key and shared_key in row_dict:
                                     next_targets.append((other_ds, row_dict[shared_key]))
-                            break # Move to next dataset jump
+                            break  # Move to next dataset jump
                     except Exception as e:
                         logger.warning(f"Error searching {table_name}: {e}")
-                        
+
         current_targets = next_targets
         if not current_targets:
             break
-            
+
     return {
         "unified_record": unified_record,
         "chain_length": len(chain),
         "traversed_path": chain,
-        "value_searched": start_value
+        "value_searched": start_value,
     }
 
 
 if __name__ == "__main__":
     import sys
+
     try:
         server.run()
     except (BrokenPipeError, KeyboardInterrupt):
         sys.exit(0)
     except BaseException as e:
+
         def contains_broken_pipe(exc):
             if isinstance(exc, BrokenPipeError) or "Broken pipe" in str(exc):
                 return True
             if hasattr(exc, "exceptions"):
                 return any(contains_broken_pipe(inner) for inner in exc.exceptions)
             return False
+
         if contains_broken_pipe(e):
             sys.exit(0)
         raise

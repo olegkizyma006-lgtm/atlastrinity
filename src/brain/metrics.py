@@ -58,5 +58,4 @@ class MetricsCollector:
         pass
 
 
-
 metrics_collector = MetricsCollector()

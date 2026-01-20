@@ -11,7 +11,7 @@ Centralized health monitoring for all MCP servers with:
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .logger import logger
 
@@ -25,8 +25,8 @@ class ServerStatus:
     status: str  # "online", "offline", "degraded", "unknown"
     tools_count: int = 0
     response_time_ms: float = 0.0
-    last_check: Optional[datetime] = None
-    last_error: Optional[str] = None
+    last_check: datetime | None = None
+    last_error: str | None = None
     failure_count: int = 0
     description: str = ""
 
@@ -40,7 +40,7 @@ class HealthCheckResult:
     online_count: int
     offline_count: int
     degraded_count: int
-    servers: Dict[str, ServerStatus] = field(default_factory=dict)
+    servers: dict[str, ServerStatus] = field(default_factory=dict)
 
     @property
     def health_percentage(self) -> float:
@@ -82,8 +82,8 @@ class MCPHealthDashboard:
             mcp_manager: Optional MCPManager instance. If None, imports lazily.
         """
         self._mcp_manager = mcp_manager
-        self._last_result: Optional[HealthCheckResult] = None
-        self._server_metrics: Dict[str, ServerStatus] = {}
+        self._last_result: HealthCheckResult | None = None
+        self._server_metrics: dict[str, ServerStatus] = {}
 
     @property
     def mcp_manager(self):
@@ -129,9 +129,7 @@ class MCPHealthDashboard:
             check_start = asyncio.get_event_loop().time()
 
             # Try to list tools (this validates connection)
-            tools = await asyncio.wait_for(
-                self.mcp_manager.list_tools(server_name), timeout=30.0
-            )
+            tools = await asyncio.wait_for(self.mcp_manager.list_tools(server_name), timeout=30.0)
 
             check_end = asyncio.get_event_loop().time()
             response_time = (check_end - check_start) * 1000  # Convert to ms
@@ -147,7 +145,7 @@ class MCPHealthDashboard:
                 status.last_error = "Connected but no tools available"
                 status.response_time_ms = response_time
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             status.status = "offline"
             status.last_error = "Connection timeout (30s)"
             status.failure_count = self._server_metrics.get(server_name, status).failure_count + 1
@@ -181,14 +179,14 @@ class MCPHealthDashboard:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Build result
-        servers: Dict[str, ServerStatus] = {}
+        servers: dict[str, ServerStatus] = {}
         online = offline = degraded = 0
 
         for result in results:
             if isinstance(result, Exception):
                 logger.error(f"[HealthDashboard] Unexpected error: {result}")
                 continue
-            
+
             # Type narrowing for Pyrefly
             if not isinstance(result, ServerStatus):
                 continue
@@ -228,14 +226,18 @@ class MCPHealthDashboard:
         lines.append(f"{c.BOLD}{c.CYAN}{'=' * 60}{c.ENDC}\n")
 
         # Summary
-        health_color = c.GREEN if result.health_percentage >= 80 else (c.YELLOW if result.health_percentage >= 50 else c.RED)
+        health_color = (
+            c.GREEN
+            if result.health_percentage >= 80
+            else (c.YELLOW if result.health_percentage >= 50 else c.RED)
+        )
         lines.append(
             f"  {c.BOLD}Status:{c.ENDC} {health_color}{result.online_count}/{result.total_servers} online ({result.health_percentage:.0f}%){c.ENDC}"
         )
         lines.append(f"  {c.BOLD}Time:{c.ENDC} {result.timestamp.strftime('%H:%M:%S')}\n")
 
         # Group by tier
-        tiers: Dict[int, List[ServerStatus]] = {1: [], 2: [], 3: [], 4: []}
+        tiers: dict[int, list[ServerStatus]] = {1: [], 2: [], 3: [], 4: []}
         for status in result.servers.values():
             tiers.setdefault(status.tier, []).append(status)
 
@@ -251,7 +253,9 @@ class MCPHealthDashboard:
             if not servers_in_tier:
                 continue
 
-            lines.append(f"  {c.BOLD}{c.BLUE}Tier {tier_num}: {tier_names.get(tier_num, '')}{c.ENDC}")
+            lines.append(
+                f"  {c.BOLD}{c.BLUE}Tier {tier_num}: {tier_names.get(tier_num, '')}{c.ENDC}"
+            )
 
             for srv in sorted(servers_in_tier, key=lambda x: x.name):
                 if srv.status == "online":
@@ -297,7 +301,7 @@ class MCPHealthDashboard:
 
         return output
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """
         Get last health check result as dictionary for API responses.
 
@@ -325,7 +329,7 @@ class MCPHealthDashboard:
             },
         }
 
-    def get_server_status(self, server_name: str) -> Optional[ServerStatus]:
+    def get_server_status(self, server_name: str) -> ServerStatus | None:
         """Get cached status for a specific server."""
         return self._server_metrics.get(server_name)
 

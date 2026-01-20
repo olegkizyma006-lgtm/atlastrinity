@@ -9,10 +9,10 @@ ChromaDB-based vector memory for storing:
 This enables the system to learn from past experience.
 """
 
-import os
 import asyncio
+import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, cast
 
 try:
     import chromadb
@@ -34,7 +34,6 @@ if not CHROMA_DIR:
 else:
     # Ensure variables are expanded if config loader didn't (loader usually does)
     CHROMA_DIR = os.path.expandvars(CHROMA_DIR)
-
 
 
 class LongTermMemory:
@@ -97,7 +96,7 @@ class LongTermMemory:
         self,
         error: str,
         solution: str,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         task_description: str = "",
     ) -> bool:
         """
@@ -137,7 +136,7 @@ class LongTermMemory:
             return False
 
     def remember_strategy(
-        self, task: str, plan_steps: List[str], outcome: str, success: bool
+        self, task: str, plan_steps: list[str], outcome: str, success: bool
     ) -> bool:
         """
         Store a task execution strategy.
@@ -173,7 +172,7 @@ class LongTermMemory:
             logger.error(f"[MEMORY] Failed to store strategy: {e}")
             return False
 
-    def recall_similar_errors(self, error: str, n_results: int = 3) -> List[Dict[str, Any]]:
+    def recall_similar_errors(self, error: str, n_results: int = 3) -> list[dict[str, Any]]:
         """
         Find similar past errors and their solutions.
 
@@ -218,7 +217,7 @@ class LongTermMemory:
 
     def recall_similar_tasks(
         self, task: str, n_results: int = 3, only_successful: bool = True
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Find similar past tasks and their strategies.
 
@@ -264,12 +263,19 @@ class LongTermMemory:
         except Exception as e:
             # Catch specific ChromaDB internal errors that might occur during query execution
             if "Internal error" in str(e) or "Error finding id" in str(e):
-                 logger.warning(f"[MEMORY] ChromaDB internal query error (ignoring): {e}")
-                 return []
+                logger.warning(f"[MEMORY] ChromaDB internal query error (ignoring): {e}")
+                return []
             logger.error(f"[MEMORY] Failed to recall tasks: {e}")
             return []
 
-    def add_knowledge_node(self, node_id: str, text: str, metadata: Dict[str, Any], namespace: str = "global", task_id: str = "") -> bool:
+    def add_knowledge_node(
+        self,
+        node_id: str,
+        text: str,
+        metadata: dict[str, Any],
+        namespace: str = "global",
+        task_id: str = "",
+    ) -> bool:
         """Add a knowledge graph node to vector store."""
         if not self.available:
             return False
@@ -282,22 +288,26 @@ class LongTermMemory:
             logger.error(f"[MEMORY] Failed to add knowledge node: {e}")
             return False
 
-    def remember_conversation(self, session_id: str, summary: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+    def remember_conversation(
+        self, session_id: str, summary: str, metadata: dict[str, Any] | None = None
+    ) -> bool:
         """Store a conversation summary in vector memory."""
         if not self.available:
             return False
-            
+
         try:
             doc_id = f"conv_{session_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            
+
             self.conversations.upsert(
                 ids=[doc_id],
                 documents=[summary],
-                metadatas=[{
-                    "session_id": session_id,
-                    "timestamp": datetime.now().isoformat(),
-                    **(metadata or {})
-                }]
+                metadatas=[
+                    {
+                        "session_id": session_id,
+                        "timestamp": datetime.now().isoformat(),
+                        **(metadata or {}),
+                    }
+                ],
             )
             logger.info(f"[MEMORY] Stored conversation summary: {doc_id}")
             return True
@@ -305,32 +315,34 @@ class LongTermMemory:
             logger.error(f"[MEMORY] Failed to store conversation: {e}")
             return False
 
-    def recall_similar_conversations(self, query: str, n_results: int = 3) -> List[Dict[str, Any]]:
+    def recall_similar_conversations(self, query: str, n_results: int = 3) -> list[dict[str, Any]]:
         """Find past conversations related to the current query."""
         if not self.available or self.conversations.count() == 0:
             return []
-            
+
         try:
             results = self.conversations.query(
                 query_texts=[query],
                 n_results=min(n_results, self.conversations.count()),
-                include=["documents", "metadatas", "distances"]
+                include=["documents", "metadatas", "distances"],
             )
-            
+
             similar = []
             if results and results["documents"]:
                 for i, doc in enumerate(results["documents"][0]):
-                    similar.append({
-                        "summary": doc,
-                        "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
-                        "distance": results["distances"][0][i] if results["distances"] else 1.0
-                    })
+                    similar.append(
+                        {
+                            "summary": doc,
+                            "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
+                            "distance": results["distances"][0][i] if results["distances"] else 1.0,
+                        }
+                    )
             return similar
         except Exception as e:
             logger.error(f"[MEMORY] Failed to recall conversations: {e}")
             return []
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get memory statistics."""
         if not self.available:
             return {"available": False}
@@ -343,7 +355,7 @@ class LongTermMemory:
             "path": CHROMA_DIR,
         }
 
-    def consolidate(self, logs: List[Dict[str, Any]], llm_summarizer=None) -> int:
+    def consolidate(self, logs: list[dict[str, Any]], llm_summarizer=None) -> int:
         """
         Consolidate logs into lessons (for nightly processing).
 
@@ -382,17 +394,17 @@ class LongTermMemory:
         return new_lessons
 
     def remember_behavioral_change(
-        self, 
-        original_intent: str, 
-        deviation: str, 
-        reason: str, 
-        result: str, 
-        context: Dict[str, Any],
-        decision_factors: Optional[Dict[str, Any]] = None
+        self,
+        original_intent: str,
+        deviation: str,
+        reason: str,
+        result: str,
+        context: dict[str, Any],
+        decision_factors: dict[str, Any] | None = None,
     ) -> bool:
         """
         Store a successful logic deviation with decision context.
-        
+
         Args:
             original_intent: What was originally planned
             deviation: What was actually done
@@ -401,15 +413,18 @@ class LongTermMemory:
             context: Execution context (step_id, etc.)
             decision_factors: Key environmental factors driving the decision (e.g. "time_pressure", "resource_unavailability")
         """
-        if not self.available: return False
+        if not self.available:
+            return False
         try:
             doc_id = f"deviation_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{hash(original_intent) % 10000}"
-            
+
             # Format factors for semantic understanding
             factors_text = ""
             if decision_factors:
-                factors_text = "\nDecision Factors:\n" + "\n".join([f"- {k}: {v}" for k, v in decision_factors.items()])
-            
+                factors_text = "\nDecision Factors:\n" + "\n".join(
+                    [f"- {k}: {v}" for k, v in decision_factors.items()]
+                )
+
             document = (
                 f"Original Intent: {original_intent}\n"
                 f"Deviated To: {deviation}\n"
@@ -417,31 +432,29 @@ class LongTermMemory:
                 f"Outcome: {result}"
                 f"{factors_text}"
             )
-            
+
             # Enrich metadata
             metadata = {
                 "timestamp": datetime.now().isoformat(),
                 "step_id": str(context.get("step_id", "")),
-                "success": True
+                "success": True,
             }
             # Flatten simple factors into metadata for filtering
             if decision_factors:
                 for k, v in decision_factors.items():
                     if isinstance(v, (str, bool, int, float)):
                         metadata[f"factor_{k}"] = cast(Any, v)
-            
+
             self.behavior_deviations.upsert(
-                ids=[doc_id],
-                documents=[document],
-                metadatas=[metadata]
+                ids=[doc_id], documents=[document], metadatas=[metadata]
             )
             logger.info(f"[MEMORY] Stored behavior deviation in ChromaDB: {doc_id}")
-            
+
             # 2. Sync to Relational DB (SQL) for auditing
             try:
                 from .db.manager import db_manager
                 from .db.schema import BehavioralDeviation
-                
+
                 async def _sync_to_sql():
                     async with await db_manager.get_session() as session:
                         deviation_entry = BehavioralDeviation(
@@ -451,12 +464,12 @@ class LongTermMemory:
                             deviation=deviation,
                             reason=reason,
                             result=result,
-                            decision_factors=decision_factors or {}
+                            decision_factors=decision_factors or {},
                         )
                         session.add(deviation_entry)
                         await session.commit()
                         logger.info("[MEMORY] Synced deviation to SQL")
-                
+
                 # Check if we are in an event loop (likely)
                 try:
                     loop = asyncio.get_running_loop()
@@ -464,7 +477,7 @@ class LongTermMemory:
                 except RuntimeError:
                     # Not in loop, use run
                     asyncio.run(_sync_to_sql())
-                    
+
             except Exception as sql_e:
                 logger.warning(f"[MEMORY] Failed to sync deviation to SQL: {sql_e}")
 
@@ -473,23 +486,26 @@ class LongTermMemory:
             logger.error(f"[MEMORY] Failed to store deviation: {e}")
             return False
 
-    def recall_behavioral_logic(self, intent: str, n_results: int = 2) -> List[Dict[str, Any]]:
+    def recall_behavioral_logic(self, intent: str, n_results: int = 2) -> list[dict[str, Any]]:
         """Recall past behavioral deviations for a given intent."""
-        if not self.available or self.behavior_deviations.count() == 0: return []
+        if not self.available or self.behavior_deviations.count() == 0:
+            return []
         try:
             results = self.behavior_deviations.query(
                 query_texts=[intent],
                 n_results=min(n_results, self.behavior_deviations.count()),
-                include=["documents", "metadatas", "distances"]
+                include=["documents", "metadatas", "distances"],
             )
             similar = []
             if results and results["documents"]:
                 for i, doc in enumerate(results["documents"][0]):
-                    similar.append({
-                        "document": doc,
-                        "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
-                        "distance": results["distances"][0][i] if results["distances"] else 1.0
-                    })
+                    similar.append(
+                        {
+                            "document": doc,
+                            "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
+                            "distance": results["distances"][0][i] if results["distances"] else 1.0,
+                        }
+                    )
             return similar
         except Exception as e:
             logger.error(f"[MEMORY] Failed to recall deviations: {e}")
