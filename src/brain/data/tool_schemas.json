@@ -1224,6 +1224,20 @@
         },
         "description": "SPECIALIZED: Search Ukrainian business registries (YouControl, Opendatabot) for company data (ЄДРПОУ, address, etc.)"
     },
+    "open_data_search": {
+        "server": "duckduckgo-search",
+        "required": [
+            "query"
+        ],
+        "optional": [
+            "step_id"
+        ],
+        "types": {
+            "query": "str",
+            "step_id": "str"
+        },
+        "description": "SPECIALIZED: Search Ukrainian Open Data Portal (data.gov.ua) for datasets (.csv, .xlsx, .json)"
+    },
     "github_whoami": {
         "server": "github",
         "required": [],

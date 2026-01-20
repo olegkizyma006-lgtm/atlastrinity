@@ -1,0 +1,36 @@
+STORAGE & MEMORY PROTOCOL (v1.0)
+==============================
+
+1. PHYSICAL STORAGE LOCATIONS
+-----------------------------
+- WORKSPACE: `~/.config/atlastrinity/workspace` (Main area for all active work).
+- DOWNLOADS: `~/.config/atlastrinity/workspace/downloads` (Primary destination for files from internet/browsers).
+- DATA VAULT: `~/.config/atlastrinity/workspace/vault` (Long-term storage for secondary databases, datasets from registries).
+- MEMORY ROOT: `~/.config/atlastrinity/memory` (Internal system databases).
+
+2. MEMORY SCHEMAS (INTELLECTUAL CORE)
+-------------------------------------
+The system uses a hybrid memory approach:
+
+A. RELATIONAL MEMORY (SQLite - atlastrinity.db):
+- `sessions`, `tasks`, `task_steps`: Logs of what was done.
+- `kg_nodes`, `kg_edges`: The Knowledge Graph (Vertices and Relationships).
+- `conversation_summaries`: Professional summaries of all chat history.
+- `behavioral_deviations`: Record of "learned" logic shifts.
+
+B. VECTOR MEMORY (ChromaDB):
+- `lessons`: Error patterns and verified solutions.
+- `strategies`: Proven plans for specific task types.
+- `knowledge`: Semantic index for deep searching in the Knowledge Graph.
+- `conversations`: Semantic retrieval of past context.
+
+3. AGENT DATA DOCTRINE
+----------------------
+- TETYANA: Must save all scraped data/datasets to `workspace/downloads` or `workspace/vault`.
+- ATLAS: Must check `conversation_summaries` and `strategies` before admiting ignorance.
+- SHARED KNOWLEDGE: If you find a new ID (ЄДРПОУ) or dataset URL, ALWAYS store it in the Knowledge Graph via `kg_nodes`.
+
+DEVIATION POLICY (ROOM TO MANEUVER)
+===================================
+- STORAGE VECTOR: Standard paths are the default. If a specific task or local environment requires a temporary or different path (e.g. `Desktop` for user convenience), you ARE AUTHORIZED to deviate.
+- DATABASE PERSISTENCE: Never bypass the core memory servers for long-term facts, but you can use temporary JSON/CSV files in the workspace for intermediate processing.

@@ -1,0 +1,33 @@
+SOFTWARE DEVELOPMENT DOCTRINE (SDLC)
+=====================================
+
+When the user requests SOFTWARE DEVELOPMENT (apps, APIs, libraries, CLI tools, etc.), you MUST follow the Universal SDLC Protocol. This protocol is LANGUAGE-AGNOSTIC and applies to ALL project types.
+
+PHASE 1: REQUIREMENTS ANALYSIS & SPECIFICATION
+----------------------------------------------
+- DELIVERABLE: `SPEC.md`
+- CONTENT: Overview, Functional/Non-Functional Requirements, User Stories, Success Criteria.
+
+PHASE 2: ARCHITECTURAL DESIGN
+-----------------------------
+- DELIVERABLE: `ARCHITECTURE.md`
+- CONTENT: Diagram, Module Breakdown, Data Models, API Contracts, Tech Stack.
+
+PHASE 3: INCREMENTAL IMPLEMENTATION
+-----------------------------------
+- RULE: ONE MODULE PER STEP. Build, then verify.
+- PATTERN: Skeleton -> Logic -> Error Handling -> Tests -> Verify.
+
+PHASE 4: INTEGRATION & TESTING
+------------------------------
+- Ensure all components work together correctly. Use `requires_verification: true`.
+
+PHASE 5: DOCUMENTATION & HANDOVER
+---------------------------------
+- DELIVERABLE: `README.md` in project root.
+
+DEVIATION POLICY (ROOM TO MANEUVER)
+===================================
+- GUIDANCE VECTOR: This protocol is a recommendation of high-quality standards.
+- AUTONOMY: If technical reality dictates a different path (e.g., deprecated dependencies, faster architectural alternatives, or simple one-file fixes for trivial tasks), you ARE AUTHORIZED to deviate.
+- PRINCIPLE: Professional quality and GOAL achievement always override rigid adherence to steps. If you deviate, briefly explain "WHY" in your internal reasoning.

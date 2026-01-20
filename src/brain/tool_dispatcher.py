@@ -436,6 +436,12 @@ class ToolDispatcher:
              if any(kw in str(args).lower() for kw in ["єдрпоу", "company", "registry", "youcontrol", "opendatabot", "бізнес", "підприємство"]):
                   logger.info(f"[DISPATCHER] Intelligent routing: search -> business_registry_search")
                   return "duckduckgo-search", "business_registry_search", {"company_name": args.get("query", args.get("company_name", ""))}
+             
+             # Check for open data portal intent
+             if any(kw in str(args).lower() for kw in ["dataset", "датасет", "data.gov.ua", "портал", "відкриті дані"]):
+                  logger.info(f"[DISPATCHER] Intelligent routing: search -> open_data_search")
+                  return "duckduckgo-search", "open_data_search", {"query": args.get("query", args.get("query", ""))}
+                  
              return "duckduckgo-search", "duckduckgo_search", args
              
         # Priority 4: Knowledge Graph semantic search

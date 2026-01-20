@@ -19,16 +19,24 @@ CATALOG_PATH = os.path.join(DATA_DIR, "mcp_catalog.json")
 SCHEMAS_PATH = os.path.join(DATA_DIR, "tool_schemas.json")
 VIBE_DOCS_PATH = os.path.join(DATA_DIR, "vibe_docs.txt")
 VOICE_PROTOCOL_PATH = os.path.join(DATA_DIR, "voice_protocol.txt")
+SEARCH_PROTOCOL_PATH = os.path.join(DATA_DIR, "search_protocol.txt")
+STORAGE_PROTOCOL_PATH = os.path.join(DATA_DIR, "storage_protocol.txt")
+SDLC_PROTOCOL_PATH = os.path.join(DATA_DIR, "sdlc_protocol.txt")
+TASK_PROTOCOL_PATH = os.path.join(DATA_DIR, "task_protocol.txt")
 
 # Global variables to store loaded data
 SERVER_CATALOG: Dict[str, Dict[str, Any]] = {}
 TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {}
 VIBE_DOCUMENTATION: str = ""
 VOICE_PROTOCOL: str = ""
+SEARCH_PROTOCOL: str = ""
+STORAGE_PROTOCOL: str = ""
+SDLC_PROTOCOL: str = ""
+TASK_PROTOCOL: str = ""
 
 def load_registry():
     """Load registry data from JSON and text files."""
-    global SERVER_CATALOG, TOOL_SCHEMAS, VIBE_DOCUMENTATION, VOICE_PROTOCOL
+    global SERVER_CATALOG, TOOL_SCHEMAS, VIBE_DOCUMENTATION, VOICE_PROTOCOL, SEARCH_PROTOCOL, STORAGE_PROTOCOL, SDLC_PROTOCOL, TASK_PROTOCOL
     
     try:
         # Load Catalog
@@ -58,6 +66,32 @@ def load_registry():
                 VOICE_PROTOCOL = f.read()
         else:
             VOICE_PROTOCOL = "Voice protocol not found."
+        # Load Search Protocol
+        if os.path.exists(SEARCH_PROTOCOL_PATH):
+            with open(SEARCH_PROTOCOL_PATH, "r", encoding="utf-8") as f:
+                SEARCH_PROTOCOL = f.read()
+        else:
+            SEARCH_PROTOCOL = "Search protocol not found."
+
+        # Load Storage Protocol
+        if os.path.exists(STORAGE_PROTOCOL_PATH):
+            with open(STORAGE_PROTOCOL_PATH, "r", encoding="utf-8") as f:
+                STORAGE_PROTOCOL = f.read()
+        else:
+            STORAGE_PROTOCOL = "Storage protocol not found."
+        # Load SDLC Protocol
+        if os.path.exists(SDLC_PROTOCOL_PATH):
+            with open(SDLC_PROTOCOL_PATH, "r", encoding="utf-8") as f:
+                SDLC_PROTOCOL = f.read()
+        else:
+            SDLC_PROTOCOL = "SDLC protocol not found."
+
+        # Load Task Protocol
+        if os.path.exists(TASK_PROTOCOL_PATH):
+            with open(TASK_PROTOCOL_PATH, "r", encoding="utf-8") as f:
+                TASK_PROTOCOL = f.read()
+        else:
+            TASK_PROTOCOL = "Task protocol not found."
             
     except Exception as e:
         print(f"[Here be Dragons] Error loading MCP registry: {e}")

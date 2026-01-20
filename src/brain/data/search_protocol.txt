@@ -1,0 +1,40 @@
+SEARCH PROTOCOL (v1.1)
+=======================
+
+1. SEARCH CLASSIFICATION:
+   - Level 1: Quick Web Search (DuckDuckGo generic)
+   - Level 2: Business Registry Search (YouControl, Opendatabot, Clarity)
+   - Level 3: Open Data Portal Search (data.gov.ua)
+   - Level 4: Deep Web Extraction (Puppeteer/Navigation)
+
+2. EXECUTION GUIDELINES:
+   - START with specialized tools (Level 2/3) for technical data (ЄДРПОУ, addresses, owners).
+   - PREFER macos-use_fetch_url for clean data extraction from registries.
+   - USE Puppeteer ONLY for interactive pages (clicks, forms, dynamic content).
+   - IF BLOCKED by robot detection, switch to DuckDuckGo/Fetch.
+
+3. DATA RETENTION:
+   - All found datasets (.csv, .xlsx, .json) MUST be saved to the workspace folder.
+   - Extract key "seed" metadata (dates, IDs, names) to the Knowledge Graph to enable recursive searching.
+
+4. RECURSIVE SEARCH DOCTRINE:
+   - After finding initial data, ALWAYS analyze if more precise terms (IDs, names) can be used for a second, deeper search.
+
+5. MACHINE-READABLE CONFIGURATION (JSON):
+{
+  "search_rules": {
+    "business": {
+      "operator": "(site:youcontrol.com.ua OR site:opendatabot.ua OR site:clarity-project.info) \"{query}\"",
+      "priority_domains": ["youcontrol.com.ua", "opendatabot.ua", "clarity-project.info"]
+    },
+    "open_data": {
+      "operator": "site:data.gov.ua {query}",
+      "priority_domains": ["data.gov.ua"]
+    }
+  }
+}
+
+DEVIATION POLICY (ROOM TO MANEUVER)
+===================================
+- VECTOR GUIDANCE: Search levels are a "starting vector". You are encouraged to skip levels or pivot search strategies immediately if your intuition (or initial results) suggests a better path.
+- AUTONOMY: Professional search quality and GOAL achievement always override rigid adherence to protocol hierarchy.
