@@ -103,6 +103,13 @@ backend = "generic"
 # api_style = "anthropic"
 # backend = "anthropic"
 
+[[providers]]
+name = "copilot"
+api_base = "YOUR_COPILOT_ENDPOINT"  # e.g., https://api.atlastrinity.ai/v1 or local proxy
+api_key_env_var = "COPILOT_API_KEY"
+api_style = "openai"
+backend = "generic"
+
 # -----------------------------------------------------------------------------
 # MODELS
 # -----------------------------------------------------------------------------
@@ -124,6 +131,47 @@ alias = "devstral-openrouter"
 temperature = 0.2
 input_price = 0.0
 output_price = 0.0
+
+# Copilot Models (GPT-4o, 4.1, 5-mini, Raptor, Grok)
+[[models]]
+name = "gpt-4o"
+provider = "copilot"
+alias = "gpt-4o"
+temperature = 0.3
+input_price = 5.0
+output_price = 15.0
+
+[[models]]
+name = "gpt-4.1"
+provider = "copilot"
+alias = "gpt-4.1"
+temperature = 0.3
+input_price = 5.0
+output_price = 15.0
+
+[[models]]
+name = "gpt-5-mini"
+provider = "copilot"
+alias = "gpt-5-mini"
+temperature = 0.3
+input_price = 0.15
+output_price = 0.6
+
+[[models]]
+name = "raptor-mini"
+provider = "copilot"
+alias = "raptor-mini"
+temperature = 0.1
+input_price = 0.0
+output_price = 0.0
+
+[[models]]
+name = "grok-mini"
+provider = "copilot"
+alias = "grok-mini"
+temperature = 0.5
+input_price = 1.0
+output_price = 3.0
 
 # Example: GPT-4 via OpenRouter
 # [[models]]

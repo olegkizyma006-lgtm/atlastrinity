@@ -35,7 +35,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Pattern, Tuple, Union
 
-from mcp.server.fastmcp import Context, FastMCP
+from mcp.server import FastMCP
+from mcp.server.fastmcp import Context
 
 from .vibe_config import (
     AgentMode,

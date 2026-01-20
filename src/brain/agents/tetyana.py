@@ -110,11 +110,11 @@ class Tetyana(BaseAgent):
     SYSTEM_PROMPT = AgentPrompts.TETYANA["SYSTEM_PROMPT"]
 
 
-    def __init__(self, model_name: str = "grok-code-fast-1"):
+    def __init__(self, model_name: str = "grok-mini"):
         # Get model config (config.yaml > parameter > env variables)
         agent_config = config.get_agent_config("tetyana")
         final_model = model_name
-        if model_name == "grok-code-fast-1":  # default parameter
+        if model_name == "grok-mini":  # default parameter
             final_model = agent_config.get("model") or os.getenv("COPILOT_MODEL", "gpt-4.1")
 
         self.llm = CopilotLLM(model_name=final_model)

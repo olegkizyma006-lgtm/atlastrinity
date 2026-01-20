@@ -34,7 +34,10 @@ class ToolDispatcher:
         "vibe", "vibe_prompt", "vibe_ask", "vibe_analyze_error", "vibe_smart_plan", 
         "vibe_code_review", "vibe_implement_feature", "vibe_execute_subcommand",
         "vibe_list_sessions", "vibe_session_details", "vibe_which",
-        "debug", "fix", "implement", "feature", "review", "plan", "ask", "question"
+        "vibe_get_config", "vibe_configure_model", "vibe_set_mode", 
+        "vibe_configure_provider", "vibe_session_resume", "vibe_reload_config",
+        "debug", "fix", "implement", "feature", "review", "plan", "ask", "question",
+        "config", "model", "provider", "resume", "reload", "mode"
     ]
     
     BROWSER_SYNONYMS = ["browser", "puppeteer", "navigate", "google", "bing", "web", "web_search", "internet_search", "online_search"]
@@ -683,6 +686,25 @@ class ToolDispatcher:
             "vibe_session_details": "vibe_session_details",
             "which": "vibe_which",
             "vibe_which": "vibe_which",
+            "config": "vibe_get_config",
+            "get_config": "vibe_get_config",
+            "vibe_get_config": "vibe_get_config",
+            "model": "vibe_configure_model",
+            "configure_model": "vibe_configure_model",
+            "switch_model": "vibe_configure_model",
+            "vibe_configure_model": "vibe_configure_model",
+            "mode": "vibe_set_mode",
+            "set_mode": "vibe_set_mode",
+            "vibe_set_mode": "vibe_set_mode",
+            "provider": "vibe_configure_provider",
+            "configure_provider": "vibe_configure_provider",
+            "vibe_configure_provider": "vibe_configure_provider",
+            "resume": "vibe_session_resume",
+            "continue": "vibe_session_resume",
+            "vibe_session_resume": "vibe_session_resume",
+            "reload": "vibe_reload_config",
+            "reload_config": "vibe_reload_config",
+            "vibe_reload_config": "vibe_reload_config",
         }
         resolved_tool = vibe_map.get(tool_name, tool_name)
         if not resolved_tool.startswith("vibe_"):

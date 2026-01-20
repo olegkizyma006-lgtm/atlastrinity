@@ -97,7 +97,7 @@
         "name": "vibe",
         "tier": 2,
         "category": "ai",
-        "description": "Mistral AI-powered CODING and DEBUGGING engine (12 tools)",
+        "description": "Mistral AI-powered CODING and DEBUGGING engine (17 tools)",
         "capabilities": [
             "Deep error analysis with auto-fix",
             "Code review and architectural advice",
@@ -105,7 +105,10 @@
             "Self-healing when tools fail",
             "Direct database inspection (vibe_check_db) using configured SQL backend (SQLite)",
             "Context-aware system monitoring (vibe_get_system_context)",
-            "Long-running task planning"
+            "Long-running task planning",
+            "Dynamic model/provider switching",
+            "Custom agent profiles",
+            "Session resume capability"
         ],
         "key_tools": [
             "vibe_prompt",
@@ -119,7 +122,12 @@
             "vibe_execute_subcommand",
             "vibe_which",
             "vibe_list_sessions",
-            "vibe_session_details"
+            "vibe_session_details",
+            "vibe_get_config",
+            "vibe_configure_model",
+            "vibe_set_mode",
+            "vibe_configure_provider",
+            "vibe_session_resume"
         ],
         "when_to_use": "ONLY for software development, writing code/scripts, fixing hard errors (self-healing), and deep system state inspection via DB."
     },
