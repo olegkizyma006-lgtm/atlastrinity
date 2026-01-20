@@ -49,6 +49,7 @@ const CommandLine: React.FC<CommandLineProps> = ({
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const maxVolumeRef = useRef<number>(0); // Для простого VAD
   const audioContextRef = useRef<AudioContext | null>(null);
+  const lastSkippedChunkRef = useRef<Blob | null>(null); // Pre-buffer for context
 
   // Auto-expand logic
   useEffect(() => {
@@ -332,15 +333,32 @@ const CommandLine: React.FC<CommandLineProps> = ({
       if (maxVolumeRef.current < 12) {
         // console.log('🔇 Chunk too quiet, skipping STT');
         setSttStatus('🔇 Тиша...');
+        // Save as context for next chunk if needed
+        if (audioChunksRef.current.length > 0) {
+           lastSkippedChunkRef.current = new Blob(audioChunksRef.current, { type: mimeType });
+        }
       } else if (audioChunksRef.current.length > 0) {
+        // Speech detected!
+        // Check if we have a pre-buffer context to send first
+        if (lastSkippedChunkRef.current) {
+            // Send the previous slice first (fire and forget)
+            // console.log('📎 Attaching pre-buffer context');
+            processAudioChunk(lastSkippedChunkRef.current).catch(err => console.error("Error sending pre-buffer:", err));
+            lastSkippedChunkRef.current = null;
+        }
+
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         // console.log('🎤 Created audio blob:', mimeType, audioBlob.size, 'bytes');
-        await processAudioChunk(audioBlob);
+        
+        // Wait for processing? No, we want gapless recording. 
+        // We launch processing in background.
+        processAudioChunk(audioBlob).catch(console.error);
       } else {
         console.log('⚠️ No audio chunks recorded');
       }
 
       // Продовжуємо цикл якщо ще слухаємо
+      // ВАЖЛИВО: Запускаємо негайно, не чекаючи processAudioChunk
       if (isListeningRef.current && streamRef.current?.active) {
         // console.log('🔄 Continuing recording cycle...');
         startRecordingCycle();
