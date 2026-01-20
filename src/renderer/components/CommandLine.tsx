@@ -241,6 +241,13 @@ const CommandLine: React.FC<CommandLineProps> = ({
             sampleRate: 48000,
           },
         });
+
+        // SAFETY CHECK: If user stopped listening while we were waiting for permission
+        if (!isListeningRef.current) {
+            stream.getTracks().forEach((track) => track.stop());
+            return;
+        }
+
         streamRef.current = stream;
         // console.log('✅ Microphone access granted, stream active:', stream.active);
 

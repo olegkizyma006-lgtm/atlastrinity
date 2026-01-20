@@ -83,6 +83,7 @@ async def lifespan(app: FastAPI):
         try:
             logger.info("[LifeSpan] Warming up voice engines...")
             # Warm up STT model (may be None if faster-whisper not installed)
+            logger.info(f"[LifeSpan] Pre-loading STT model: {stt.model_name}...")
             model = await stt.get_model()
             if model:
                 logger.info("[LifeSpan] STT model loaded successfully.")
