@@ -136,6 +136,7 @@ class WhisperSTT:
 
         self._model = None
         self._load_lock = asyncio.Lock()
+        self._transcribe_lock = asyncio.Lock()  # Prevent concurrent transcriptions from overloading CPU
         self.download_root = CONFIG_ROOT / "models" / "faster-whisper"
 
         # Compute type selection based on device
@@ -224,19 +225,21 @@ class WhisperSTT:
         model = await self.get_model()
 
         try:
-            # Faster Whisper parameters
+            # Faster Whisper parameters for high accuracy
             def transcribe():
                 segments, info = cast(Any, model).transcribe(
                     audio_path,
                     language=language,
-                    beam_size=2,
+                    beam_size=5,  # Better accuracy for large-v3
+                    temperature=0.0,  # Deterministic output
                     initial_prompt="Це професійна розмова з AI-асистентом Атласом. Пиши чистою українською мовою з правильними розділовими знаками. Наприклад: 'Слава Україні! Як твої справи? Потрібно виконати це завдання.' Використовуй коми, крапки, знаки питання та оклику відповідно до інтонації.",
-                    vad_filter=True,  # Enable VAD to avoid hallucinations during silence
+                    vad_filter=True,
                     vad_parameters=dict(min_silence_duration_ms=1000),
                 )
                 return list(segments), info
 
-            segments_list, info = await asyncio.to_thread(transcribe)
+            async with self._transcribe_lock:
+                segments_list, info = await asyncio.to_thread(transcribe)
 
             full_text = " ".join([s.text for s in segments_list]).strip()
             full_text = self._filter_text(full_text)

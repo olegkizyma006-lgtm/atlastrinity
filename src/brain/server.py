@@ -321,41 +321,43 @@ async def smart_speech_to_text(
             temp_file.write(content)
             temp_file_path = temp_file.name
 
-        # Convert to WAV
+        # Convert to WAV non-blockingly
         wav_path = temp_file_path
         if suffix != ".wav":
             wav_path = temp_file_path.replace(suffix, ".wav")
             try:
-                # Optimized for Whisper large-v3-turbo
-                result = subprocess.run(
-                    [
-                        "ffmpeg",
-                        "-y",
-                        "-i",
-                        temp_file_path,
-                        "-af",
-                        ("highpass=f=80, loudnorm"),
-                        "-ar",
-                        "16000",
-                        "-ac",
-                        "1",
-                        "-f",
-                        "wav",
-                        "-loglevel",
-                        "error",  # Less verbose
-                        wav_path,
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
+                # Optimized ffmpeg call for Whisper (16kHz mono)
+                process = await asyncio.create_subprocess_exec(
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    temp_file_path,
+                    "-af",
+                    "highpass=f=80, loudnorm",
+                    "-ar",
+                    "16000",
+                    "-ac",
+                    "1",
+                    "-f",
+                    "wav",
+                    "-loglevel",
+                    "error",
+                    wav_path,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                 )
-
-                if result.returncode == 0:
-                    os.unlink(temp_file_path)  # Delete original
+                stdout, stderr = await process.communicate()
+                
+                if process.returncode == 0:
+                    try:
+                        os.unlink(temp_file_path)
+                    except:
+                        pass
                 else:
-                    logger.warning("[STT] FFmpeg failed, using original")
+                    logger.warning(f"[STT] FFmpeg failed ({process.returncode}): {stderr.decode()}, using original")
                     wav_path = temp_file_path
-            except Exception:
+            except Exception as e:
+                logger.error(f"[STT] FFmpeg error: {e}")
                 wav_path = temp_file_path
 
         # Smart analysis with context (async)
@@ -408,7 +410,7 @@ async def smart_speech_to_text(
                     ratio = 1.0
 
                 # Strict threshold for history matching
-                if ratio > 0.75:
+                if ratio > 0.85: # Increased from 0.75 to be less aggressive
                     is_echo = True
                     logger.info(
                         f"[STT] Echo detected (History Match): '{clean_text}' ~= '{past_clean}' (Ratio: {ratio:.2f})"
