@@ -196,7 +196,7 @@ class KnowledgeGraph:
             logger.error(f"[GRAPH] Batch insert failed: {e}")
             return {"success": False, "error": str(e)}
 
-    async def promote_node(self, node_id: str, target_namespace: str = "global") -> bool:
+    async def promote_node(self, node_id: str, target_namespace: str = "global", agent_name: str = "atlas") -> bool:
         """
         Elevate a node and its immediate relationships to a new namespace.
         Part of the 'Golden Fund' architecture.
@@ -225,6 +225,17 @@ class KnowledgeGraph:
                     (KGEdge.source_id == node_id) | (KGEdge.target_id == node_id)
                 ).values(namespace=target_namespace)
                 await session.execute(stmt_edges)
+                
+                # 3. Log Promotion
+                from src.brain.db.schema import KnowledgePromotion
+                promotion_log = KnowledgePromotion(
+                    node_id=node_id,
+                    old_namespace=old_namespace,
+                    target_namespace=target_namespace,
+                    promoted_by=agent_name,
+                    reason="Promoted to Golden Fund for long-term retention"
+                )
+                session.add(promotion_log)
                 
                 await session.commit()
                 

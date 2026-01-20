@@ -231,3 +231,21 @@ class BehavioralDeviation(Base):
     decision_factors: Mapped[Dict[str, Any]] = mapped_column(JSON, default={})
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+class KnowledgePromotion(Base):
+    """
+    Tracks the elevation of data from task-specific to global (Golden Fund).
+    Provides an audit log for knowledge accumulation.
+    """
+    __tablename__ = "knowledge_promotions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    node_id: Mapped[str] = mapped_column(ForeignKey("kg_nodes.id"))
+    
+    old_namespace: Mapped[str] = mapped_column(String(100))
+    target_namespace: Mapped[str] = mapped_column(String(100), default="global")
+    
+    promoted_by: Mapped[str] = mapped_column(String(50)) # Agent name
+    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
