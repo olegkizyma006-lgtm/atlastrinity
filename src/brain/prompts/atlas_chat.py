@@ -9,8 +9,8 @@ This prompt integrates the Full Arsenal of memory:
 - User Profile & History
 """
 
-
 from .atlas_deep import get_atlas_deep_persona
+
 
 def generate_atlas_chat_prompt(
     user_query: str,
@@ -23,9 +23,9 @@ def generate_atlas_chat_prompt(
     """
     Generates the omni-knowledge systemic prompt for Atlas Chat.
     """
-    
+
     deep_persona = get_atlas_deep_persona() if use_deep_persona else ""
-    
+
     return f"""
 ███████████████████████████████████████████████████████████████████████████████
 █                                                                             █

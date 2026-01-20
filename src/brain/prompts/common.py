@@ -5,31 +5,31 @@ This module now uses the centralized mcp_registry for dynamic catalog generation
 """
 
 from ..mcp_registry import (
-    VIBE_DOCUMENTATION,
-    VOICE_PROTOCOL,
+    DATA_PROTOCOL,
+    SDLC_PROTOCOL,
     SEARCH_PROTOCOL,
     STORAGE_PROTOCOL,
-    SDLC_PROTOCOL,
-    TASK_PROTOCOL,
-    DATA_PROTOCOL,
     SYSTEM_MASTERY_PROTOCOL,
+    TASK_PROTOCOL,
+    VIBE_DOCUMENTATION,
+    VOICE_PROTOCOL,
     get_server_catalog_for_prompt,
 )
 
 # Re-export VOICE_PROTOCOL directly
 __all__ = [
-    "get_realm_catalog",
-    "get_vibe_documentation",
-    "VOICE_PROTOCOL",
-    "SEARCH_PROTOCOL",
-    "STORAGE_PROTOCOL",
-    "SDLC_PROTOCOL",
-    "TASK_PROTOCOL",
     "DATA_PROTOCOL",
-    "SYSTEM_MASTERY_PROTOCOL",
     # Legacy exports for backwards compatibility
     "DEFAULT_REALM_CATALOG",
+    "SDLC_PROTOCOL",
+    "SEARCH_PROTOCOL",
+    "STORAGE_PROTOCOL",
+    "SYSTEM_MASTERY_PROTOCOL",
+    "TASK_PROTOCOL",
     "VIBE_TOOLS_DOCUMENTATION",
+    "VOICE_PROTOCOL",
+    "get_realm_catalog",
+    "get_vibe_documentation",
 ]
 
 

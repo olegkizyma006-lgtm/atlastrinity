@@ -7,15 +7,14 @@ Model: GPT-4o (Vision)
 """
 
 import base64
+import json
 import os
 
 # Robust path handling for both Dev and Production (Packaged)
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, Optional, cast
-import json
-
+from typing import Any, cast
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dev = os.path.join(current_dir, "..", "..", "..")
@@ -27,12 +26,11 @@ for r in [root_dev, root_prod]:
         sys.path.insert(0, abs_r)
 
 from providers.copilot import CopilotLLM  # noqa: E402
-
+from src.brain.agents.base_agent import BaseAgent  # noqa: E402
 from src.brain.config_loader import config  # noqa: E402
 from src.brain.context import shared_context  # noqa: E402
 from src.brain.logger import logger  # noqa: E402
 from src.brain.prompts import AgentPrompts  # noqa: E402
-from src.brain.agents.base_agent import BaseAgent  # noqa: E402
 
 
 @dataclass
@@ -45,7 +43,7 @@ class VerificationResult:
     description: str
     issues: list
     voice_message: str = ""
-    timestamp: Optional[datetime] = None
+    timestamp: datetime | None = None
     screenshot_analyzed: bool = False
 
     def __post_init__(self):
@@ -120,7 +118,7 @@ class Grisha(BaseAgent):
         Uses Raptor-Mini (MSP Reasoning) to create a robust verification strategy.
         OPTIMIZATION: Caches strategies by step type to avoid redundant LLM calls.
         """
-        from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
+        from langchain_core.messages import HumanMessage, SystemMessage
 
         # OPTIMIZATION: Check cache first
         cache_key = f"{step_action[:50]}:{expected_result[:50]}"
@@ -165,14 +163,21 @@ class Grisha(BaseAgent):
         """
         try:
             from ..mcp_manager import mcp_manager
+
             servers_cfg = getattr(mcp_manager, "config", {}).get("mcpServers", {})
-            active_servers = [s for s, cfg in servers_cfg.items() if not (cfg or {}).get("disabled")]
-            
+            active_servers = [
+                s for s, cfg in servers_cfg.items() if not (cfg or {}).get("disabled")
+            ]
+
             swift_servers = []
             for s in active_servers:
                 cfg = servers_cfg.get(s, {})
                 cmd = (cfg or {}).get("command", "") or ""
-                if "swift" in s.lower() or "macos" in s.lower() or (isinstance(cmd, str) and "swift" in cmd.lower()):
+                if (
+                    "swift" in s.lower()
+                    or "macos" in s.lower()
+                    or (isinstance(cmd, str) and "swift" in cmd.lower())
+                ):
                     swift_servers.append(s)
         except Exception:
             active_servers = []
@@ -186,10 +191,9 @@ class Grisha(BaseAgent):
             f"Native Swift Servers: {', '.join(swift_servers)} (Preferred for OS control)",
             f"Vision Model: {vision_model} ({'High-Performance' if is_powerful else 'Standard'})",
             f"Timezone: {datetime.now().astimezone().tzname()}",
-            "Capabilities: Full UI Traversal, OCR, Terminal, Filesystem, Apple Productivity Apps integration."
+            "Capabilities: Full UI Traversal, OCR, Terminal, Filesystem, Apple Productivity Apps integration.",
         ]
         return "\n".join(info)
-
 
     def _summarize_ui_data(self, raw_data: str) -> str:
         """
@@ -197,7 +201,12 @@ class Grisha(BaseAgent):
         Reduces thousands of lines of JSON to a concise list of key interactive elements.
         """
         import json
-        if not raw_data or not isinstance(raw_data, str) or not (raw_data.strip().startswith('{') or raw_data.strip().startswith('[')):
+
+        if (
+            not raw_data
+            or not isinstance(raw_data, str)
+            or not (raw_data.strip().startswith("{") or raw_data.strip().startswith("["))
+        ):
             return raw_data
 
         try:
@@ -208,56 +217,66 @@ class Grisha(BaseAgent):
                 elements = data
             elif isinstance(data, dict):
                 # Search common keys: 'elements', 'result', etc.
-                if "elements" in data: elements = data["elements"]
+                if "elements" in data:
+                    elements = data["elements"]
                 elif "result" in data and isinstance(data["result"], dict):
                     elements = data["result"].get("elements", [])
                 elif "result" in data and isinstance(data["result"], list):
                     elements = data["result"]
 
             if not elements or not isinstance(elements, list):
-                return raw_data[:2000] # Fallback to truncation
+                return raw_data[:2000]  # Fallback to truncation
 
             summary_items = []
             for el in elements:
-                if not isinstance(el, dict): continue
-                
+                if not isinstance(el, dict):
+                    continue
+
                 # Filter: Only care about visible or important elements to save tokens
                 if el.get("isVisible") is False and not el.get("label") and not el.get("title"):
                     continue
-                
+
                 role = el.get("role", "element")
-                label = el.get("label") or el.get("title") or el.get("description") or el.get("help")
+                label = (
+                    el.get("label") or el.get("title") or el.get("description") or el.get("help")
+                )
                 value = el.get("value") or el.get("stringValue")
-                
+
                 # Only include if it has informative content
-                if label or value or role in ["AXButton", "AXTextField", "AXTextArea", "AXCheckBox"]:
+                if (
+                    label
+                    or value
+                    or role in ["AXButton", "AXTextField", "AXTextArea", "AXCheckBox"]
+                ):
                     item = f"[{role}"
-                    if label: item += f": '{label}'"
-                    if value: item += f", value: '{value}'"
+                    if label:
+                        item += f": '{label}'"
+                    if value:
+                        item += f", value: '{value}'"
                     item += "]"
                     summary_items.append(item)
-            
+
             summary = " | ".join(summary_items)
-            
-            # Final check: if summary is still somehow empty but we had elements, 
+
+            # Final check: if summary is still somehow empty but we had elements,
             # maybe we were too aggressive. Provide a tiny slice of raw.
             if not summary and elements:
-                return f"UI Tree Summary: {len(elements)} elements found. Samples: {str(elements[:2])}"
-                
+                return f"UI Tree Summary: {len(elements)} elements found. Samples: {elements[:2]!s}"
+
             return f"UI Summary ({len(elements)} elements): " + summary
-            
+
         except Exception as e:
             logger.debug(f"[GRISHA] UI summarization failed (falling back to truncation): {e}")
             return raw_data[:3000]
 
-    async def _fetch_execution_trace(self, step_id: str, task_id: Optional[str] = None) -> str:
+    async def _fetch_execution_trace(self, step_id: str, task_id: str | None = None) -> str:
         """
         Fetches the raw tool execution logs from the database for a given step.
         This serves as the 'single source of truth' for verification.
         """
         try:
             from ..mcp_manager import mcp_manager
-            
+
             # Query db for tool executions related to this step, including the status from task_steps
             if task_id:
                 sql = """
@@ -279,9 +298,9 @@ class Grisha(BaseAgent):
                     LIMIT 5;
                 """
                 params = {"seq": str(step_id)}
-            
+
             rows = await mcp_manager.query_db(sql, params)
-            
+
             if not rows:
                 return "No DB records found for this step. (Command might not have been logged yet or step ID mismatch)."
 
@@ -291,13 +310,13 @@ class Grisha(BaseAgent):
                 args = row.get("arguments", {})
                 res = str(row.get("result", ""))
                 status = row.get("step_status", "unknown")
-                
+
                 # Truncate result for token saving
                 if len(res) > 2000:
                     res = res[:2000] + "...(truncated)"
-                
+
                 trace += f"Tool: {tool}\nArgs: {args}\nStep Status (from Tetyana): {status}\nResult: {res or '(No output - Silent Success)'}\n-----------------------------------\n"
-            
+
             return trace
 
         except Exception as e:
@@ -306,18 +325,18 @@ class Grisha(BaseAgent):
 
     async def verify_step(
         self,
-        step: Dict[str, Any],
+        step: dict[str, Any],
         result: Any,
-        screenshot_path: Optional[str] = None,
+        screenshot_path: str | None = None,
         goal_context: str = "",
-        task_id: Optional[str] = None,
+        task_id: str | None = None,
     ) -> VerificationResult:
         """
         Verifies the result of step execution using Vision and MCP Tools
         """
-        from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
+        from langchain_core.messages import HumanMessage, SystemMessage
 
-        from ..mcp_manager import mcp_manager  # noqa: E402
+        from ..mcp_manager import mcp_manager
 
         step_id = step.get("id", 0)
         expected = step.get("expected_result", "")
@@ -331,14 +350,14 @@ class Grisha(BaseAgent):
             or "interface" in expected.lower()
             or "window" in expected.lower()
         )
-        
+
         # RELAXATION: Don't demand legal/intent verification for technical tasks
         # unless keywords are present
         (
-             "legal" in expected.lower()
-             or "intent" in expected.lower()
-             or "compliance" in expected.lower()
-             or "policy" in expected.lower()
+            "legal" in expected.lower()
+            or "intent" in expected.lower()
+            or "compliance" in expected.lower()
+            or "policy" in expected.lower()
         )
 
         if (
@@ -352,7 +371,7 @@ class Grisha(BaseAgent):
         # If we don't already have a screenshot path, try to find artifacts saved by Tetyana
         # (Simplified: Reliance on shared_context or direct params mostly)
         if not screenshot_path:
-             pass
+            pass
 
         context_info = shared_context.to_dict()
 
@@ -365,15 +384,17 @@ class Grisha(BaseAgent):
 
         # NEW: Intelligent local summarization instead of simple truncation
         actual = self._summarize_ui_data(actual_raw)
-        
+
         # Inject tool execution details to prove execution to the LLM
         tool_proof = ""
         if hasattr(result, "tool_call") and result.tool_call:
-             tool_proof = f"\n\n[PROOF OF EXECUTION]\nTool: {result.tool_call.get('name')}\nArgs: {result.tool_call.get('args')}\n"
+            tool_proof = f"\n\n[PROOF OF EXECUTION]\nTool: {result.tool_call.get('name')}\nArgs: {result.tool_call.get('args')}\n"
         elif isinstance(result, dict) and result.get("tool_call"):
-             tc = result["tool_call"]
-             tool_proof = f"\n\n[PROOF OF EXECUTION]\nTool: {tc.get('name')}\nArgs: {tc.get('args')}\n"
-        
+            tc = result["tool_call"]
+            tool_proof = (
+                f"\n\n[PROOF OF EXECUTION]\nTool: {tc.get('name')}\nArgs: {tc.get('args')}\n"
+            )
+
         actual += tool_proof
 
         # Double safety truncation for the final string sent to LLM
@@ -390,7 +411,7 @@ class Grisha(BaseAgent):
 
         # 2. FETCH TECHNICAL TRACE FROM DB (The "Truth")
         technical_trace = await self._fetch_execution_trace(str(step_id), task_id=task_id)
-        
+
         verification_history = []
         max_attempts = 3  # OPTIMIZATION: Reduced from 5 for faster verification
         attach_screenshot_next = False
@@ -421,41 +442,51 @@ class Grisha(BaseAgent):
             ):
                 with open(screenshot_path, "rb") as f:
                     img_bytes = f.read()
-                    
+
                 # OPTIMIZATION: If image is too large (> 500KB), compress it for the prompt
                 if len(img_bytes) > 500 * 1024:
                     try:
-                        from PIL import Image
                         import io
+
+                        from PIL import Image
+
                         img = Image.open(io.BytesIO(img_bytes))
                         # Convert to RGB if necessary
                         if img.mode != "RGB":
                             img = img.convert("RGB")
-                        
+
                         # Limit max dimensions to 1024px for faster/cheaper vision
                         try:
                             from PIL import Image as PILImage
+
                             resampling = getattr(PILImage, "Resampling", PILImage)
-                            resample_filter = getattr(resampling, "LANCZOS", 1) # 1 is LANCZOS in old PIL
+                            resample_filter = getattr(
+                                resampling, "LANCZOS", 1
+                            )  # 1 is LANCZOS in old PIL
                             img.thumbnail((1024, 1024), cast(Any, resample_filter))
                         except Exception:
                             img.thumbnail((1024, 1024))
-                        
+
                         output = io.BytesIO()
                         img.save(output, format="JPEG", quality=70, optimize=True)
                         img_bytes = output.getvalue()
-                        logger.info(f"[GRISHA] Compressed screenshot for prompt: {len(img_bytes)} bytes")
+                        logger.info(
+                            f"[GRISHA] Compressed screenshot for prompt: {len(img_bytes)} bytes"
+                        )
                     except Exception as e:
                         logger.warning(f"[GRISHA] Failed to compress screenshot: {e}")
 
                 image_data = base64.b64encode(img_bytes).decode("utf-8")
 
-                mime = "image/jpeg" # We force JPEG after compression
+                mime = "image/jpeg"  # We force JPEG after compression
                 content.append(
-                    cast(Dict[str, Any], {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:{mime};base64,{image_data}"},
-                    })
+                    cast(
+                        dict[str, Any],
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{mime};base64,{image_data}"},
+                        },
+                    )
                 )
                 attach_screenshot_next = False
 
@@ -475,11 +506,13 @@ class Grisha(BaseAgent):
 
                 # Use unified dispatch via MCP Manager
                 # This handles server resolution, macos-use fallbacks, and argument validation automatically.
-                
+
                 # Special handling: if tool name implies screenshot, try to satisfy it internally first
                 tool_name_lower = str(tool).lower()
                 if "screenshot" in tool_name_lower or "capture" in tool_name_lower:
-                    logger.info("[GRISHA] Internal Decision: Capturing Screenshot for Visual Verification")
+                    logger.info(
+                        "[GRISHA] Internal Decision: Capturing Screenshot for Visual Verification"
+                    )
                     try:
                         screenshot_path = await self.take_screenshot()
                         attach_screenshot_next = True
@@ -503,10 +536,13 @@ class Grisha(BaseAgent):
 
                 # For all other tools, dispatch via MCP Manager logic
                 logger.info(f"[GRISHA] Internal Verification Tool: {server}.{tool}({args})")
-                
-                # Construct full tool name if possible to help dispatcher, otherwise let it infer
-                full_tool_name = f"{server}.{tool}" if server and server not in ["local", "default", "server"] else tool
 
+                # Construct full tool name if possible to help dispatcher, otherwise let it infer
+                full_tool_name = (
+                    f"{server}.{tool}"
+                    if server and server not in ["local", "default", "server"]
+                    else tool
+                )
 
                 if "path" in args:
                     original_path = args["path"]
@@ -544,7 +580,7 @@ class Grisha(BaseAgent):
                                 screenshot_path = new_path
                                 attach_screenshot_next = True
                             else:
-                                pass # No fallback notes search 
+                                pass  # No fallback notes search
                         except Exception as e:
                             logger.warning(f"[GRISHA] Could not attach refreshed screenshot: {e}")
                 except Exception as e:
@@ -574,7 +610,8 @@ class Grisha(BaseAgent):
                     step_id=step_id,
                     verified=data.get("verified", False),
                     confidence=confidence,
-                    description=data.get("description") or f"No description provided. Raw data: {data}",
+                    description=data.get("description")
+                    or f"No description provided. Raw data: {data}",
                     issues=data.get("issues", []),
                     voice_message=data.get("voice_message", ""),
                     screenshot_analyzed=screenshot_path is not None,
@@ -602,9 +639,10 @@ class Grisha(BaseAgent):
             "підтверд",
             "дозвіл",
         ]
-        is_manual_consent = any(
-            kw in step_action_lower for kw in consent_keywords
-        ) or step.get("requires_consent", False) is True
+        is_manual_consent = (
+            any(kw in step_action_lower for kw in consent_keywords)
+            or step.get("requires_consent", False) is True
+        )
 
         if is_manual_consent and verification_history:
             # Check if Terminal or similar was opened
@@ -644,59 +682,62 @@ class Grisha(BaseAgent):
             ),
         )
 
-    async def analyze_failure(self, step: Dict[str, Any], error: str, context: Optional[dict] = None) -> Dict[str, Any]:
+    async def analyze_failure(
+        self, step: dict[str, Any], error: str, context: dict | None = None
+    ) -> dict[str, Any]:
         """
         Analyzes a failure reported by Tetyana or Orchestrator using Deep Sequential Thinking.
         Returns constructive feedback for a retry.
         """
         step_id = step.get("id", "unknown")
         context_data = context or shared_context.to_dict()
-        
+
         logger.info(f"[GRISHA] Conducting deep forensic analysis of failure in step {step_id}")
-        
+
         # Use universal sequential thinking capability
         reasoning = await self.use_sequential_thinking(
             f"Forensic analysis of technical failure.\nSTEP: {json.dumps(step, default=str)}\nERROR: {error}\nCONTEXT: {str(context_data)[:500]}\n\nTask: Identify ROOT CAUSE and provide specific TECHNICAL ADVICE for the fix.",
-            total_thoughts=3
+            total_thoughts=3,
         )
-        
+
         analysis_text = reasoning.get("analysis", "Deep analysis unavailable.")
-        
+
         # Try to extract a structured summary if possible (heuristic)
         root_cause = "Complex failure (see details)"
         technical_advice = "Review thinking process"
-        
+
         if "root cause" in analysis_text.lower():
             try:
                 parts = analysis_text.lower().split("root cause")
                 if len(parts) > 1:
                     root_cause = parts[1].split("\n")[0].strip(": -")
-            except: pass
-            
+            except:
+                pass
+
         return {
             "step_id": step_id,
             "analysis": {
                 "root_cause": root_cause,
                 "technical_advice": technical_advice,
-                "full_reasoning": analysis_text
+                "full_reasoning": analysis_text,
             },
             "feedback_text": f"GRISHA FORENSIC REPORT:\n{analysis_text}",
-            "voice_message": "Я провів глибокий аналіз інциденту. Результати в звіті."
+            "voice_message": "Я провів глибокий аналіз інциденту. Результати в звіті.",
         }
 
     async def _save_rejection_report(
         self,
         step_id: str,
-        step: Dict[str, Any],
+        step: dict[str, Any],
         verification: VerificationResult,
-        task_id: Optional[str] = None,
+        task_id: str | None = None,
     ) -> None:
         """Save detailed rejection report to memory and notes servers for Atlas and Tetyana to access"""
-        from datetime import datetime  # noqa: E402
+        from datetime import datetime
 
-        from ..knowledge_graph import knowledge_graph  # noqa: E402
-        from ..mcp_manager import mcp_manager  # noqa: E402
-        from ..message_bus import AgentMsg, MessageType, message_bus  # noqa: E402
+        from ..knowledge_graph import knowledge_graph
+        from ..mcp_manager import mcp_manager
+        from ..message_bus import AgentMsg, MessageType, message_bus
 
         try:
             timestamp = datetime.now().isoformat()
@@ -705,15 +746,15 @@ class Grisha(BaseAgent):
             report_text = f"""GRISHA VERIFICATION REPORT - REJECTED
 
 Step ID: {step_id}
-Action: {step.get('action', '')}
-Expected: {step.get('expected_result', '')}
+Action: {step.get("action", "")}
+Expected: {step.get("expected_result", "")}
 Confidence: {verification.confidence}
 
 DESCRIPTION:
 {verification.description}
 
 ISSUES FOUND:
-{chr(10).join(f'- {issue}' for issue in verification.issues)}
+{chr(10).join(f"- {issue}" for issue in verification.issues)}
 
 VOICE MESSAGE (Ukrainian):
 {verification.voice_message}
@@ -739,18 +780,18 @@ Timestamp: {timestamp}
                 logger.info(f"[GRISHA] Rejection report saved to memory for step {step_id}")
             except Exception as e:
                 logger.warning(f"[GRISHA] Failed to save to memory: {e}")
- 
+
             # Save to filesystem (for easy text retrieval)
             try:
                 reports_dir = os.path.expanduser("~/.config/atlastrinity/reports")
                 os.makedirs(reports_dir, exist_ok=True)
-                
+
                 filename = f"rejection_step_{step_id}_{int(datetime.now().timestamp())}.md"
                 file_path = os.path.join(reports_dir, filename)
-                
+
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(report_text)
-                    
+
                 logger.info(f"[GRISHA] Rejection report saved to filesystem: {file_path}")
             except Exception as e:
                 logger.warning(f"[GRISHA] Failed to save report to filesystem: {e}")
@@ -764,17 +805,17 @@ Timestamp: {timestamp}
                     attributes={
                         "type": "verification_rejection",
                         "step_id": str(step_id),
-                        "issues": "; ".join(verification.issues) if isinstance(verification.issues, list) else str(verification.issues),
+                        "issues": "; ".join(verification.issues)
+                        if isinstance(verification.issues, list)
+                        else str(verification.issues),
                         "description": str(verification.description),
-                        "timestamp": timestamp
-                    }
+                        "timestamp": timestamp,
+                    },
                 )
                 # Link to the task (use task_id if provided)
                 source_id = f"task:{task_id}" if task_id else f"task:rejection_{step_id}"
                 await knowledge_graph.add_edge(
-                    source_id=source_id,
-                    target_id=node_id,
-                    relation="REJECTED"
+                    source_id=source_id, target_id=node_id, relation="REJECTED"
                 )
                 logger.info(f"[GRISHA] Rejection node added to Knowledge Graph for step {step_id}")
             except Exception as e:
@@ -790,9 +831,9 @@ Timestamp: {timestamp}
                         "step_id": str(step_id),
                         "issues": verification.issues,
                         "description": verification.description,
-                        "remediation": getattr(verification, "remediation_suggestions", [])
+                        "remediation": getattr(verification, "remediation_suggestions", []),
                     },
-                    step_id=str(step_id)
+                    step_id=str(step_id),
                 )
                 await message_bus.send(msg)
                 logger.info("[GRISHA] Rejection message sent to Tetyana via Message Bus")
@@ -802,11 +843,11 @@ Timestamp: {timestamp}
         except Exception as e:
             logger.warning(f"[GRISHA] Failed to save rejection report: {e}")
 
-    async def security_check(self, action: Dict[str, Any]) -> Dict[str, Any]:
+    async def security_check(self, action: dict[str, Any]) -> dict[str, Any]:
         """
         Performs security check before execution
         """
-        from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
+        from langchain_core.messages import HumanMessage, SystemMessage
 
         action_str = str(action)
         if self._check_blocklist(action_str):
@@ -836,43 +877,43 @@ Timestamp: {timestamp}
         - Active application window focus (AppleScript).
         - Combined context+detail image for GPT-4o Vision.
         """
-        import subprocess  # noqa: E402
-        import tempfile  # noqa: E402
-        from datetime import datetime  # noqa: E402
+        import subprocess
+        import tempfile
+        from datetime import datetime
 
-        from PIL import Image  # noqa: E402
+        from PIL import Image
 
-        from ..config import SCREENSHOTS_DIR  # noqa: E402
-        from ..mcp_manager import mcp_manager  # noqa: E402
+        from ..config import SCREENSHOTS_DIR
+        from ..mcp_manager import mcp_manager
 
         # 1. Try Native Swift MCP first (fastest, most reliable)
         try:
-             # Check if macos-use is active
-             if "macos-use" in mcp_manager.config.get("mcpServers", {}):
-                 result = await mcp_manager.call_tool("macos-use", "macos-use_take_screenshot", {})
-                 
-                 # Result might be a dict with content->text (base64) OR direct base64 string depending on how call_tool processes it
-                 base64_img = None
-                 if isinstance(result, dict) and "content" in result:
-                     for item in result["content"]:
-                         if item.get("type") == "text":
-                             base64_img = item.get("text")
-                             break
-                 elif hasattr(result, "content"): # prompt object
-                      if len(result.content) > 0 and hasattr(result.content[0], "text"):
-                           base64_img = result.content[0].text
-                           
-                 if base64_img:
-                      # Save to file for consistency with rest of pipeline
-                      os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
-                      timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                      path = os.path.join(SCREENSHOTS_DIR, f"vision_mcp_{timestamp}.jpg")
-                      
-                      with open(path, "wb") as f:
-                          f.write(base64.b64decode(base64_img))
-                          
-                      logger.info(f"[GRISHA] Screenshot taken via MCP macos-use: {path}")
-                      return path
+            # Check if macos-use is active
+            if "macos-use" in mcp_manager.config.get("mcpServers", {}):
+                result = await mcp_manager.call_tool("macos-use", "macos-use_take_screenshot", {})
+
+                # Result might be a dict with content->text (base64) OR direct base64 string depending on how call_tool processes it
+                base64_img = None
+                if isinstance(result, dict) and "content" in result:
+                    for item in result["content"]:
+                        if item.get("type") == "text":
+                            base64_img = item.get("text")
+                            break
+                elif hasattr(result, "content"):  # prompt object
+                    if len(result.content) > 0 and hasattr(result.content[0], "text"):
+                        base64_img = result.content[0].text
+
+                if base64_img:
+                    # Save to file for consistency with rest of pipeline
+                    os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    path = os.path.join(SCREENSHOTS_DIR, f"vision_mcp_{timestamp}.jpg")
+
+                    with open(path, "wb") as f:
+                        f.write(base64.b64decode(base64_img))
+
+                    logger.info(f"[GRISHA] Screenshot taken via MCP macos-use: {path}")
+                    return path
         except Exception as e:
             logger.warning(f"[GRISHA] MCP screenshot failed, falling back to local Quartz: {e}")
 
@@ -881,7 +922,7 @@ Timestamp: {timestamp}
             Quartz = None
             quartz_available = False
             try:
-                import Quartz as _Quartz  # type: ignore  # noqa: E402
+                import Quartz as _Quartz  # type: ignore
 
                 Quartz = _Quartz
                 quartz_available = True
@@ -957,14 +998,17 @@ Timestamp: {timestamp}
                 active_win_path = os.path.join(tempfile.gettempdir(), "grisha_active_win.png")
                 try:
                     CGWindowListCopyWindowInfo = getattr(Quartz, "CGWindowListCopyWindowInfo", None)
-                    kCGWindowListOptionOnScreenOnly = getattr(Quartz, "kCGWindowListOptionOnScreenOnly", 1)
-                    kCGWindowListExcludeDesktopElements = getattr(Quartz, "kCGWindowListExcludeDesktopElements", 16)
+                    kCGWindowListOptionOnScreenOnly = getattr(
+                        Quartz, "kCGWindowListOptionOnScreenOnly", 1
+                    )
+                    kCGWindowListExcludeDesktopElements = getattr(
+                        Quartz, "kCGWindowListExcludeDesktopElements", 16
+                    )
                     kCGNullWindowID = getattr(Quartz, "kCGNullWindowID", 0)
 
                     if CGWindowListCopyWindowInfo:
                         window_list = CGWindowListCopyWindowInfo(
-                            kCGWindowListOptionOnScreenOnly
-                            | kCGWindowListExcludeDesktopElements,
+                            kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
                             kCGNullWindowID,
                         )
                     else:
@@ -1057,12 +1101,15 @@ Timestamp: {timestamp}
             target_w = 2048
             scale = target_w / max(1, desktop_canvas.width)
             dt_h = int(desktop_canvas.height * scale)
-            
+
             try:
                 from PIL import Image as PILImage
+
                 resampling = getattr(PILImage, "Resampling", PILImage)
                 resample_filter = getattr(resampling, "LANCZOS", 1)
-                desktop_small = desktop_canvas.resize((target_w, max(1, dt_h)), cast(Any, resample_filter))
+                desktop_small = desktop_canvas.resize(
+                    (target_w, max(1, dt_h)), cast(Any, resample_filter)
+                )
             except Exception:
                 desktop_small = desktop_canvas.resize((target_w, max(1, dt_h)))
 
@@ -1073,15 +1120,18 @@ Timestamp: {timestamp}
                 final_h += win_h + 20
                 final_canvas = Image.new("RGB", (target_w, final_h), (30, 30, 30))
                 final_canvas.paste(desktop_small, (0, 0))
-                
+
                 try:
                     from PIL import Image as PILImage
+
                     resampling = getattr(PILImage, "Resampling", PILImage)
                     resample_filter = getattr(resampling, "LANCZOS", 1)
-                    resized_win = active_win_img.resize((target_w, max(1, win_h)), cast(Any, resample_filter))
+                    resized_win = active_win_img.resize(
+                        (target_w, max(1, win_h)), cast(Any, resample_filter)
+                    )
                 except Exception:
                     resized_win = active_win_img.resize((target_w, max(1, win_h)))
-                
+
                 final_canvas.paste(
                     resized_win,
                     (0, desktop_small.height + 20),
@@ -1100,7 +1150,7 @@ Timestamp: {timestamp}
         except Exception as e:
             logger.warning(f"Combined screenshot failed: {e}. Falling back to simple grab.")
             try:
-                from PIL import ImageGrab  # noqa: E402
+                from PIL import ImageGrab
 
                 screenshot = ImageGrab.grab(all_screens=True)
                 temp_path = os.path.join(
@@ -1113,20 +1163,16 @@ Timestamp: {timestamp}
                 return ""
 
     async def audit_vibe_fix(
-        self,
-        error: str,
-        vibe_report: str,
-        context: Optional[dict] = None,
-        task_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, error: str, vibe_report: str, context: dict | None = None, task_id: str | None = None
+    ) -> dict[str, Any]:
         """
         Audits a proposed fix from Vibe AI before execution.
         Uses advanced reasoning to ensure safety and correctness.
         """
         from langchain_core.messages import HumanMessage, SystemMessage
-        
+
         context_data = context or shared_context.to_dict()
-        
+
         # Fetch technical trace for grounding
         technical_trace = ""
         try:
@@ -1137,30 +1183,24 @@ Timestamp: {timestamp}
             logger.warning(f"[GRISHA] Could not fetch trace for audit: {e}")
 
         prompt = AgentPrompts.grisha_vibe_audit_prompt(
-            error,
-            vibe_report,
-            context_data,
-            technical_trace=technical_trace
+            error, vibe_report, context_data, technical_trace=technical_trace
         )
-        
-        messages = [
-            SystemMessage(content=self.SYSTEM_PROMPT),
-            HumanMessage(content=prompt)
-        ]
-        
+
+        messages = [SystemMessage(content=self.SYSTEM_PROMPT), HumanMessage(content=prompt)]
+
         try:
             logger.info("[GRISHA] Auditing Vibe's proposed fix...")
             response = await self.llm.ainvoke(messages)
             audit_result = self._parse_response(cast(str, response.content))
-            
+
             logger.info(f"[GRISHA] Audit Verdict: {audit_result.get('audit_verdict', 'REJECT')}")
             return audit_result
         except Exception as e:
             logger.error(f"[GRISHA] Vibe audit failed: {e}")
             return {
                 "audit_verdict": "REJECT",
-                "reasoning": f"Audit failed due to technical error: {str(e)}",
-                "voice_message": "Я не зміг перевірити запропоноване виправлення через технічну помилку."
+                "reasoning": f"Audit failed due to technical error: {e!s}",
+                "voice_message": "Я не зміг перевірити запропоноване виправлення через технічну помилку.",
             }
 
     def get_voice_message(self, action: str, **kwargs) -> str:
@@ -1173,4 +1213,3 @@ Timestamp: {timestamp}
             "approved": "Підтверджую. Можна продовжувати.",
         }
         return messages.get(action, "")
-

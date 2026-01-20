@@ -1,290 +1,252 @@
 {
-    "macos-use": {
-        "name": "macos-use",
-        "tier": 1,
-        "category": "core",
-        "description": "Universal macOS Commander (Swift binary - 39 tools)",
-        "capabilities": [
-            "GUI automation (click, type, scroll, drag, window management)",
-            "Terminal/shell command execution (execute_command)",
-            "Screenshots and Vision OCR (Apple Vision Framework)",
-            "Calendar events management",
-            "Reminders management",
-            "Notes (create, read, list folders)",
-            "Mail (send, read inbox)",
-            "Finder operations (list, open, trash)",
-            "System control (volume, brightness, media)",
-            "Fetch URLs to markdown",
-            "Get system time with timezone",
-            "AppleScript execution",
-            "Spotlight search",
-            "System notifications"
-        ],
-        "key_tools": [
-            "macos-use_open_application_and_traverse",
-            "macos-use_click_and_traverse",
-            "macos-use_type_and_traverse",
-            "macos-use_press_key_and_traverse",
-            "execute_command",
-            "macos-use_take_screenshot",
-            "macos-use_analyze_screen",
-            "macos-use_calendar_events",
-            "macos-use_create_event",
-            "macos-use_reminders",
-            "macos-use_notes_create_note",
-            "macos-use_mail_send",
-            "macos-use_fetch_url",
-            "macos-use_get_time",
-            "macos-use_list_tools_dynamic"
-        ],
-        "when_to_use": "Native macOS apps (Finder, Settings), GUI automation, terminal commands, Apple productivity apps.",
-        "priority_note": "Prefer macos-use for NATIVE computer interaction. For WEB tasks (searching, scraping), ALWAYS prefer 'puppeteer' or 'duckduckgo-search'.",
-        "protocol_note": "DISCOVERY FIRST POLICY: Always call 'macos-use_list_tools_dynamic' before starting a complex task to get the latest schemas and instructions directly from the server."
-    },
-    "filesystem": {
-        "name": "filesystem",
-        "tier": 1,
-        "category": "core",
-        "description": "File operations (read, write, list, search)",
-        "capabilities": [
-            "Read file contents",
-            "Write/create files",
-            "List directory contents",
-            "Search files by name/content",
-            "Get file metadata"
-        ],
-        "key_tools": [
-            "read_file",
-            "write_file",
-            "list_directory",
-            "search_files"
-        ],
-        "when_to_use": "File operations within allowed paths (~ and /tmp). For other paths, use macos-use.execute_command"
-    },
-    "sequential-thinking": {
-        "name": "sequential-thinking",
-        "tier": 1,
-        "category": "core",
-        "description": "Step-by-step reasoning for complex decisions and risk analysis",
-        "capabilities": [
-            "Deep logical reasoning",
-            "Risk assessment",
-            "Multi-step problem decomposition",
-            "Consequence simulation"
-        ],
-        "key_tools": [
-            "sequentialthinking"
-        ],
-        "when_to_use": "Complex decisions, dangerous operations, multi-step logic, hypothesis testing"
-    },
-    "system": {
-        "name": "system",
-        "tier": 1,
-        "category": "core",
-        "description": "Internal Trinity System tools",
-        "capabilities": [
-            "Restarting MCP servers",
-            "Restarting the main AtlasTrinity application (Self-Healing)",
-            "System status management"
-        ],
-        "key_tools": [
-            "restart_mcp_server",
-            "restart_application"
-        ],
-        "when_to_use": "Use when an MCP server is unresponsive or needs a restart."
-    },
-    "vibe": {
-        "name": "vibe",
-        "tier": 2,
-        "category": "ai",
-        "description": "Mistral AI-powered CODING and DEBUGGING engine (18 tools)",
-        "capabilities": [
-            "Deep error analysis with auto-fix",
-            "Code review and architectural advice",
-            "Writing complex software/scripts",
-            "Self-healing when tools fail",
-            "Direct database inspection (vibe_check_db) using configured SQL backend (SQLite)",
-            "Context-aware system monitoring (vibe_get_system_context)",
-            "Long-running task planning",
-            "Dynamic model/provider switching",
-            "Custom agent profiles",
-            "Session resume capability"
-        ],
-        "key_tools": [
-            "vibe_prompt",
-            "vibe_analyze_error",
-            "vibe_implement_feature",
-            "vibe_check_db",
-            "vibe_get_system_context",
-            "vibe_code_review",
-            "vibe_smart_plan",
-            "vibe_ask",
-            "vibe_execute_subcommand",
-            "vibe_which",
-            "vibe_list_sessions",
-            "vibe_session_details",
-            "vibe_get_config",
-            "vibe_configure_model",
-            "vibe_set_mode",
-            "vibe_configure_provider",
-            "vibe_session_resume",
-            "vibe_reload_config"
-        ],
-        "when_to_use": "ONLY for software development, writing code/scripts, fixing hard errors (self-healing), and deep system state inspection via DB."
-    },
-    "memory": {
-        "name": "memory",
-        "tier": 2,
-        "category": "knowledge",
-        "description": "Knowledge Graph-based long-term memory (SQLite + ChromaDB)",
-        "capabilities": [
-            "Entity and relationship tracking (SQLite)",
-            "Observation and fact management",
-            "Semantic search across memories (ChromaDB)",
-            "Persistent graph-based recall for all agents"
-        ],
-        "key_tools": [
-            "create_entities",
-            "add_observations",
-            "create_relation",
-            "search",
-            "get_entity",
-            "list_entities",
-            "delete_entity",
-            "ingest_verified_dataset",
-            "trace_data_chain"
-        ],
-        "when_to_use": "Storing or recalling facts, entities, and historical observations about the user, system, or codebase."
-    },
-    "graph": {
-        "name": "graph",
-        "tier": 2,
-        "category": "visualization",
-        "description": "Knowledge Graph visualization and interactive exploration",
-        "capabilities": [
-            "JSON data export of memory graph (D3.js compatible)",
-            "Mermaid.js flowchart generation with filtering",
-            "Deep node inspection and relationship traversal"
-        ],
-        "key_tools": [
-            "generate_mermaid",
-            "get_node_details",
-            "get_related_nodes",
-            "get_graph_json"
-        ],
-        "when_to_use": "Visualizing or traversing the knowledge graph state to understand complex system or data relationships."
-    },
-    "puppeteer": {
-        "name": "puppeteer",
-        "tier": 3,
-        "category": "browser",
-        "description": "Headless Browser (Puppeteer) for web automation",
-        "capabilities": [
-            "Web searching (Google/Bing)",
-            "Navigating complex URLs and SPAs",
-            "Interacting with elements (click, type, fill)",
-            "Capturing page screenshots"
-        ],
-        "key_tools": [
-            "puppeteer_navigate",
-            "puppeteer_screenshot",
-            "puppeteer_click"
-        ],
-        "when_to_use": "Web searching, checking weather, scraping data, website interaction."
-    },
-    "chrome-devtools": {
-        "name": "chrome-devtools",
-        "tier": 4,
-        "category": "browser",
-        "description": "Chrome DevTools Protocol for advanced browser automation",
-        "capabilities": [
-            "Low-level browser control",
-            "Network monitoring",
-            "Console log access"
-        ],
-        "key_tools": [
-            "captureScreenshot",
-            "console_logs",
-            "network_requests"
-        ],
-        "when_to_use": "Advanced browser debugging or when puppeteer is insufficient."
-    },
-    "duckduckgo-search": {
-        "name": "duckduckgo-search",
-        "tier": 2,
-        "category": "search",
-        "description": "Direct web search via DuckDuckGo HTML",
-        "capabilities": [
-            "Fast web searching",
-            "No API key required",
-            "Structured results (title, url)"
-        ],
-        "key_tools": [
-            "duckduckgo_search"
-        ],
-        "when_to_use": "Quick web searches when puppeteer is overkill."
-    },
-    "github": {
-        "name": "github",
-        "description": "Full-cycle GitHub integration for repository management, code search, issues, and PRs.",
-        "tier": 2,
-        "category": "integration",
-        "priority_note": "Requires GITHUB_TOKEN in .env",
-        "capabilities": [
-            "Fetch file contents",
-            "User profile information",
-            "Repository management (via API)"
-        ],
-        "key_tools": [
-            "get_file_contents",
-            "create_or_update_file",
-            "search_code",
-            "search_repositories",
-            "list_issues",
-            "create_issue",
-            "list_pull_requests",
-            "create_pull_request",
-            "merge_pull_request",
-            "get_repository",
-            "list_branches",
-            "create_branch"
-        ],
-        "when_to_use": "Accessing external code repositories, checking user status on GitHub."
-    },
-    "whisper-stt": {
-        "name": "whisper-stt",
-        "tier": 2,
-        "category": "audio",
-        "description": "Voice Recognition / Speech-to-Text (Local or Cloud)",
-        "capabilities": [
-            "Transcribe audio files",
-            "Record and transcribe from microphone",
-            "Multi-language support (default: uk)"
-        ],
-        "key_tools": [
-            "transcribe_audio",
-            "record_and_transcribe"
-        ],
-        "when_to_use": "Processing voice commands, transcribing recordings."
-    },
-    "redis": {
-        "name": "redis",
-        "tier": 2,
-        "category": "database",
-        "description": "Redis Key-Value Storage and State Inspection",
-        "capabilities": [
-            "Get/Set/Delete keys",
-            "Search keys matching patterns",
-            "Inspect system state and session metadata",
-            "Redis server health and statistics"
-        ],
-        "key_tools": [
-            "redis_get",
-            "redis_keys",
-            "redis_info",
-            "redis_ttl",
-            "redis_hgetall"
-        ],
-        "when_to_use": "Inspecting session state, verifying restart_pending flags, debugging persistence issues, or managing temporary cross-agent flags."
-    }
+  "macos-use": {
+    "name": "macos-use",
+    "tier": 1,
+    "category": "core",
+    "description": "Universal macOS Commander (Swift binary - 39 tools)",
+    "capabilities": [
+      "GUI automation (click, type, scroll, drag, window management)",
+      "Terminal/shell command execution (execute_command)",
+      "Screenshots and Vision OCR (Apple Vision Framework)",
+      "Calendar events management",
+      "Reminders management",
+      "Notes (create, read, list folders)",
+      "Mail (send, read inbox)",
+      "Finder operations (list, open, trash)",
+      "System control (volume, brightness, media)",
+      "Fetch URLs to markdown",
+      "Get system time with timezone",
+      "AppleScript execution",
+      "Spotlight search",
+      "System notifications"
+    ],
+    "key_tools": [
+      "macos-use_open_application_and_traverse",
+      "macos-use_click_and_traverse",
+      "macos-use_type_and_traverse",
+      "macos-use_press_key_and_traverse",
+      "execute_command",
+      "macos-use_take_screenshot",
+      "macos-use_analyze_screen",
+      "macos-use_calendar_events",
+      "macos-use_create_event",
+      "macos-use_reminders",
+      "macos-use_notes_create_note",
+      "macos-use_mail_send",
+      "macos-use_fetch_url",
+      "macos-use_get_time",
+      "macos-use_list_tools_dynamic"
+    ],
+    "when_to_use": "Native macOS apps (Finder, Settings), GUI automation, terminal commands, Apple productivity apps.",
+    "priority_note": "Prefer macos-use for NATIVE computer interaction. For WEB tasks (searching, scraping), ALWAYS prefer 'puppeteer' or 'duckduckgo-search'.",
+    "protocol_note": "DISCOVERY FIRST POLICY: Always call 'macos-use_list_tools_dynamic' before starting a complex task to get the latest schemas and instructions directly from the server."
+  },
+  "filesystem": {
+    "name": "filesystem",
+    "tier": 1,
+    "category": "core",
+    "description": "File operations (read, write, list, search)",
+    "capabilities": [
+      "Read file contents",
+      "Write/create files",
+      "List directory contents",
+      "Search files by name/content",
+      "Get file metadata"
+    ],
+    "key_tools": ["read_file", "write_file", "list_directory", "search_files"],
+    "when_to_use": "File operations within allowed paths (~ and /tmp). For other paths, use macos-use.execute_command"
+  },
+  "sequential-thinking": {
+    "name": "sequential-thinking",
+    "tier": 1,
+    "category": "core",
+    "description": "Step-by-step reasoning for complex decisions and risk analysis",
+    "capabilities": [
+      "Deep logical reasoning",
+      "Risk assessment",
+      "Multi-step problem decomposition",
+      "Consequence simulation"
+    ],
+    "key_tools": ["sequentialthinking"],
+    "when_to_use": "Complex decisions, dangerous operations, multi-step logic, hypothesis testing"
+  },
+  "system": {
+    "name": "system",
+    "tier": 1,
+    "category": "core",
+    "description": "Internal Trinity System tools",
+    "capabilities": [
+      "Restarting MCP servers",
+      "Restarting the main AtlasTrinity application (Self-Healing)",
+      "System status management"
+    ],
+    "key_tools": ["restart_mcp_server", "restart_application"],
+    "when_to_use": "Use when an MCP server is unresponsive or needs a restart."
+  },
+  "vibe": {
+    "name": "vibe",
+    "tier": 2,
+    "category": "ai",
+    "description": "Mistral AI-powered CODING and DEBUGGING engine (18 tools)",
+    "capabilities": [
+      "Deep error analysis with auto-fix",
+      "Code review and architectural advice",
+      "Writing complex software/scripts",
+      "Self-healing when tools fail",
+      "Direct database inspection (vibe_check_db) using configured SQL backend (SQLite)",
+      "Context-aware system monitoring (vibe_get_system_context)",
+      "Long-running task planning",
+      "Dynamic model/provider switching",
+      "Custom agent profiles",
+      "Session resume capability"
+    ],
+    "key_tools": [
+      "vibe_prompt",
+      "vibe_analyze_error",
+      "vibe_implement_feature",
+      "vibe_check_db",
+      "vibe_get_system_context",
+      "vibe_code_review",
+      "vibe_smart_plan",
+      "vibe_ask",
+      "vibe_execute_subcommand",
+      "vibe_which",
+      "vibe_list_sessions",
+      "vibe_session_details",
+      "vibe_get_config",
+      "vibe_configure_model",
+      "vibe_set_mode",
+      "vibe_configure_provider",
+      "vibe_session_resume",
+      "vibe_reload_config"
+    ],
+    "when_to_use": "ONLY for software development, writing code/scripts, fixing hard errors (self-healing), and deep system state inspection via DB."
+  },
+  "memory": {
+    "name": "memory",
+    "tier": 2,
+    "category": "knowledge",
+    "description": "Knowledge Graph-based long-term memory (SQLite + ChromaDB)",
+    "capabilities": [
+      "Entity and relationship tracking (SQLite)",
+      "Observation and fact management",
+      "Semantic search across memories (ChromaDB)",
+      "Persistent graph-based recall for all agents"
+    ],
+    "key_tools": [
+      "create_entities",
+      "add_observations",
+      "create_relation",
+      "search",
+      "get_entity",
+      "list_entities",
+      "delete_entity",
+      "ingest_verified_dataset",
+      "trace_data_chain"
+    ],
+    "when_to_use": "Storing or recalling facts, entities, and historical observations about the user, system, or codebase."
+  },
+  "graph": {
+    "name": "graph",
+    "tier": 2,
+    "category": "visualization",
+    "description": "Knowledge Graph visualization and interactive exploration",
+    "capabilities": [
+      "JSON data export of memory graph (D3.js compatible)",
+      "Mermaid.js flowchart generation with filtering",
+      "Deep node inspection and relationship traversal"
+    ],
+    "key_tools": ["generate_mermaid", "get_node_details", "get_related_nodes", "get_graph_json"],
+    "when_to_use": "Visualizing or traversing the knowledge graph state to understand complex system or data relationships."
+  },
+  "puppeteer": {
+    "name": "puppeteer",
+    "tier": 3,
+    "category": "browser",
+    "description": "Headless Browser (Puppeteer) for web automation",
+    "capabilities": [
+      "Web searching (Google/Bing)",
+      "Navigating complex URLs and SPAs",
+      "Interacting with elements (click, type, fill)",
+      "Capturing page screenshots"
+    ],
+    "key_tools": ["puppeteer_navigate", "puppeteer_screenshot", "puppeteer_click"],
+    "when_to_use": "Web searching, checking weather, scraping data, website interaction."
+  },
+  "chrome-devtools": {
+    "name": "chrome-devtools",
+    "tier": 4,
+    "category": "browser",
+    "description": "Chrome DevTools Protocol for advanced browser automation",
+    "capabilities": ["Low-level browser control", "Network monitoring", "Console log access"],
+    "key_tools": ["captureScreenshot", "console_logs", "network_requests"],
+    "when_to_use": "Advanced browser debugging or when puppeteer is insufficient."
+  },
+  "duckduckgo-search": {
+    "name": "duckduckgo-search",
+    "tier": 2,
+    "category": "search",
+    "description": "Direct web search via DuckDuckGo HTML",
+    "capabilities": [
+      "Fast web searching",
+      "No API key required",
+      "Structured results (title, url)"
+    ],
+    "key_tools": ["duckduckgo_search"],
+    "when_to_use": "Quick web searches when puppeteer is overkill."
+  },
+  "github": {
+    "name": "github",
+    "description": "Full-cycle GitHub integration for repository management, code search, issues, and PRs.",
+    "tier": 2,
+    "category": "integration",
+    "priority_note": "Requires GITHUB_TOKEN in .env",
+    "capabilities": [
+      "Fetch file contents",
+      "User profile information",
+      "Repository management (via API)"
+    ],
+    "key_tools": [
+      "get_file_contents",
+      "create_or_update_file",
+      "search_code",
+      "search_repositories",
+      "list_issues",
+      "create_issue",
+      "list_pull_requests",
+      "create_pull_request",
+      "merge_pull_request",
+      "get_repository",
+      "list_branches",
+      "create_branch"
+    ],
+    "when_to_use": "Accessing external code repositories, checking user status on GitHub."
+  },
+  "whisper-stt": {
+    "name": "whisper-stt",
+    "tier": 2,
+    "category": "audio",
+    "description": "Voice Recognition / Speech-to-Text (Local or Cloud)",
+    "capabilities": [
+      "Transcribe audio files",
+      "Record and transcribe from microphone",
+      "Multi-language support (default: uk)"
+    ],
+    "key_tools": ["transcribe_audio", "record_and_transcribe"],
+    "when_to_use": "Processing voice commands, transcribing recordings."
+  },
+  "redis": {
+    "name": "redis",
+    "tier": 2,
+    "category": "database",
+    "description": "Redis Key-Value Storage and State Inspection",
+    "capabilities": [
+      "Get/Set/Delete keys",
+      "Search keys matching patterns",
+      "Inspect system state and session metadata",
+      "Redis server health and statistics"
+    ],
+    "key_tools": ["redis_get", "redis_keys", "redis_info", "redis_ttl", "redis_hgetall"],
+    "when_to_use": "Inspecting session state, verifying restart_pending flags, debugging persistence issues, or managing temporary cross-agent flags."
+  }
 }

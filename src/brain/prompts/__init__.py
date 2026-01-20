@@ -1,11 +1,20 @@
 from typing import Optional
+
 from ..config import WORKSPACE_DIR
 from .atlas import ATLAS
 from .common import DEFAULT_REALM_CATALOG, SDLC_PROTOCOL, TASK_PROTOCOL  # re-export default catalog
 from .grisha import GRISHA
 from .tetyana import TETYANA
 
-__all__ = ["DEFAULT_REALM_CATALOG", "ATLAS", "TETYANA", "GRISHA", "AgentPrompts", "SDLC_PROTOCOL", "TASK_PROTOCOL"]
+__all__ = [
+    "ATLAS",
+    "DEFAULT_REALM_CATALOG",
+    "GRISHA",
+    "SDLC_PROTOCOL",
+    "TASK_PROTOCOL",
+    "TETYANA",
+    "AgentPrompts",
+]
 
 
 class AgentPrompts:
@@ -14,7 +23,7 @@ class AgentPrompts:
     ATLAS = ATLAS
     TETYANA = TETYANA
     GRISHA = GRISHA
-    
+
     SDLC_PROTOCOL = SDLC_PROTOCOL
     TASK_PROTOCOL = TASK_PROTOCOL
 
@@ -24,9 +33,9 @@ class AgentPrompts:
         context: dict,
         tools_summary: str = "",
         feedback: str = "",
-        previous_results: Optional[list] = None,
+        previous_results: list | None = None,
         goal_context: str = "",
-        bus_messages: Optional[list] = None,
+        bus_messages: list | None = None,
         full_plan: str = "",
     ) -> str:
         feedback_section = (
@@ -47,13 +56,21 @@ class AgentPrompts:
                 formatted_results.append(res_str)
             results_section = f"\n        RESULTS OF PREVIOUS STEPS (Use this data to fill arguments):\n        {formatted_results}\n"
 
-        plan_section = f"\n        FULL MASTER EXECUTION PLAN (Follow this sequence strictly):\n        {full_plan}\n" if full_plan else ""
+        plan_section = (
+            f"\n        FULL MASTER EXECUTION PLAN (Follow this sequence strictly):\n        {full_plan}\n"
+            if full_plan
+            else ""
+        )
 
         goal_section = f"\n        GOAL CONTEXT:\n        {goal_context}\n" if goal_context else ""
-        
+
         bus_section = ""
         if bus_messages:
-            bus_section = "\n        INTER-AGENT MESSAGES:\n" + "\n".join([f"        - {m}" for m in bus_messages]) + "\n"
+            bus_section = (
+                "\n        INTER-AGENT MESSAGES:\n"
+                + "\n".join([f"        - {m}" for m in bus_messages])
+                + "\n"
+            )
 
         return f"""Analyze how to execute this atomic step: {step}.
         {goal_section}
@@ -227,10 +244,7 @@ class AgentPrompts:
 
     @staticmethod
     def grisha_failure_analysis_prompt(
-        step: str,
-        error: str,
-        context: dict,
-        plan_context: str = ""
+        step: str, error: str, context: dict, plan_context: str = ""
     ) -> str:
         return f"""You are the System Architect and Technical Lead.
         Tetyana (Junior Executor) failed to execute a step.
@@ -314,10 +328,7 @@ Do not suggest creating a complex plan, just use your tools autonomously to answ
 
     @staticmethod
     def atlas_deviation_evaluation_prompt(
-        current_step: str,
-        proposed_deviation: str,
-        context: str,
-        full_plan: str
+        current_step: str, proposed_deviation: str, context: str, full_plan: str
     ) -> str:
         return f"""Tetyana wants to DEVIATE from the plan.
         
@@ -341,6 +352,7 @@ Do not suggest creating a complex plan, just use your tools autonomously to answ
             "voice_message": "Ukrainian response to Tetyana/User about the change (e.g. 'Гарна ідея, Тетяно. Давай змінимо план...')"
         }}
         """
+
     @staticmethod
     def atlas_simulation_prompt(task_text: str, memory_context: str) -> str:
         return f"""Think deeply as a Strategic Architect about: {task_text}
@@ -363,7 +375,7 @@ Do not suggest creating a complex plan, just use your tools autonomously to answ
         context: str = "",
     ) -> str:
         context_section = f"\n        ENVIRONMENT & PATHS:\n        {context}\n" if context else ""
-        
+
         return f"""Create a Master Execution Plan.
 
         REQUEST: {task_text}
@@ -499,12 +511,10 @@ GUIDELINES:
 - Be precise and efficient. Do not request screenshots if a simple 'ls' or 'pgrep' provides the proof.
 
 Output your internal verification strategy in English. Do NOT use markdown formatting for the strategy itself, just plain text."""
+
     @staticmethod
     def grisha_vibe_audit_prompt(
-        error: str,
-        vibe_report: str,
-        context: dict,
-        technical_trace: str = ""
+        error: str, vibe_report: str, context: dict, technical_trace: str = ""
     ) -> str:
         return f"""You are the Reality Auditor (GRISHA). 
         Vibe AI has proposed a fix for a technical error. Your job is to perform a pre-execution AUDIT.
@@ -539,22 +549,19 @@ Output your internal verification strategy in English. Do NOT use markdown forma
 
     @staticmethod
     def atlas_healing_review_prompt(
-        error: str,
-        vibe_report: str,
-        grisha_audit: dict,
-        context: dict
+        error: str, vibe_report: str, grisha_audit: dict, context: dict
     ) -> str:
         return f"""You are Atlas, the Strategic Architect. 
         A self-healing process is underway. Vibe has proposed a fix, and Grisha has audited it.
         
-        USER GOAL: {context.get('goal', 'Unknown')}
+        USER GOAL: {context.get("goal", "Unknown")}
         ERROR ENCOUNTERED: {error}
         
         VIBE DIAGNOSIS:
         {vibe_report}
         
-        GRISHA AUDIT VERDICT: {grisha_audit.get('audit_verdict')}
-        GRISHA REASONING: {grisha_audit.get('reasoning')}
+        GRISHA AUDIT VERDICT: {grisha_audit.get("audit_verdict")}
+        GRISHA REASONING: {grisha_audit.get("reasoning")}
         
         YOUR ROLE:
         1. Set the "TEMPO" for the system. Should we proceed with the fix, ask for an alternative, or pivot?

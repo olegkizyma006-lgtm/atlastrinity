@@ -4,7 +4,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, cast
 
 
 def _import_mcp_sdk():
@@ -13,10 +13,12 @@ def _import_mcp_sdk():
         src_dir = str(Path(__file__).resolve().parents[1])
         sys.path = [p for p in sys.path if str(p) != src_dir]
 
-        from mcp.client.session import ClientSession as _ClientSession  # noqa: E402
-        from mcp.client.stdio import StdioServerParameters as _StdioServerParameters  # noqa: E402
-        from mcp.client.stdio import stdio_client as _stdio_client  # noqa: E402
-        from mcp.types import LoggingMessageNotification as _LoggingMessageNotification  # noqa: E402
+        from mcp.client.session import ClientSession as _ClientSession
+        from mcp.client.stdio import StdioServerParameters as _StdioServerParameters
+        from mcp.client.stdio import stdio_client as _stdio_client
+        from mcp.types import (
+            LoggingMessageNotification as _LoggingMessageNotification,
+        )
 
         return _ClientSession, _StdioServerParameters, _stdio_client, _LoggingMessageNotification
     finally:
@@ -25,7 +27,7 @@ def _import_mcp_sdk():
 
 # Import preflight utilities (uses npm under the hood for registry checks)
 try:
-    from .mcp_preflight import check_package_arg_for_tool  # noqa: E402
+    from .mcp_preflight import check_package_arg_for_tool
 except Exception:
     # Fallback: if preflight not available, define a permissive stub
     def check_package_arg_for_tool(arg: str, tool_cmd: str = "npx") -> bool:  # type: ignore
@@ -33,17 +35,20 @@ except Exception:
 
 
 try:
-    ClientSession, StdioServerParameters, stdio_client, LoggingMessageNotification = _import_mcp_sdk()
+    ClientSession, StdioServerParameters, stdio_client, LoggingMessageNotification = (
+        _import_mcp_sdk()
+    )
 except ImportError:  # pragma: no cover
     ClientSession = None  # type: ignore
     StdioServerParameters = None  # type: ignore
     stdio_client = None  # type: ignore
     LoggingMessageNotification = None  # type: ignore
+from sqlalchemy import text  # noqa: E402
+
 from .config import MCP_DIR  # noqa: E402
 from .config_loader import config  # noqa: E402
-from .logger import logger  # noqa: E402
 from .db.manager import db_manager  # noqa: E402
-from sqlalchemy import text  # noqa: E402
+from .logger import logger  # noqa: E402
 
 
 class MCPManager:
@@ -60,19 +65,20 @@ class MCPManager:
     """
 
     def __init__(self):
-        self.sessions: Dict[str, ClientSession] = {}
+        self.sessions: dict[str, ClientSession] = {}
         # Per-server connection tasks and control structures
-        self._connection_tasks: Dict[str, asyncio.Task] = {}
-        self._close_events: Dict[str, asyncio.Event] = {}
-        self._session_futures: Dict[str, asyncio.Future] = {}
+        self._connection_tasks: dict[str, asyncio.Task] = {}
+        self._close_events: dict[str, asyncio.Event] = {}
+        self._session_futures: dict[str, asyncio.Future] = {}
         self.config = self._load_config()
         self._lock = asyncio.Lock()
         self._log_callbacks = []
-        
+
         # Unified tool dispatching
         from .tool_dispatcher import ToolDispatcher
+
         self.dispatcher = ToolDispatcher(self)
-        
+
         # Controls for restart concurrency and retry/backoff
         # Limit number of concurrent restarts to avoid forking storms
         self._restart_semaphore = asyncio.Semaphore(4)
@@ -81,13 +87,13 @@ class MCPManager:
             config.get("mcp_enhanced.restart_backoff_base", 0.5)
         )  # seconds
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """Load MCP config from the global user config folder."""
         try:
             config_path = MCP_DIR / "config.json"
             if config_path.exists():
                 logger.info(f"Loading MCP config from: {config_path}")
-                with open(config_path, "r", encoding="utf-8") as f:
+                with open(config_path, encoding="utf-8") as f:
                     raw_config = json.load(f)
                 return self._process_config(raw_config)
 
@@ -97,7 +103,7 @@ class MCPManager:
             logger.error(f"Failed to load MCP config: {e}")
             return {}
 
-    def _process_config(self, raw_config: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_config(self, raw_config: dict[str, Any]) -> dict[str, Any]:
         """Filter disabled servers and substitute environment variables"""
         processed = {
             "mcpServers": {
@@ -107,23 +113,25 @@ class MCPManager:
             }
         }
 
-        import re  # noqa: E402
+        import re
 
-        def _substitute_placeholders(value: Any, missing: List[str]) -> Any:
+        def _substitute_placeholders(value: Any, missing: list[str]) -> Any:
             if not isinstance(value, str):
                 return value
 
             def replace_match(match):
                 var_name = match.group(1)
                 if var_name == "PROJECT_ROOT":
-                    from .config import PROJECT_ROOT  # noqa: E402
+                    from .config import PROJECT_ROOT
+
                     return str(PROJECT_ROOT)
                 if var_name == "CONFIG_ROOT":
-                    from .config import CONFIG_ROOT  # noqa: E402
+                    from .config import CONFIG_ROOT
+
                     return str(CONFIG_ROOT)
                 if var_name == "HOME":
                     return str(Path.home())
-                
+
                 # Fallback to environment variables
                 env_val = os.getenv(var_name)
                 if env_val is None:
@@ -143,10 +151,10 @@ class MCPManager:
             ):
                 if not os.path.exists(result):
                     # Robust resolution for packaged binary
-                    from .config import PROJECT_ROOT  # noqa: E402
-                    
+                    from .config import PROJECT_ROOT
+
                     binary_name = result.split("/")[-1]
-                    
+
                     # Search order for binary:
                     # 1. Directly in bin/
                     # 2. In Resources/bin/ (Electron specific)
@@ -154,9 +162,9 @@ class MCPManager:
                     possible_paths = [
                         PROJECT_ROOT / "bin" / binary_name,
                         PROJECT_ROOT / "Resources" / "bin" / binary_name,
-                        Path(sys.executable).parent / binary_name
+                        Path(sys.executable).parent / binary_name,
                     ]
-                    
+
                     for p in possible_paths:
                         if p.exists():
                             logger.info(f"[MCP] Redirected {binary_name} -> {p}")
@@ -178,18 +186,18 @@ class MCPManager:
             if config.get(f"mcp.{yaml_key}.enabled", True) is False:
                 continue
 
-            missing_env: List[str] = []
+            missing_env: list[str] = []
 
             # Substitute environment variables in env section
             if "env" in server_config:
-                env_vars: Dict[str, Any] = {}
+                env_vars: dict[str, Any] = {}
                 for key, value in (server_config.get("env") or {}).items():
                     env_vars[key] = _substitute_placeholders(value, missing_env)
                 server_config["env"] = env_vars
 
             # Substitute environment variables in args section
             if "args" in server_config and isinstance(server_config.get("args"), list):
-                new_args: List[Any] = []
+                new_args: list[Any] = []
                 for arg in server_config.get("args") or []:
                     new_args.append(_substitute_placeholders(arg, missing_env))
                 server_config["args"] = new_args
@@ -211,6 +219,7 @@ class MCPManager:
         """Kills any lingering processes that match the server command-args signature."""
         try:
             import subprocess
+
             # We look for processes running the same command/module
             search_str = ""
             if "src.mcp_server" in command:
@@ -220,18 +229,21 @@ class MCPManager:
             else:
                 search_str = server_name
 
-            if not search_str: return
+            if not search_str:
+                return
 
-            logger.info(f"[MCP] Cleaning up orphan processes for {server_name} (search: {search_str})")
+            logger.info(
+                f"[MCP] Cleaning up orphan processes for {server_name} (search: {search_str})"
+            )
             subprocess.run(["pkill", "-9", "-f", search_str], capture_output=True)
             # Give OS a moment to release ports/files
             import time
+
             time.sleep(0.5)
         except Exception as e:
             logger.debug(f"Orphan cleanup failed for {server_name}: {e}")
 
-
-    async def get_session(self, server_name: str) -> Optional[ClientSession]:
+    async def get_session(self, server_name: str) -> ClientSession | None:
         """Get or create a persistent session for the server"""
         if ClientSession is None or StdioServerParameters is None or stdio_client is None:
             logger.error("MCP Python package is not installed; MCP features are unavailable")
@@ -253,8 +265,8 @@ class MCPManager:
                 return None
 
     async def _connect_server(
-        self, server_name: str, config: Dict[str, Any]
-    ) -> Optional[ClientSession]:
+        self, server_name: str, config: dict[str, Any]
+    ) -> ClientSession | None:
         """Establish a new connection to an MCP server"""
         default_timeout = float(
             self.config.get("mcpServers", {}).get("_defaults", {}).get("connect_timeout", 30.0)
@@ -272,18 +284,19 @@ class MCPManager:
         args = config.get("args", [])
         env = os.environ.copy()
         env.update(config.get("env", {}))
-        
+
         # Ensure PYTHONPATH includes project root so that 'src.mcp_server' can be resolved
         from .config import PROJECT_ROOT
+
         root_path = str(PROJECT_ROOT)
         current_pp = env.get("PYTHONPATH", "")
         if root_path not in current_pp:
             env["PYTHONPATH"] = f"{root_path}{os.pathsep}{current_pp}" if current_pp else root_path
-        
+
         logger.debug(f"[MCP] PYTHONPATH for {server_name}: {env.get('PYTHONPATH')}")
 
         # Resolve command path
-        if command == "python3" or command == "python":
+        if command in {"python3", "python"}:
             command = sys.executable
         elif command == "npx":
             npx_path = shutil.which("npx")
@@ -352,7 +365,7 @@ class MCPManager:
                 # self._kill_orphans(server_name, command)
                 # Wait, better not to kill during connect_server if it's already managed.
                 # Only do it in restart_server.
-                
+
                 logger.info(f"Connecting to MCP server: {server_name}...")
                 logger.debug(f"[MCP] Command: {command}, Args: {args}")
                 async with cast(Any, stdio_client)(server_params) as (read, write):
@@ -361,10 +374,10 @@ class MCPManager:
                         # Extract level and data
                         level_str = getattr(params, "level", "info").lower()
                         data = getattr(params, "data", "")
-                        
+
                         # Format message
                         msg = data
-                        
+
                         # Log to main brain logger - DISABLED to avoid duplication with Orchestrator callback
                         # if level_str in ["debug", "trace"]:
                         #     logger.debug(msg)
@@ -384,17 +397,23 @@ class MCPManager:
                                         try:
                                             await cb(msg, server_name, level_str)
                                         except Exception as e:
-                                            logger.error(f"[MCP] Log callback internal error ({server_name}): {e}")
-                                    
+                                            logger.error(
+                                                f"[MCP] Log callback internal error ({server_name}): {e}"
+                                            )
+
                                     asyncio.create_task(safe_cb_wrapper())
                                 else:
                                     cb(msg, server_name, level_str)
                             except Exception as e:
-                                logger.error(f"[MCP] Log callback dispatch error ({server_name}): {e}")
+                                logger.error(
+                                    f"[MCP] Log callback dispatch error ({server_name}): {e}"
+                                )
 
-                    async with cast(Any, ClientSession)(read, write, logging_callback=handle_log) as session:
+                    async with cast(Any, ClientSession)(
+                        read, write, logging_callback=handle_log
+                    ) as session:
                         await session.initialize()
-                        
+
                         # store session usable by other tasks
                         self.sessions[server_name] = session
                         if not session_future.done():
@@ -438,7 +457,7 @@ class MCPManager:
             raise
 
     async def call_tool(
-        self, server_name: str, tool_name: str, arguments: Optional[Dict[str, Any]] = None
+        self, server_name: str, tool_name: str, arguments: dict[str, Any] | None = None
     ) -> Any:
         """Call a tool on a specific server"""
         session = await self.get_session(server_name)
@@ -453,15 +472,21 @@ class MCPManager:
                 for item in result.content:
                     if hasattr(item, "text"):
                         item_raw = cast(Any, item)
-                        if isinstance(item_raw.text, str) and len(item_raw.text) > 100 * 1024 * 1024:  # 100MB limit
-                            item_raw.text = item_raw.text[: 100 * 1024 * 1024] + "\n... [TRUNCATED DUE TO SIZE] ..."
+                        if (
+                            isinstance(item_raw.text, str)
+                            and len(item_raw.text) > 100 * 1024 * 1024
+                        ):  # 100MB limit
+                            item_raw.text = (
+                                item_raw.text[: 100 * 1024 * 1024]
+                                + "\n... [TRUNCATED DUE TO SIZE] ..."
+                            )
                             logger.warning(f"Truncated large output from {server_name}.{tool_name}")
 
             return result
         except Exception as e:
             # Enhanced error formatting for ExceptionGroup
             error_msg = str(e)
-            if hasattr(e, "exceptions") and e.exceptions: # ExceptionGroup
+            if hasattr(e, "exceptions") and e.exceptions:  # ExceptionGroup
                 error_msg = f"{type(e).__name__}: {', '.join([str(x) for x in e.exceptions])}"
 
             logger.error(f"Error calling tool {server_name}.{tool_name}: {error_msg}")
@@ -477,7 +502,15 @@ class MCPManager:
                     logger.error(f"[MCP] Failed to check vibe config: {config_err}")
 
             # If connection died, try to reconnect once
-            if any(kw in error_msg for kw in ["Connection closed", "Broken pipe", "ClosedResourceError", "unhandled errors in a TaskGroup"]):
+            if any(
+                kw in error_msg
+                for kw in [
+                    "Connection closed",
+                    "Broken pipe",
+                    "ClosedResourceError",
+                    "unhandled errors in a TaskGroup",
+                ]
+            ):
                 logger.warning(f"Connection lost to {server_name}, attempting reconnection...")
                 async with self._lock:
                     if server_name in self.sessions:
@@ -492,28 +525,30 @@ class MCPManager:
                     try:
                         return await session.call_tool(tool_name, arguments or {})
                     except Exception as retry_e:
-                        return {"error": f"Retry failed: {str(retry_e)}"}
+                        return {"error": f"Retry failed: {retry_e!s}"}
 
             return {"error": error_msg}
 
     async def dispatch_tool(
-        self, 
-        tool_name: Optional[str], 
-        arguments: Optional[Dict[str, Any]] = None,
-        explicit_server: Optional[str] = None,
-        allow_fallback: bool = True
+        self,
+        tool_name: str | None,
+        arguments: dict[str, Any] | None = None,
+        explicit_server: str | None = None,
+        allow_fallback: bool = True,
     ) -> Any:
         """
         Unified entry point for tool calls with resolution, normalization, and intelligent fallback.
-        
+
         Args:
             tool_name: Tool name (can include server as dot notation)
             arguments: Tool arguments
             explicit_server: Explicitly specified server
             allow_fallback: If True, attempt macOS-use fallback on failure
         """
-        result = await self.dispatcher.resolve_and_dispatch(tool_name, arguments or {}, explicit_server)
-        
+        result = await self.dispatcher.resolve_and_dispatch(
+            tool_name, arguments or {}, explicit_server
+        )
+
         # Intelligent fallback: If failed and allow_fallback, try macOS-use equivalent
         if allow_fallback and isinstance(result, dict) and result.get("error"):
             # Check if this wasn't already a macOS-use call
@@ -530,13 +565,13 @@ class MCPManager:
                         logger.info(f"[MCP] Fallback successful: macos-use.{fallback_tool}")
                     except Exception as e:
                         logger.error(f"[MCP] Fallback also failed: {e}")
-        
+
         return result
-    
-    def _get_macos_equivalent(self, tool_name: str) -> Optional[str]:
+
+    def _get_macos_equivalent(self, tool_name: str) -> str | None:
         """Find macOS-use equivalent for a given tool."""
         tool_lower = tool_name.lower()
-        
+
         # Mapping of common tools to macOS-use equivalents
         equivalents = {
             "fetch": "macos-use_fetch_url",
@@ -555,10 +590,10 @@ class MCPManager:
             "notes_create": "macos-use_notes_create_note",
             "finder_list": "macos-use_finder_list_files",
         }
-        
+
         return equivalents.get(tool_lower)
 
-    async def list_tools(self, server_name: str) -> List[Any]:
+    async def list_tools(self, server_name: str) -> list[Any]:
         """List available tools for a server"""
         session = await self.get_session(server_name)
         if not session:
@@ -571,11 +606,13 @@ class MCPManager:
         except Exception as e:
             # FIX: Handle ClosedResourceError by reconnecting
             if "ClosedResourceError" in str(e) or "Connection closed" in str(e):
-                logger.warning(f"[MCP] Connection lost during list_tools for {server_name}, reconnecting...")
+                logger.warning(
+                    f"[MCP] Connection lost during list_tools for {server_name}, reconnecting..."
+                )
                 async with self._lock:
                     if server_name in self.sessions:
                         del self.sessions[server_name]
-                
+
                 # Try to get fresh session
                 session = await self.get_session(server_name)
                 if session:
@@ -584,7 +621,7 @@ class MCPManager:
                         return result.tools
                     except Exception as retry_e:
                         logger.error(f"[MCP] Retry list_tools failed for {server_name}: {retry_e}")
-            
+
             logger.error(
                 f"Error listing tools for {server_name}: {type(e).__name__}: {e}",
                 exc_info=True,
@@ -610,7 +647,7 @@ class MCPManager:
                 logger.warning(f"[MCP] Vibe server unhealthy, attempting auto-enable: {e}")
                 # Try to enable vibe via self-healing
                 try:
-                    from .config_loader import config  # noqa: E402
+                    from .config_loader import config
 
                     if not config.get("mcp.vibe.enabled", False):
                         logger.info("[MCP] Auto-enabling vibe server due to health check failure")
@@ -646,7 +683,7 @@ class MCPManager:
                 # Remove any remaining session reference
                 if server_name in self.sessions:
                     del self.sessions[server_name]
-                
+
                 # Proactive cleanup of lingering child processes
                 cmd = server_config.get("command", "") if server_config else ""
                 self._kill_orphans(server_name, cmd)
@@ -669,7 +706,7 @@ class MCPManager:
                     last_exc = e
                     # If this is a resource fork error (EAGAIN), do a backoff and retry
                     try:
-                        import errno as _errno  # noqa: E402
+                        import errno as _errno
 
                         if isinstance(e, OSError) and getattr(e, "errno", None) == _errno.EAGAIN:
                             wait = self._restart_backoff_base * (2 ** (attempt - 1))
@@ -731,21 +768,21 @@ class MCPManager:
         self._health_task = asyncio.create_task(self.health_check_loop(interval))
         return self._health_task
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get status of all servers including coverage statistics."""
-        status: Dict[str, Any] = {
+        status: dict[str, Any] = {
             "connected_servers": list(self.sessions.keys()),
             "configured_servers": list(self.config.get("mcpServers", {}).keys()),
             "session_count": len(self.sessions),
         }
-        
+
         # Add coverage statistics
         try:
             coverage = self.dispatcher.get_coverage_stats()
             status["coverage"] = coverage
         except Exception as e:
             logger.warning(f"[MCP] Could not get coverage stats: {e}")
-        
+
         return status
 
     def register_log_callback(self, callback):
@@ -766,19 +803,20 @@ class MCPManager:
         """
         Returns full server catalog from registry WITHOUT connecting to any servers.
         LLM uses this to decide which servers to initialize.
-        
+
         This is FAST: no network calls, pure static data from mcp_registry.
         """
         from .mcp_registry import get_server_catalog_for_prompt
+
         return get_server_catalog_for_prompt(include_key_tools=True)
 
-    async def ensure_servers_connected(self, server_names: List[str]) -> Dict[str, bool]:
+    async def ensure_servers_connected(self, server_names: list[str]) -> dict[str, bool]:
         """
         Lazily initialize only the specified servers.
-        
+
         Args:
             server_names: List of server names to connect
-            
+
         Returns:
             Dict mapping server_name -> success (True/False)
         """
@@ -801,7 +839,7 @@ class MCPManager:
                     results[name] = False
         return results
 
-    def get_available_servers(self) -> List[str]:
+    def get_available_servers(self) -> list[str]:
         """Get list of all configured (available) server names."""
         return list(self.config.get("mcpServers", {}).keys())
 
@@ -811,7 +849,7 @@ class MCPManager:
         Ensures all tasks are cancelled and orphan processes are killed.
         """
         logger.info("[MCP] Initiating shutdown of all server connections...")
-        
+
         # 1. Signal all connections to close gracefully
         async with self._lock:
             server_names = list(self._close_events.keys())
@@ -820,68 +858,69 @@ class MCPManager:
                     self._close_events[name].set()
                 except Exception:
                     pass
-        
+
         # 2. Give tasks a moment to exit
         if self._connection_tasks:
             await asyncio.sleep(0.5)
-            
+
         # 3. Kill lingering tasks and processes
         async with self._lock:
-             for name, task in list(self._connection_tasks.items()):
-                 if not task.done():
-                     logger.warning(f"[MCP] Force cancelling connection task for {name}")
-                     task.cancel()
-             
-             # Final pkill for any common MCP signatures
-             try:
-                 import subprocess
-                 # Targeted kills for known servers
-                 sigs = ["mcp-server", "macos-use", "vibe_server", "vibe", "npx", "bunx"]
-                 for sig in sigs:
-                     subprocess.run(["pkill", "-9", "-f", sig], capture_output=True)
-             except Exception:
-                 pass
-             
-             self.sessions.clear()
-             self._connection_tasks.clear()
-             self._close_events.clear()
-             self._session_futures.clear()
+            for name, task in list(self._connection_tasks.items()):
+                if not task.done():
+                    logger.warning(f"[MCP] Force cancelling connection task for {name}")
+                    task.cancel()
+
+            # Final pkill for any common MCP signatures
+            try:
+                import subprocess
+
+                # Targeted kills for known servers
+                sigs = ["mcp-server", "macos-use", "vibe_server", "vibe", "npx", "bunx"]
+                for sig in sigs:
+                    subprocess.run(["pkill", "-9", "-f", sig], capture_output=True)
+            except Exception:
+                pass
+
+            self.sessions.clear()
+            self._connection_tasks.clear()
+            self._close_events.clear()
+            self._session_futures.clear()
 
         logger.info("[MCP] Shutdown complete.")
 
-    def get_connected_servers(self) -> List[str]:
+    def get_connected_servers(self) -> list[str]:
         """Get list of currently connected server names."""
         return list(self.sessions.keys())
 
     async def get_mcp_catalog(self, connected_only: bool = False) -> str:
         """
         Generates a concise catalog of all configured MCP servers and their roles.
-        
+
         Args:
             connected_only: If True, only shows already connected servers (fast).
                            If False, tries to connect to all servers (slower).
-        
+
         Returns:
             Formatted catalog string for LLM consumption.
         """
         # OPTIMIZATION: Use static registry for fast catalog generation
         if connected_only:
             from .mcp_registry import SERVER_CATALOG
-            
+
             catalog = "MCP SERVER CATALOG (Connected Servers):\n"
             connected = self.get_connected_servers()
-            
+
             for name in connected:
                 info = SERVER_CATALOG.get(name, {})
                 desc = info.get("description", "Native capability")
                 catalog += f"[CONNECTED] {name}: {desc}\n"
-            
+
             if not connected:
                 catalog += "(No servers currently connected)\n"
-            
+
             catalog += "\nUse get_server_catalog_without_connection() to see all available servers."
             return catalog
-        
+
         # Original behavior: try to fetch tools from all servers
         catalog = "MCP SERVER CATALOG (Available Realms):\n"
         configured_servers = self.config.get("mcpServers", {})
@@ -943,7 +982,7 @@ class MCPManager:
         Generates a detailed summary of all available tools across all servers,
         including their input schemas (arguments) for precise LLM mapping.
         """
-        import json  # noqa: E402
+        import json
 
         summary = "AVAILABLE MCP TOOLS (Full Specs):\n"
         configured_servers = [s for s in self.config.get("mcpServers", {}) if not s.startswith("_")]
@@ -983,19 +1022,17 @@ class MCPManager:
 
         return summary
 
-
-
-    async def query_db(self, query: str, params: Optional[Dict] = None) -> List[Dict]:
+    async def query_db(self, query: str, params: dict | None = None) -> list[dict]:
         """Execute a raw SQL query (for debugging/self-healing)"""
         if not db_manager.available:
             try:
                 await db_manager.initialize()
             except Exception as e:
                 return [{"error": f"Database initialization failed: {e}"}]
-        
+
         if not db_manager.available:
             return [{"error": "Database not available"}]
-        
+
         try:
             async with await db_manager.get_session() as session:
                 result = await session.execute(text(query), params or {})
@@ -1017,7 +1054,7 @@ class MCPManager:
 
         # Signal all connection tasks to close and wait for them
         tasks = list(self._connection_tasks.values())
-        for name, ev in list(self._close_events.items()):
+        for _name, ev in list(self._close_events.items()):
             try:
                 ev.set()
             except Exception:

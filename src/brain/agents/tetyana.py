@@ -14,10 +14,10 @@ import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, cast
 
-from src.brain.mcp_manager import mcp_manager
 from src.brain.logger import logger
+from src.brain.mcp_manager import mcp_manager
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dev = os.path.join(current_dir, "..", "..", "..")
@@ -29,11 +29,10 @@ for r in [root_dev, root_prod]:
         sys.path.insert(0, abs_r)
 
 from providers.copilot import CopilotLLM  # noqa: E402
-
+from src.brain.agents.base_agent import BaseAgent  # noqa: E402
 from src.brain.config_loader import config  # noqa: E402
 from src.brain.context import shared_context  # noqa: E402
 from src.brain.prompts import AgentPrompts  # noqa: E402
-from src.brain.agents.base_agent import BaseAgent  # noqa: E402
 
 
 @dataclass
@@ -43,14 +42,14 @@ class StepResult:
     step_id: str
     success: bool
     result: str
-    screenshot_path: Optional[str] = None
-    voice_message: Optional[str] = None
-    error: Optional[str] = None
-    tool_call: Optional[Dict[str, Any]] = None
-    timestamp: Optional[datetime] = None
-    thought: Optional[str] = None
+    screenshot_path: str | None = None
+    voice_message: str | None = None
+    error: str | None = None
+    tool_call: dict[str, Any] | None = None
+    timestamp: datetime | None = None
+    thought: str | None = None
     is_deviation: bool = False
-    deviation_info: Optional[Dict[str, Any]] = None
+    deviation_info: dict[str, Any] | None = None
 
     def __post_init__(self):
         if self.timestamp is None:
@@ -94,6 +93,7 @@ class Tetyana(BaseAgent):
         """
         if cls._cached_schemas is None:
             from ..mcp_registry import TOOL_SCHEMAS
+
             cls._cached_schemas = TOOL_SCHEMAS
         return cls._cached_schemas
 
@@ -108,7 +108,6 @@ class Tetyana(BaseAgent):
     VOICE = AgentPrompts.TETYANA["VOICE"]
     COLOR = AgentPrompts.TETYANA["COLOR"]
     SYSTEM_PROMPT = AgentPrompts.TETYANA["SYSTEM_PROMPT"]
-
 
     def __init__(self, model_name: str = "grok-code-fast-1"):
         # Get model config (config.yaml > parameter > env variables)
@@ -136,22 +135,21 @@ class Tetyana(BaseAgent):
 
         self.temperature = agent_config.get("temperature", 0.5)
         self.current_step: int = 0
-        self.results: List[StepResult] = []
+        self.results: list[StepResult] = []
         self.attempt_count: int = 0
-        
-        # Track current PID for Vision analysis
-        self._current_pid: Optional[int] = None
 
-    async def get_grisha_feedback(self, step_id: int) -> Optional[str]:
+        # Track current PID for Vision analysis
+        self._current_pid: int | None = None
+
+    async def get_grisha_feedback(self, step_id: int) -> str | None:
         """Retrieve Grisha's detailed rejection report from notes or memory"""
-        from ..logger import logger  # noqa: E402
-        from ..mcp_manager import mcp_manager  # noqa: E402
+        from ..logger import logger
+        from ..mcp_manager import mcp_manager
 
         # Try macos-use notes first (faster)
         try:
             result = await mcp_manager.dispatch_tool(
-                "notes_get",
-                {"name": f"Grisha Rejection Step {step_id}"}
+                "notes_get", {"name": f"Grisha Rejection Step {step_id}"}
             )
 
             # Normalize notes search result to a plain dict when possible
@@ -160,7 +158,7 @@ class Tetyana(BaseAgent):
                 if isinstance(result, dict):
                     notes_result = result
                 elif hasattr(result, "structuredContent") and isinstance(
-                    getattr(result, "structuredContent"), dict
+                    result.structuredContent, dict
                 ):
                     notes_result = result.structuredContent.get("result", {})
                 elif (
@@ -168,7 +166,7 @@ class Tetyana(BaseAgent):
                     and len(result.content) > 0
                     and hasattr(result.content[0], "text")
                 ):
-                    import json as _json  # noqa: E402
+                    import json as _json
 
                     try:
                         notes_result = _json.loads(result.content[0].text)
@@ -177,16 +175,13 @@ class Tetyana(BaseAgent):
             except Exception:
                 notes_result = None
 
-            if (
-                isinstance(notes_result, dict)
-                and notes_result.get("success")
-            ):
+            if isinstance(notes_result, dict) and notes_result.get("success"):
                 # Extract note content from various possible structures
                 note_content = None
-                
+
                 # Try direct content field
                 note_content = notes_result.get("content") or notes_result.get("body")
-                
+
                 # Try from notes list
                 if not note_content and notes_result.get("notes"):
                     notes = notes_result.get("notes", [])
@@ -231,111 +226,114 @@ class Tetyana(BaseAgent):
 
         return None
 
-    async def _take_screenshot_for_vision(self, pid: Optional[int] = None) -> Optional[str]:
+    async def _take_screenshot_for_vision(self, pid: int | None = None) -> str | None:
         """Take screenshot for Vision analysis, optionally focusing on specific app."""
-        from ..logger import logger  # noqa: E402
-        import subprocess  # noqa: E402
         import base64
-        from datetime import datetime  # noqa: E402
-        from ..config import SCREENSHOTS_DIR  # noqa: E402
+        import subprocess
+        from datetime import datetime
+
+        from ..config import SCREENSHOTS_DIR
+        from ..logger import logger
 
         try:
             # Create screenshots directory if needed
             os.makedirs(SCREENSHOTS_DIR, exist_ok=True)
-            
+
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             path = os.path.join(SCREENSHOTS_DIR, f"vision_{timestamp}.png")
-            
+
             # If PID provided, try to focus that app first
             if pid:
                 try:
-                    focus_script = f'''
+                    focus_script = f"""
                     tell application "System Events"
                         set frontProcess to first process whose unix id is {pid}
                         set frontmost of frontProcess to true
                     end tell
-                    '''
-                    subprocess.run(["osascript", "-e", focus_script], capture_output=True, timeout=5)
+                    """
+                    subprocess.run(
+                        ["osascript", "-e", focus_script], capture_output=True, timeout=5
+                    )
                     await asyncio.sleep(0.3)  # Wait for focus
                 except Exception as e:
                     logger.warning(f"[TETYANA] Could not focus app {pid}: {e}")
-            
+
             # 1. Try MCP Tool first (Native Swift)
             try:
-                # We need to construct a lightweight call since we are inside Tetyana agent class, 
+                # We need to construct a lightweight call since we are inside Tetyana agent class,
                 # but we have access to mcp_manager via import
                 if "macos-use" in mcp_manager.config.get("mcpServers", {}):
-                     result = await mcp_manager.call_tool("macos-use", "macos-use_take_screenshot", {})
-                     
-                     base64_img = None
-                     if isinstance(result, dict) and "content" in result:
-                         for item in result["content"]:
-                             if item.get("type") == "text":
-                                 base64_img = item.get("text")
-                                 break
-                     elif hasattr(result, "content") and len(result.content) > 0:
-                          if hasattr(result.content[0], "text"):
-                               base64_img = result.content[0].text
-                               
-                     if base64_img:
-                          with open(path, "wb") as f:
-                              f.write(base64.b64decode(base64_img))
-                          logger.info(f"[TETYANA] Screenshot for Vision saved via MCP: {path}")
-                          return path
+                    result = await mcp_manager.call_tool(
+                        "macos-use", "macos-use_take_screenshot", {}
+                    )
+
+                    base64_img = None
+                    if isinstance(result, dict) and "content" in result:
+                        for item in result["content"]:
+                            if item.get("type") == "text":
+                                base64_img = item.get("text")
+                                break
+                    elif hasattr(result, "content") and len(result.content) > 0:
+                        if hasattr(result.content[0], "text"):
+                            base64_img = result.content[0].text
+
+                    if base64_img:
+                        with open(path, "wb") as f:
+                            f.write(base64.b64decode(base64_img))
+                        logger.info(f"[TETYANA] Screenshot for Vision saved via MCP: {path}")
+                        return path
             except Exception as e:
                 logger.warning(f"[TETYANA] MCP screenshot failed, falling back: {e}")
 
             # 2. Fallback to screencapture
-            result = subprocess.run(
-                ["screencapture", "-x", path],
-                capture_output=True,
-                timeout=10
-            )
-            
+            result = subprocess.run(["screencapture", "-x", path], capture_output=True, timeout=10)
+
             if result.returncode == 0 and os.path.exists(path):
                 logger.info(f"[TETYANA] Screenshot for Vision saved (fallback): {path}")
                 return path
             else:
                 logger.error(f"[TETYANA] Screenshot failed: {result.stderr.decode()}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"[TETYANA] Screenshot error: {e}")
             return None
 
-    async def analyze_screen(self, query: str, pid: Optional[int] = None) -> Dict[str, Any]:
+    async def analyze_screen(self, query: str, pid: int | None = None) -> dict[str, Any]:
         """
         Take screenshot and analyze with Vision to find UI elements.
         Used for complex GUI tasks where Accessibility Tree is insufficient.
-        
+
         Args:
             query: What to look for (e.g., "Find the 'Next' button")
             pid: Optional PID to focus app before screenshot
-            
+
         Returns:
             {"found": bool, "elements": [...], "current_state": str, "suggested_action": {...}}
         """
-        from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
-        from ..logger import logger  # noqa: E402
-        import base64  # noqa: E402
+        import base64
+
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        from ..logger import logger
 
         logger.info(f"[TETYANA] Vision analysis requested: {query}")
-        
+
         # Use provided PID or tracked PID
         effective_pid = pid or self._current_pid
-        
+
         # 1. Take screenshot
         screenshot_path = await self._take_screenshot_for_vision(effective_pid)
         if not screenshot_path:
             return {"found": False, "error": "Could not take screenshot"}
-        
+
         # 2. Load and encode image
         try:
             with open(screenshot_path, "rb") as f:
                 image_data = base64.b64encode(f.read()).decode("utf-8")
         except Exception as e:
             return {"found": False, "error": f"Could not read screenshot: {e}"}
-        
+
         # 3. Vision analysis prompt
         vision_prompt = f"""Analyze this macOS screenshot to help with: {query}
 
@@ -356,7 +354,7 @@ Respond in JSON format:
     "current_state": "Brief description of what's visible on screen",
     "suggested_action": {{
         "tool": "macos-use_click_and_traverse",
-        "args": {{"pid": {effective_pid or 'null'}, "x": 350, "y": 420}}
+        "args": {{"pid": {effective_pid or "null"}, "x": 350, "y": 420}}
     }},
     "notes": "Any important observations (CAPTCHA detected, page loading, etc.)"
 }}
@@ -366,31 +364,35 @@ IMPORTANT:
 - If you see a CAPTCHA or verification challenge, note it in "notes"
 - If the target element is not visible, set "found": false and explain in "current_state"
 """
-        
-        content_list: List[Dict[str, Any]] = [
+
+        content_list: list[dict[str, Any]] = [
             {"type": "text", "text": vision_prompt},
-            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_data}"}}
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_data}"}},
         ]
-        
+
         messages = [
-            SystemMessage(content="You are a Vision assistant for macOS GUI automation. Analyze screenshots precisely and provide accurate element coordinates."),
+            SystemMessage(
+                content="You are a Vision assistant for macOS GUI automation. Analyze screenshots precisely and provide accurate element coordinates."
+            ),
             HumanMessage(content=cast(Any, content_list)),
         ]
-        
+
         try:
             response = await self.vision_llm.ainvoke(messages)
             result = self._parse_response(cast(str, response.content))
-            
+
             if result.get("found"):
                 logger.info(f"[TETYANA] Vision found elements: {len(result.get('elements', []))}")
                 logger.info(f"[TETYANA] Current state: {result.get('current_state', '')[:100]}...")
             else:
-                logger.warning(f"[TETYANA] Vision did not find target: {result.get('current_state', 'Unknown')}")
-            
+                logger.warning(
+                    f"[TETYANA] Vision did not find target: {result.get('current_state', 'Unknown')}"
+                )
+
             # Store screenshot path for Grisha verification
             result["screenshot_path"] = screenshot_path
             return result
-            
+
         except Exception as e:
             logger.error(f"[TETYANA] Vision analysis failed: {e}")
             return {"found": False, "error": str(e), "screenshot_path": screenshot_path}
@@ -399,20 +401,20 @@ IMPORTANT:
         """Dynamic temperature: 0.1 + attempt * 0.2, capped at 1.0"""
         return min(0.1 + (attempt * 0.2), 1.0)
 
-    async def execute_step(self, step: Dict[str, Any], attempt: int = 1) -> StepResult:
+    async def execute_step(self, step: dict[str, Any], attempt: int = 1) -> StepResult:
         """
         Executes a single plan step with Advanced Reasoning:
         1. Internal Monologue (Thinking before acting) - SKIPPED for simple tools
         2. Tool Execution
         3. Technical Reflexion (Self-correction on failure) - SKIPPED for transient errors
         """
-        from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
+        from langchain_core.messages import HumanMessage, SystemMessage
 
-        from ..logger import logger  # noqa: E402
-        from ..state_manager import state_manager  # noqa: E402
+        from ..logger import logger
+        from ..state_manager import state_manager
 
         self.attempt_count = attempt
-        
+
         # Get step_id early for logging
         step_id = step.get("id", self.current_step)
 
@@ -424,21 +426,45 @@ IMPORTANT:
                 payload = bm.get("payload", {})
                 if "user_response" in payload:
                     provided_response = payload["user_response"]
-                    logger.info(f"[TETYANA] Found provided response in bus_messages: {provided_response}")
+                    logger.info(
+                        f"[TETYANA] Found provided response in bus_messages: {provided_response}"
+                    )
                     break
-        
+
         # If not in bus_messages, check previous_results for Atlas's autonomous decision
         if not provided_response and "previous_results" in step:
             for pr in reversed(step["previous_results"]):
-                if pr.get("error") == "autonomous_decision_made" or pr.get("error") == "user_input_received":
+                if (
+                    pr.get("error") == "autonomous_decision_made"
+                    or pr.get("error") == "user_input_received"
+                ):
                     # The response should have been injected into message bus, but as a backup check
                     pass
 
         # Refined consent detection
         step_action_lower = str(step.get("action", "")).lower()
-        user_keywords = ["user", "human", "oleg", "me", "operator", "owner", "користувач", "людин", "олег", "мені"]
-        technical_user_refs = ["active user", "system user", "user home", "user account", "user directory", "current user", "username"]
-        
+        user_keywords = [
+            "user",
+            "human",
+            "oleg",
+            "me",
+            "operator",
+            "owner",
+            "користувач",
+            "людин",
+            "олег",
+            "мені",
+        ]
+        technical_user_refs = [
+            "active user",
+            "system user",
+            "user home",
+            "user account",
+            "user directory",
+            "current user",
+            "username",
+        ]
+
         # Heuristic to detect if action truly targets the HUMAN operator
         is_human_targeted = any(u in step_action_lower for u in user_keywords)
         if is_human_targeted:
@@ -446,23 +472,22 @@ IMPORTANT:
                 if tr in step_action_lower:
                     is_human_targeted = False
                     break
-        
+
         # Only trigger consent if we DON'T have a response yet
-        is_consent_request = (
-            (not provided_response) and (
-                (any(kw in step_action_lower for kw in ["ask", "request", "await", "get", "confirm"]) and is_human_targeted)
-                or ("consent" in step_action_lower)
-                or ("approval" in step_action_lower and is_human_targeted)
-                or ("confirmation" in step_action_lower and is_human_targeted)
-                or ("preferences" in step_action_lower and is_human_targeted)
-                or step.get("requires_consent", False) is True
+        is_consent_request = (not provided_response) and (
+            (
+                any(kw in step_action_lower for kw in ["ask", "request", "await", "get", "confirm"])
+                and is_human_targeted
             )
+            or ("consent" in step_action_lower)
+            or ("approval" in step_action_lower and is_human_targeted)
+            or ("confirmation" in step_action_lower and is_human_targeted)
+            or ("preferences" in step_action_lower and is_human_targeted)
+            or step.get("requires_consent", False) is True
         )
 
         if is_consent_request:
-            logger.info(
-                f"[TETYANA] Step '{step_id}' requires consent. Signal orchestrator."
-            )
+            logger.info(f"[TETYANA] Step '{step_id}' requires consent. Signal orchestrator.")
             consent_msg = f"Потрібна ваша згода або відповідь для кроку: {step.get('action')}\nОчікуваний результат: {step.get('expected_result', 'Підтвердження користувача')}"
 
             return StepResult(
@@ -473,10 +498,10 @@ IMPORTANT:
                 error="need_user_input",
                 thought=f"I detected a need for user consent in step: {step.get('action')}. provided_response={provided_response}.",
             )
-        
+
         if provided_response:
-             logger.info(f"[TETYANA] Proceeding with provided response: {provided_response}")
-             # We let the reasoning LLM know we have this response via 'bus_messages' which is already in the prompt
+            logger.info(f"[TETYANA] Proceeding with provided response: {provided_response}")
+            # We let the reasoning LLM know we have this response via 'bus_messages' which is already in the prompt
 
         # --- OPTIMIZATION: SMART REASONING GATE ---
         # Skip reasoning LLM for well-defined, simple tools
@@ -492,7 +517,7 @@ IMPORTANT:
         ]
 
         # --- PHASE 0: DYNAMIC INSPECTION ---
-        actual_step_id = step.get('id', self.current_step)
+        actual_step_id = step.get("id", self.current_step)
         logger.info(f"[TETYANA] Executing step {actual_step_id}...")
         context_data = shared_context.to_dict()
 
@@ -507,18 +532,18 @@ IMPORTANT:
         if step.get("requires_vision") and attempt <= 2:
             logger.info("[TETYANA] Step requires Vision analysis for UI element discovery...")
             query = step.get("action", "Find the next interaction target")
-            
+
             # Try to get PID from step args or tracked state
             step_pid = None
             if step.get("args") and isinstance(step.get("args"), dict):
                 step_pid = step["args"].get("pid")
-            
+
             vision_result = await self.analyze_screen(query, step_pid or self._current_pid)
-            
+
             if vision_result.get("found") and vision_result.get("suggested_action"):
                 suggested = vision_result["suggested_action"]
                 logger.info(f"[TETYANA] Vision suggests action: {suggested}")
-                
+
                 # If Vision found the element, we can use its suggestion directly
                 # This will be used in the tool_call below
             elif vision_result.get("notes"):
@@ -527,19 +552,23 @@ IMPORTANT:
                 notes_lower = notes.lower()
                 # Smarter check to avoid false positives like "No CAPTCHA detected"
                 is_blocker = (
-                    ("captcha" in notes_lower and "no captcha" not in notes_lower) or
-                    ("verification" in notes_lower and "no verification" not in notes_lower) or
-                    ("robot" in notes_lower and "not a robot" not in notes_lower) or
-                    ("blocked" in notes_lower)
+                    ("captcha" in notes_lower and "no captcha" not in notes_lower)
+                    or ("verification" in notes_lower and "no verification" not in notes_lower)
+                    or ("robot" in notes_lower and "not a robot" not in notes_lower)
+                    or ("blocked" in notes_lower)
                 )
-                
+
                 if is_blocker:
-                    logger.warning(f"[TETYANA] Vision detected blocker: {vision_result.get('notes')}")
-                    
+                    logger.warning(
+                        f"[TETYANA] Vision detected blocker: {vision_result.get('notes')}"
+                    )
+
                     # Use actual notes for localization if possible, otherwise generic
-                    blocker_desc = vision_result.get('notes', "Виявлено перешкоду")
-                    voice_msg = f"Я бачу перешкоду на екрані: {blocker_desc}. Мені потрібна ваша допомога."
-                    
+                    blocker_desc = vision_result.get("notes", "Виявлено перешкоду")
+                    voice_msg = (
+                        f"Я бачу перешкоду на екрані: {blocker_desc}. Мені потрібна ваша допомога."
+                    )
+
                     return StepResult(
                         step_id=step.get("id", self.current_step),
                         success=False,
@@ -549,15 +578,18 @@ IMPORTANT:
                         screenshot_path=vision_result.get("screenshot_path"),
                     )
 
-
         # Fetch Grisha's feedback (Priority: Injected via self-healing loop > Saved rejection report)
         grisha_feedback = step.get("grisha_feedback", "")
         if not grisha_feedback and attempt > 1:
-            logger.info(f"[TETYANA] Attempt {attempt} - fetching Grisha's rejection feedback from memory...")
+            logger.info(
+                f"[TETYANA] Attempt {attempt} - fetching Grisha's rejection feedback from memory..."
+            )
             grisha_feedback = await self.get_grisha_feedback(cast(int, step.get("id"))) or ""
-        
+
         if grisha_feedback:
-             logger.info(f"[TETYANA] Improving execution with Grisha's feedback: {grisha_feedback[:100]}...")
+            logger.info(
+                f"[TETYANA] Improving execution with Grisha's feedback: {grisha_feedback[:100]}..."
+            )
 
         target_server = step.get("realm") or step.get("tool") or step.get("server")
         # Normalize generic 'browser' realm to macos-use to leverage native automation
@@ -590,10 +622,15 @@ IMPORTANT:
         else:
             # Full reasoning path for complex/ambiguous steps
             configured_servers = mcp_manager.config.get("mcpServers", {})
-            if target_server and isinstance(target_server, str) and target_server in configured_servers and not target_server.startswith("_"):
+            if (
+                target_server
+                and isinstance(target_server, str)
+                and target_server in configured_servers
+                and not target_server.startswith("_")
+            ):
                 logger.info(f"[TETYANA] Dynamically inspecting server: {target_server}")
                 tools = await mcp_manager.list_tools(target_server)
-                import json  # noqa: E402
+                import json
 
                 tools_summary = f"\n--- DETAILED SPECS FOR SERVER: {target_server} ---\n"
                 for t in tools:
@@ -618,9 +655,9 @@ IMPORTANT:
                 context_data,
                 tools_summary=tools_summary,
                 feedback=grisha_feedback,
-                previous_results=cast(List[Any], previous_results),
+                previous_results=cast(list[Any], previous_results),
                 goal_context=shared_context.get_goal_context(),
-                bus_messages=cast(List[Any], step.get("bus_messages")),
+                bus_messages=cast(list[Any], step.get("bus_messages")),
                 full_plan=step.get("full_plan", ""),
             )
 
@@ -642,24 +679,26 @@ IMPORTANT:
                 if monologue.get("question_to_atlas"):
                     question = monologue["question_to_atlas"]
                     logger.info(f"[TETYANA] Proactive help request to Atlas: {question}")
-                    
-                    from ..message_bus import AgentMsg, MessageType, message_bus # noqa: E402
+
+                    from ..message_bus import AgentMsg, MessageType, message_bus
+
                     msg = AgentMsg(
                         from_agent="tetyana",
                         to_agent="atlas",
                         message_type=MessageType.HELP_REQUEST,
                         payload={"question": question, "step_id": step.get("id")},
-                        step_id=step.get("id")
+                        step_id=step.get("id"),
                     )
                     await message_bus.send(msg)
-                    
+
                     return StepResult(
                         step_id=step.get("id", self.current_step),
                         success=False,
                         result=f"Blocked on Atlas: {question}",
-                        voice_message=monologue.get("voice_message") or f"У мене питання до Атласу: {question}",
+                        voice_message=monologue.get("voice_message")
+                        or f"У мене питання до Атласу: {question}",
                         error="proactive_help_requested",
-                        thought=monologue.get("thought")
+                        thought=monologue.get("thought"),
                     )
 
                 tool_call = (
@@ -674,35 +713,58 @@ IMPORTANT:
 
                 if not tool_call.get("name"):
                     # Enhanced fallback: Try to infer tool name from step metadata
-                    inferred_name = (
-                        step.get("tool") or
-                        step.get("server") or
-                        step.get("realm")
-                    )
+                    inferred_name = step.get("tool") or step.get("server") or step.get("realm")
                     # Try action-based inference
                     if not inferred_name:
                         action_text = str(step.get("action", "")).lower()
-                        if any(kw in action_text for kw in ["implement feature", "deep code", "refactor project"]):
+                        if any(
+                            kw in action_text
+                            for kw in ["implement feature", "deep code", "refactor project"]
+                        ):
                             inferred_name = "vibe_implement_feature"
-                        elif any(kw in action_text for kw in ["vibe", "code", "debug", "analyze error"]):
+                        elif any(
+                            kw in action_text for kw in ["vibe", "code", "debug", "analyze error"]
+                        ):
                             inferred_name = "vibe_prompt"
-                        elif any(kw in action_text for kw in ["click", "type", "press", "scroll", "open app"]):
-                            inferred_name = "macos-use_take_screenshot" # Default to screenshot if UI action
-                        elif any(kw in action_text for kw in ["finder", "desktop", "folder", "sort", "trash", "open path"]):
+                        elif any(
+                            kw in action_text
+                            for kw in ["click", "type", "press", "scroll", "open app"]
+                        ):
+                            inferred_name = (
+                                "macos-use_take_screenshot"  # Default to screenshot if UI action
+                            )
+                        elif any(
+                            kw in action_text
+                            for kw in ["finder", "desktop", "folder", "sort", "trash", "open path"]
+                        ):
                             inferred_name = "macos-use_finder_list_files"
-                        elif any(kw in action_text for kw in ["read_file", "write_file", "list_directory"]):
-                            inferred_name = "filesystem" 
-                        elif any(kw in action_text for kw in ["run", "execute", "command", "terminal", "bash", "mkdir"]):
-                            inferred_name = "execute_command" 
-                    
+                        elif any(
+                            kw in action_text
+                            for kw in ["read_file", "write_file", "list_directory"]
+                        ):
+                            inferred_name = "filesystem"
+                        elif any(
+                            kw in action_text
+                            for kw in ["run", "execute", "command", "terminal", "bash", "mkdir"]
+                        ):
+                            inferred_name = "execute_command"
+
                     if inferred_name:
                         tool_call["name"] = inferred_name
-                        logger.info(f"[TETYANA] Inferred tool name from step metadata: {inferred_name}")
+                        logger.info(
+                            f"[TETYANA] Inferred tool name from step metadata: {inferred_name}"
+                        )
                     else:
-                        logger.warning("[TETYANA] LLM monologue missing 'proposed_action'. Could not infer tool name.")
-                
+                        logger.warning(
+                            "[TETYANA] LLM monologue missing 'proposed_action'. Could not infer tool name."
+                        )
+
                 # VISION OVERRIDE: If Vision found the element with high confidence, use its suggestion
-                if vision_result and vision_result.get("found") and vision_result.get("suggested_action"):
+                if (
+                    vision_result
+                    and vision_result.get("found")
+                    and vision_result.get("suggested_action")
+                ):
                     suggested = vision_result["suggested_action"]
                     # Merge Vision's coordinates into tool_call args
                     if suggested.get("args"):
@@ -712,18 +774,27 @@ IMPORTANT:
                         for key in ["x", "y", "pid"]:
                             if key in suggested["args"] and suggested["args"][key] is not None:
                                 tool_call["args"][key] = suggested["args"][key]
-                                logger.info(f"[TETYANA] Vision override: {key}={suggested['args'][key]}")
+                                logger.info(
+                                    f"[TETYANA] Vision override: {key}={suggested['args'][key]}"
+                                )
                         # If Vision suggests a specific tool, consider using it
                         if suggested.get("tool") and "click" in suggested["tool"].lower():
                             # Remove arguments that might belong to the previous planned tool (e.g. Puppeteer)
                             # but are incompatible with the new macos-use tool.
-                            incompatible_keys = ["url", "launchOptions", "allowDangerous", "wait_for"]
+                            incompatible_keys = [
+                                "url",
+                                "launchOptions",
+                                "allowDangerous",
+                                "wait_for",
+                            ]
                             if isinstance(tool_call.get("args"), dict):
                                 for ik in incompatible_keys:
                                     if ik in tool_call["args"]:
                                         del tool_call["args"][ik]
-                                        logger.info(f"[TETYANA] Vision override: removed incompatible arg '{ik}'")
-                            
+                                        logger.info(
+                                            f"[TETYANA] Vision override: removed incompatible arg '{ik}'"
+                                        )
+
                             tool_call["name"] = suggested["tool"]
                             tool_call["server"] = "macos-use"
                             logger.info(f"[TETYANA] Vision override: tool={suggested['tool']}")
@@ -755,7 +826,9 @@ IMPORTANT:
                     tool_args = tool_call.setdefault("args", {})
                     if isinstance(tool_args, dict):
                         tool_args["pid"] = self._current_pid
-                        logger.info(f"[TETYANA] Auto-filled pid from tracked state: {self._current_pid}")
+                        logger.info(
+                            f"[TETYANA] Auto-filled pid from tracked state: {self._current_pid}"
+                        )
 
         # --- PHASE 2: TOOL EXECUTION ---
         tool_result = await self._execute_tool(tool_call)
@@ -789,52 +862,60 @@ IMPORTANT:
             )
 
             # DEEP REASONING: Before trying blind Vibe fixes or giving up, let's THINK deeply.
-            if fix_count >= 2: 
-                 logger.info("[TETYANA] Recurring failures. Engaging Deep Sequential Reasoning...")
-                 reasoning = await self.use_sequential_thinking(
-                     f"I consistently fail to execute '{step.get('action')}' with args '{step.get('args')}'. Recent error: {error_msg}. Analyze root cause and propose a STRUCTURAL DEVIATION if possible.",
-                     total_thoughts=3
-                 )
-                 
-                 # Heuristic check for deviation proposal
-                 analysis_text = reasoning.get("analysis", "").lower()
-                 if "deviation" in analysis_text or "alternative approach" in analysis_text or "skip this step" in analysis_text:
-                      logger.info("[TETYANA] Deep Reasoning suggests a DEVIATION. Escalating...")
-                      # Return a special result that Orchestrator can interpret as a request to deviate
-                      return StepResult(
-                          step_id=step.get("id", self.current_step),
-                          success=False, # Technically failed the original step
-                          result=f"DEVIATION PROPOSED: {reasoning.get('analysis')}",
-                          is_deviation=True,
-                          deviation_info={"analysis": reasoning.get("analysis"), "proposal": analysis_text[:500]}
-                      )
+            if fix_count >= 2:
+                logger.info("[TETYANA] Recurring failures. Engaging Deep Sequential Reasoning...")
+                reasoning = await self.use_sequential_thinking(
+                    f"I consistently fail to execute '{step.get('action')}' with args '{step.get('args')}'. Recent error: {error_msg}. Analyze root cause and propose a STRUCTURAL DEVIATION if possible.",
+                    total_thoughts=3,
+                )
 
+                # Heuristic check for deviation proposal
+                analysis_text = reasoning.get("analysis", "").lower()
+                if (
+                    "deviation" in analysis_text
+                    or "alternative approach" in analysis_text
+                    or "skip this step" in analysis_text
+                ):
+                    logger.info("[TETYANA] Deep Reasoning suggests a DEVIATION. Escalating...")
+                    # Return a special result that Orchestrator can interpret as a request to deviate
+                    return StepResult(
+                        step_id=step.get("id", self.current_step),
+                        success=False,  # Technically failed the original step
+                        result=f"DEVIATION PROPOSED: {reasoning.get('analysis')}",
+                        is_deviation=True,
+                        deviation_info={
+                            "analysis": reasoning.get("analysis"),
+                            "proposal": analysis_text[:500],
+                        },
+                    )
 
             # ULTIMATE FIX: Invoke VIBE for deep healing on final attempts
             if fix_count == max_self_fixes:
-                 logger.info("[TETYANA] Reflexion limit reached. Invoking VIBE for ultimate self-healing...")
-                 v_res_raw = await self._call_mcp_direct("vibe", "vibe_analyze_error", {
-                     "error_message": error_msg,
-                     "auto_fix": True
-                 })
-                 # Convert CallToolResult to dict using existing formatter
-                 v_res = self._format_mcp_result(v_res_raw) if v_res_raw else {}
-                 
-                 # Check if vibe fixed it
-                 if v_res.get("success"):
-                      logger.info("[TETYANA] VIBE self-healing reported SUCCESS. Retrying original tool...")
-                      tool_result = await self._execute_tool(tool_call)
-                      if tool_result.get("success"):
-                          break
-                 else:
-                      logger.warning(f"[TETYANA] VIBE self-healing failed: {v_res.get('error')}")
+                logger.info(
+                    "[TETYANA] Reflexion limit reached. Invoking VIBE for ultimate self-healing..."
+                )
+                v_res_raw = await self._call_mcp_direct(
+                    "vibe", "vibe_analyze_error", {"error_message": error_msg, "auto_fix": True}
+                )
+                # Convert CallToolResult to dict using existing formatter
+                v_res = self._format_mcp_result(v_res_raw) if v_res_raw else {}
+
+                # Check if vibe fixed it
+                if v_res.get("success"):
+                    logger.info(
+                        "[TETYANA] VIBE self-healing reported SUCCESS. Retrying original tool..."
+                    )
+                    tool_result = await self._execute_tool(tool_call)
+                    if tool_result.get("success"):
+                        break
+                else:
+                    logger.warning(f"[TETYANA] VIBE self-healing failed: {v_res.get('error')}")
 
             try:
                 tools_summary = (
                     hasattr(shared_context, "available_tools_summary")
                     and shared_context.available_tools_summary
-                    or ""
-                )
+                ) or ""
                 reflexion_prompt = AgentPrompts.tetyana_reflexion_prompt(
                     str(step),
                     error_msg,
@@ -887,7 +968,8 @@ IMPORTANT:
             step_id=step.get("id", self.current_step),
             success=tool_result.get("success", False),
             result=tool_result.get("output", ""),
-            screenshot_path=tool_result.get("screenshot_path") or (vision_result.get("screenshot_path") if vision_result else None),
+            screenshot_path=tool_result.get("screenshot_path")
+            or (vision_result.get("screenshot_path") if vision_result else None),
             voice_message=voice_msg,
             error=tool_result.get("error"),
             tool_call=tool_call,
@@ -911,13 +993,13 @@ IMPORTANT:
 
         return res
 
-    async def _execute_tool(self, tool_call: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_tool(self, tool_call: dict[str, Any]) -> dict[str, Any]:
         """Executes the tool call via unified Dispatcher"""
         from ..mcp_manager import mcp_manager
-        
+
         # Ensure dispatcher knows about current PID
         mcp_manager.dispatcher.set_pid(self._current_pid)
-        
+
         tool_name = tool_call.get("name") or tool_call.get("tool")
         args = tool_call.get("args") or tool_call.get("arguments") or {}
         explicit_server = tool_call.get("server")
@@ -925,11 +1007,11 @@ IMPORTANT:
         try:
             # Use unified dispatch_tool
             result = await mcp_manager.dispatch_tool(tool_name, args, explicit_server)
-            
+
             # Normalize Pydantic object to dict
             if hasattr(result, "model_dump"):
                 result = result.model_dump()
-            elif hasattr(result, "dict"): # Fallback for older Pydantic
+            elif hasattr(result, "dict"):  # Fallback for older Pydantic
                 result = result.dict()
             elif not isinstance(result, dict):
                 # Handle unexpected types (list, primitive)
@@ -940,12 +1022,12 @@ IMPORTANT:
             if isinstance(result, dict):
                 if "isError" in result:
                     result["success"] = not result["isError"]
-                
+
                 # Ensure 'success' key exists
                 if "success" not in result:
                     # Assume success if no error field
                     result["success"] = "error" not in result
-                
+
                 # If failed, ensure 'error' field exists for feedback loop
                 if not result["success"] and "error" not in result:
                     # Extract error from content if possible
@@ -958,24 +1040,24 @@ IMPORTANT:
 
             return result
 
-
         except Exception as e:
             logger.error(f"[TETYANA] Tool execution failed: {e}")
             return {"success": False, "error": str(e)}
 
-    async def _call_mcp_direct(self, server: str, tool: str, args: Dict) -> Dict[str, Any]:
+    async def _call_mcp_direct(self, server: str, tool: str, args: dict) -> dict[str, Any]:
         from ..mcp_manager import mcp_manager
+
         try:
             return await mcp_manager.dispatch_tool(tool, args, server)
         except Exception as e:
             logger.error(f"[TETYANA] Unified call failed for {server}.{tool}: {e}")
             return {"success": False, "error": str(e)}
 
-    async def _run_terminal_command(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _run_terminal_command(self, args: dict[str, Any]) -> dict[str, Any]:
         """Executes a bash command using Terminal MCP"""
-        import re  # noqa: E402
+        import re
 
-        from ..mcp_manager import mcp_manager  # noqa: E402
+        from ..mcp_manager import mcp_manager
 
         command = args.get("command", "") or args.get("cmd", "") or ""
 
@@ -991,11 +1073,10 @@ IMPORTANT:
         res = await mcp_manager.call_tool("macos-use", "execute_command", args)
         return self._format_mcp_result(res)
 
-    async def _perform_gui_action(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _perform_gui_action(self, args: dict[str, Any]) -> dict[str, Any]:
         """Performs GUI interaction (click, type, hotkey, search_app) using pyautogui"""
         try:
-
-            from ..mcp_manager import mcp_manager  # noqa: E402
+            from ..mcp_manager import mcp_manager
 
             action = args.get("action", "")
 
@@ -1060,9 +1141,18 @@ IMPORTANT:
                             "end": "End",
                             "pageup": "PageUp",
                             "pagedown": "PageDown",
-                            "f1": "F1", "f2": "F2", "f3": "F3", "f4": "F4", "f5": "F5",
-                            "f6": "F6", "f7": "F7", "f8": "F8", "f9": "F9", "f10": "F10",
-                            "f11": "F11", "f12": "F12",
+                            "f1": "F1",
+                            "f2": "F2",
+                            "f3": "F3",
+                            "f4": "F4",
+                            "f5": "F5",
+                            "f6": "F6",
+                            "f7": "F7",
+                            "f8": "F8",
+                            "f9": "F9",
+                            "f10": "F10",
+                            "f11": "F11",
+                            "f12": "F12",
                         }
                         key_name = key_map.get(lower_k, k)  # Default to raw key (e.g. "a", "1")
 
@@ -1081,19 +1171,21 @@ IMPORTANT:
                 )
                 return self._format_mcp_result(res)
 
-            elif action == "wait" or action == "sleep":
+            elif action in {"wait", "sleep"}:
                 duration = float(args.get("duration", 1.0))
                 time.sleep(duration)
                 return {"success": True, "output": f"Waited for {duration} seconds"}
 
             elif action == "search_app":
                 app_name = args.get("app_name", "") or args.get("text", "")
-                import subprocess  # noqa: E402
+                import subprocess
 
                 # 0. Try robust macos-use_open_application_and_traverse first
                 # This gives us the PID and Accessibility Tree, which is superior to just opening
                 try:
-                    logger.info(f"[TETYANA] Attempting to open '{app_name}' via macos-use native tool...")
+                    logger.info(
+                        f"[TETYANA] Attempting to open '{app_name}' via macos-use native tool..."
+                    )
                     res = await mcp_manager.call_tool(
                         "macos-use",
                         "macos-use_open_application_and_traverse",
@@ -1211,29 +1303,31 @@ IMPORTANT:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    async def _browser_action(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _browser_action(self, args: dict[str, Any]) -> dict[str, Any]:
         """Browser action via Puppeteer MCP
 
         Additionally collects verification artifacts (HTML, screenshot, small evaluations)
         and persists them to disk/notes/memory so that Grisha can verify actions."""
-        import base64  # noqa: E402
-        import time as _time  # noqa: E402
+        import base64
+        import time as _time
 
-        from ..config import SCREENSHOTS_DIR, WORKSPACE_DIR  # noqa: E402
-        from ..mcp_manager import mcp_manager  # noqa: E402
+        from ..config import SCREENSHOTS_DIR, WORKSPACE_DIR
+        from ..mcp_manager import mcp_manager
 
         action = args.get("action", "")
         step_id = args.get("step_id")
 
         # Helper: save artifact files and register in notes/memory
         async def _save_artifacts(
-            html_text: Optional[str] = None, title_text: Optional[str] = None, screenshot_b64: Optional[str] = None
+            html_text: str | None = None,
+            title_text: str | None = None,
+            screenshot_b64: str | None = None,
         ):
             try:
-                # from ..config import SCREENSHOTS_DIR, WORKSPACE_DIR  # noqa: E402
-                from ..logger import logger  # noqa: E402
+                # from ..config import SCREENSHOTS_DIR, WORKSPACE_DIR
+                from ..logger import logger
 
-                # from ..mcp_manager import mcp_manager  # noqa: E402
+                # from ..mcp_manager import mcp_manager
 
                 ts = _time.strftime("%Y%m%d_%H%M%S")
                 artifacts = []
@@ -1282,9 +1376,7 @@ IMPORTANT:
                 try:
                     await mcp_manager.dispatch_tool(
                         "notes_create",
-                        {
-                            "body": f"# {note_title}\n\n{note_content}"
-                        },
+                        {"body": f"# {note_title}\n\n{note_content}"},
                     )
                     logger.info(f"[TETYANA] Created verification artifact note for step {step_id}")
                 except Exception as e:
@@ -1311,11 +1403,11 @@ IMPORTANT:
 
                 return True
             except Exception as e:
-                from ..logger import logger  # noqa: E402
+                from ..logger import logger
 
                 logger.warning(f"[TETYANA] _save_artifacts exception: {e}")
 
-        if action == "navigate" or action == "open":
+        if action in {"navigate", "open"}:
             res = await mcp_manager.call_tool(
                 "puppeteer", "puppeteer_navigate", {"url": args.get("url", "")}
             )
@@ -1324,7 +1416,7 @@ IMPORTANT:
             try:
                 # small delay to allow navigation/rendering
                 await asyncio.sleep(1.5)
-                from ..logger import logger  # noqa: E402
+                from ..logger import logger
 
                 logger.info(f"[TETYANA] Collecting browser artifacts for step {step_id}...")
 
@@ -1384,7 +1476,7 @@ IMPORTANT:
                     html_text=html_text, title_text=title_text, screenshot_b64=screenshot_b64
                 )
             except Exception as e:
-                from ..logger import logger  # noqa: E402
+                from ..logger import logger
 
                 logger.warning(f"[TETYANA] Failed to collect browser artifacts: {e}")
 
@@ -1410,7 +1502,7 @@ IMPORTANT:
                     pass
 
             return self._format_mcp_result(res)
-        elif action == "type" or action == "fill":
+        elif action in {"type", "fill"}:
             return self._format_mcp_result(
                 await mcp_manager.call_tool(
                     "puppeteer",
@@ -1425,10 +1517,10 @@ IMPORTANT:
         else:
             return {"success": False, "error": f"Unknown browser action: {action}"}
 
-    async def _filesystem_action(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _filesystem_action(self, args: dict[str, Any]) -> dict[str, Any]:
         """Filesystem operations via MCP"""
-        from ..logger import logger  # noqa: E402
-        from ..mcp_manager import mcp_manager  # noqa: E402
+        from ..logger import logger
+        from ..mcp_manager import mcp_manager
 
         action = args.get("action", "")
         path = args.get("path", "")
@@ -1443,11 +1535,11 @@ IMPORTANT:
                 action = "read_file"
             logger.info(f"[TETYANA] Inferred FS action: {action} for path: {path}")
 
-        if action == "read" or action == "read_file":
+        if action in {"read", "read_file"}:
             result = await mcp_manager.call_tool("filesystem", "read_file", {"path": path})
             shared_context.update_path(path, "read")
             return self._format_mcp_result(result)
-        elif action == "write" or action == "write_file":
+        elif action in {"write", "write_file"}:
             result = await mcp_manager.call_tool(
                 "filesystem",
                 "write_file",
@@ -1455,11 +1547,11 @@ IMPORTANT:
             )
             shared_context.update_path(path, "write")
             return self._format_mcp_result(result)
-        elif action == "create_dir" or action == "mkdir" or action == "create_directory":
+        elif action in {"create_dir", "mkdir", "create_directory"}:
             result = await mcp_manager.call_tool("filesystem", "create_directory", {"path": path})
             shared_context.update_path(path, "create_directory")
             return self._format_mcp_result(result)
-        elif action == "list" or action == "list_directory":
+        elif action in {"list", "list_directory"}:
             result = await mcp_manager.call_tool("filesystem", "list_directory", {"path": path})
             shared_context.update_path(path, "access")
             return self._format_mcp_result(result)
@@ -1469,9 +1561,9 @@ IMPORTANT:
                 "error": f"Unknown FS action: {action}. Valid: read_file, write_file, list_directory",
             }
 
-    async def _github_action(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def _github_action(self, args: dict[str, Any]) -> dict[str, Any]:
         """GitHub actions"""
-        from ..mcp_manager import mcp_manager  # noqa: E402
+        from ..mcp_manager import mcp_manager
 
         # Pass-through mostly
         mcp_tool = args.get("tool_name", "search_repositories")
@@ -1481,8 +1573,8 @@ IMPORTANT:
         res = await mcp_manager.call_tool("github", mcp_tool, gh_args)
         return self._format_mcp_result(res)
 
-    async def _applescript_action(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        from ..mcp_manager import mcp_manager  # noqa: E402
+    async def _applescript_action(self, args: dict[str, Any]) -> dict[str, Any]:
+        from ..mcp_manager import mcp_manager
 
         action = args.get("action", "execute_script")
         if action == "execute_script":
@@ -1507,7 +1599,7 @@ IMPORTANT:
             )
         return {"success": False, "error": "Unknown applescript action"}
 
-    def _format_mcp_result(self, res: Any) -> Dict[str, Any]:
+    def _format_mcp_result(self, res: Any) -> dict[str, Any]:
         """Standardize MCP response to StepResult format"""
         if isinstance(res, dict) and "error" in res:
             return {"success": False, "error": res["error"]}
@@ -1558,7 +1650,7 @@ IMPORTANT:
         error = kwargs.get("error", "")
 
         # Extract "essence" of description (first 5-7 words usually contain the verb and object)
-        import re  # noqa: E402
+        import re
 
         essence = desc
         if len(desc) > 60:
@@ -1571,7 +1663,7 @@ IMPORTANT:
 
         # Translate commonly used technical prefixes and terms
         essence = essence.lower()
-        
+
         # 1. Action Mapping (Verbs)
         translations = {
             "create": "Створюю",
@@ -1591,9 +1683,9 @@ IMPORTANT:
             "take": "Роблю",
             "analyze": "Аналізую",
             "confirm": "Підтверджую",
-            "verify": "Верифікую"
+            "verify": "Верифікую",
         }
-        
+
         for eng, ukr in translations.items():
             if essence.startswith(eng):
                 essence = essence.replace(eng, ukr, 1)
@@ -1660,7 +1752,7 @@ IMPORTANT:
             "listed": "перелічені",
             "reading": "читаю",
             "writing": "записую",
-            "user": "користувача"
+            "user": "користувача",
         }
 
         words = essence.split()
@@ -1678,22 +1770,26 @@ IMPORTANT:
                 continue
             else:
                 translated_words.append(word)
-        
+
         essence = " ".join(translated_words)
-        
+
         # SECONDARY FILTER: REMOVE ANY WORDS THAT STILL CONTAIN ENGLISH CHARACTERS
         # This prevents technical jargon like "vibe_server" or "json" from leaking into TTS.
         import re
-        essence = " ".join([w for w in essence.split() if not re.search(r'[a-zA-Z]', w)])
-        
+
+        essence = " ".join([w for w in essence.split() if not re.search(r"[a-zA-Z]", w)])
+
         # If essence becomes empty after filtering, use a generic fallback based on action
         if not essence.strip():
-            if action == "starting": essence = "виконую заплановану дію"
-            elif action == "completed": essence = "дію завершено"
-            else: essence = "поточний етап"
+            if action == "starting":
+                essence = "виконую заплановану дію"
+            elif action == "completed":
+                essence = "дію завершено"
+            else:
+                essence = "поточний етап"
 
         # Clean up punctuation and spacing
-        essence = re.sub(r'\s+', ' ', essence).strip()
+        essence = re.sub(r"\s+", " ", essence).strip()
 
         # Construct message based on state
         if action == "completed":
@@ -1712,7 +1808,7 @@ IMPORTANT:
 
         return f"Статус кроку {step_id}: {action}."
 
-    def _parse_response(self, content: str) -> Dict[str, Any]:
+    def _parse_response(self, content: str) -> dict[str, Any]:
         """Parse JSON response from LLM with GitHub API fallback."""
         # Handle GitHub API timeout specially
         if "HTTPSConnectionPool" in content and (
@@ -1727,4 +1823,3 @@ IMPORTANT:
             }
         # Use base class parsing
         return super()._parse_response(content)
-

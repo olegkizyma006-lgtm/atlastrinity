@@ -8,9 +8,9 @@ Note: This file loads definitions from JSON files in src/brain/data/
 to prevent language server (Pyrefly) stack overflow crashes.
 """
 
-from typing import Any, Dict, List, Optional
-import os
 import json
+import os
+from typing import Any
 
 # Paths to data files
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -27,8 +27,8 @@ DATA_PROTOCOL_PATH = os.path.join(DATA_DIR, "data_protocol.txt")
 SYSTEM_MASTERY_PROTOCOL_PATH = os.path.join(DATA_DIR, "system_mastery_protocol.txt")
 
 # Global variables to store loaded data
-SERVER_CATALOG: Dict[str, Dict[str, Any]] = {}
-TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {}
+SERVER_CATALOG: dict[str, dict[str, Any]] = {}
+TOOL_SCHEMAS: dict[str, dict[str, Any]] = {}
 VIBE_DOCUMENTATION: str = ""
 VOICE_PROTOCOL: str = ""
 SEARCH_PROTOCOL: str = ""
@@ -38,81 +38,93 @@ TASK_PROTOCOL: str = ""
 DATA_PROTOCOL: str = ""
 SYSTEM_MASTERY_PROTOCOL: str = ""
 
+
 def load_registry():
     """Load registry data from JSON and text files."""
-    global SERVER_CATALOG, TOOL_SCHEMAS, VIBE_DOCUMENTATION, VOICE_PROTOCOL, SEARCH_PROTOCOL, STORAGE_PROTOCOL, SDLC_PROTOCOL, TASK_PROTOCOL, DATA_PROTOCOL, SYSTEM_MASTERY_PROTOCOL
-    
+    global \
+        SERVER_CATALOG, \
+        TOOL_SCHEMAS, \
+        VIBE_DOCUMENTATION, \
+        VOICE_PROTOCOL, \
+        SEARCH_PROTOCOL, \
+        STORAGE_PROTOCOL, \
+        SDLC_PROTOCOL, \
+        TASK_PROTOCOL, \
+        DATA_PROTOCOL, \
+        SYSTEM_MASTERY_PROTOCOL
+
     try:
         # Load Catalog
         if os.path.exists(CATALOG_PATH):
-            with open(CATALOG_PATH, "r", encoding="utf-8") as f:
+            with open(CATALOG_PATH, encoding="utf-8") as f:
                 SERVER_CATALOG = json.load(f)
         else:
             print(f"[Here be Dragons] Warning: Catalog file not found at {CATALOG_PATH}")
-            
+
         # Load Schemas
         if os.path.exists(SCHEMAS_PATH):
-            with open(SCHEMAS_PATH, "r", encoding="utf-8") as f:
+            with open(SCHEMAS_PATH, encoding="utf-8") as f:
                 TOOL_SCHEMAS = json.load(f)
         else:
             print(f"[Here be Dragons] Warning: Schemas file not found at {SCHEMAS_PATH}")
-            
+
         # Load Vibe Docs
         if os.path.exists(VIBE_DOCS_PATH):
-            with open(VIBE_DOCS_PATH, "r", encoding="utf-8") as f:
+            with open(VIBE_DOCS_PATH, encoding="utf-8") as f:
                 VIBE_DOCUMENTATION = f.read()
         else:
             VIBE_DOCUMENTATION = "Vibe documentation not found."
-            
+
         # Load Voice Protocol
         if os.path.exists(VOICE_PROTOCOL_PATH):
-            with open(VOICE_PROTOCOL_PATH, "r", encoding="utf-8") as f:
+            with open(VOICE_PROTOCOL_PATH, encoding="utf-8") as f:
                 VOICE_PROTOCOL = f.read()
         else:
             VOICE_PROTOCOL = "Voice protocol not found."
         # Load Search Protocol
         if os.path.exists(SEARCH_PROTOCOL_PATH):
-            with open(SEARCH_PROTOCOL_PATH, "r", encoding="utf-8") as f:
+            with open(SEARCH_PROTOCOL_PATH, encoding="utf-8") as f:
                 SEARCH_PROTOCOL = f.read()
         else:
             SEARCH_PROTOCOL = "Search protocol not found."
 
         # Load Storage Protocol
         if os.path.exists(STORAGE_PROTOCOL_PATH):
-            with open(STORAGE_PROTOCOL_PATH, "r", encoding="utf-8") as f:
+            with open(STORAGE_PROTOCOL_PATH, encoding="utf-8") as f:
                 STORAGE_PROTOCOL = f.read()
         else:
             STORAGE_PROTOCOL = "Storage protocol not found."
         # Load SDLC Protocol
         if os.path.exists(SDLC_PROTOCOL_PATH):
-            with open(SDLC_PROTOCOL_PATH, "r", encoding="utf-8") as f:
+            with open(SDLC_PROTOCOL_PATH, encoding="utf-8") as f:
                 SDLC_PROTOCOL = f.read()
         else:
             SDLC_PROTOCOL = "SDLC protocol not found."
 
         # Load Task Protocol
         if os.path.exists(TASK_PROTOCOL_PATH):
-            with open(TASK_PROTOCOL_PATH, "r", encoding="utf-8") as f:
+            with open(TASK_PROTOCOL_PATH, encoding="utf-8") as f:
                 TASK_PROTOCOL = f.read()
         else:
             TASK_PROTOCOL = "Task protocol not found."
 
         # Load Data Protocol
         if os.path.exists(DATA_PROTOCOL_PATH):
-            with open(DATA_PROTOCOL_PATH, "r", encoding="utf-8") as f:
+            with open(DATA_PROTOCOL_PATH, encoding="utf-8") as f:
                 DATA_PROTOCOL = f.read()
         else:
             DATA_PROTOCOL = "Data protocol not found."
-            
+
         # Load System Mastery Protocol
         if os.path.exists(SYSTEM_MASTERY_PROTOCOL_PATH):
-            with open(SYSTEM_MASTERY_PROTOCOL_PATH, "r", encoding="utf-8") as f:
+            with open(SYSTEM_MASTERY_PROTOCOL_PATH, encoding="utf-8") as f:
                 SYSTEM_MASTERY_PROTOCOL = f.read()
         else:
             SYSTEM_MASTERY_PROTOCOL = "System mastery protocol not found."
-            
+
     except Exception as e:
         print(f"[Here be Dragons] Error loading MCP registry: {e}")
+
 
 # Load data immediately on import
 load_registry()
@@ -131,7 +143,7 @@ def get_server_catalog_for_prompt(include_key_tools: bool = True) -> str:
     lines = ["AVAILABLE REALMS (MCP Servers):", ""]
 
     # Group by tier
-    by_tier: Dict[int, List[Dict]] = {}
+    by_tier: dict[int, list[dict]] = {}
     for name, info in SERVER_CATALOG.items():
         tier = info.get("tier", 4)
         if tier not in by_tier:
@@ -173,12 +185,14 @@ def get_server_catalog_for_prompt(include_key_tools: bool = True) -> str:
     lines.append("- search → macos-use chrome or fetch_url")
     lines.append("- docker, postgres, slack → Disabled/Removed")
     lines.append("")
-    lines.append("CRITICAL: Do NOT invent high-level tools. Use only the real TOOLS found inside these Realms.")
+    lines.append(
+        "CRITICAL: Do NOT invent high-level tools. Use only the real TOOLS found inside these Realms."
+    )
 
     return "\n".join(lines)
 
 
-def get_tool_schema(tool_name: str) -> Optional[Dict[str, Any]]:
+def get_tool_schema(tool_name: str) -> dict[str, Any] | None:
     """
     Get schema for a specific tool.
     Resolves aliases to their canonical form.
@@ -189,7 +203,7 @@ def get_tool_schema(tool_name: str) -> Optional[Dict[str, Any]]:
     return schema
 
 
-def get_server_for_tool(tool_name: str) -> Optional[str]:
+def get_server_for_tool(tool_name: str) -> str | None:
     """Get the server name for a tool."""
     schema = TOOL_SCHEMAS.get(tool_name)
     if schema:
@@ -199,7 +213,7 @@ def get_server_for_tool(tool_name: str) -> Optional[str]:
     return None
 
 
-def get_servers_for_task(task_type: str) -> List[str]:
+def get_servers_for_task(task_type: str) -> list[str]:
     """
     Suggest servers based on task type.
     Used for intelligent lazy initialization.
@@ -213,7 +227,20 @@ def get_servers_for_task(task_type: str) -> List[str]:
         return ["macos-use"]
     if any(x in task_lower for x in ["file", "read", "write", "directory"]):
         return ["filesystem", "macos-use"]
-    if any(x in task_lower for x in ["search", "web", "internet", "google", "find", "browser", "navigate", "automation", "scrape"]):
+    if any(
+        x in task_lower
+        for x in [
+            "search",
+            "web",
+            "internet",
+            "google",
+            "find",
+            "browser",
+            "navigate",
+            "automation",
+            "scrape",
+        ]
+    ):
         return ["duckduckgo-search", "puppeteer", "macos-use"]
     if any(x in task_lower for x in ["calendar", "event", "meeting"]):
         return ["macos-use"]
@@ -239,9 +266,14 @@ def get_servers_for_task(task_type: str) -> List[str]:
         return ["macos-use"]
     if any(x in task_lower for x in ["fetch", "url", "http", "download"]):
         return ["macos-use"]
-    if any(x in task_lower for x in ["memory", "recall", "remember", "fact", "knowledge", "observation"]):
+    if any(
+        x in task_lower
+        for x in ["memory", "recall", "remember", "fact", "knowledge", "observation"]
+    ):
         return ["memory"]
-    if any(x in task_lower for x in ["graph", "visualize", "diagram", "mermaid", "map", "relationship"]):
+    if any(
+        x in task_lower for x in ["graph", "visualize", "diagram", "mermaid", "map", "relationship"]
+    ):
         return ["graph", "memory"]
     if any(x in task_lower for x in ["state", "session", "persistence", "restart", "recovery"]):
         return ["redis"]
@@ -250,12 +282,12 @@ def get_servers_for_task(task_type: str) -> List[str]:
     return ["macos-use", "filesystem"]
 
 
-def get_all_tool_names() -> List[str]:
+def get_all_tool_names() -> list[str]:
     """Get list of all available tool names (excluding aliases)."""
     return [name for name, schema in TOOL_SCHEMAS.items() if "alias_for" not in schema]
 
 
-def get_tool_names_for_server(server_name: str) -> List[str]:
+def get_tool_names_for_server(server_name: str) -> list[str]:
     """Get all tool names for a specific server."""
     return [
         name

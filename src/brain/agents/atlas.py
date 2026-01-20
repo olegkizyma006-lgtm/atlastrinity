@@ -6,12 +6,12 @@ Voice: Dmytro (male)
 Model: GPT-4.1 / GPT-5 mini
 """
 
-import os
 import json
+import os
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, cast
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # Check root (Dev: src/brain/agents -> root)
@@ -24,16 +24,16 @@ for r in [root_dev, root_prod]:
     if abs_r not in sys.path:
         sys.path.insert(0, abs_r)
 
-from providers.copilot import CopilotLLM  # noqa: E402
 from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
 
+from providers.copilot import CopilotLLM  # noqa: E402
+from src.brain.agents.base_agent import BaseAgent  # noqa: E402
 from src.brain.config_loader import config  # noqa: E402
 from src.brain.context import shared_context  # noqa: E402
 from src.brain.logger import logger  # noqa: E402
 from src.brain.memory import long_term_memory  # noqa: E402
 from src.brain.prompts import AgentPrompts  # noqa: E402
 from src.brain.prompts.atlas_chat import generate_atlas_chat_prompt  # noqa: E402
-from src.brain.agents.base_agent import BaseAgent  # noqa: E402
 
 
 @dataclass
@@ -42,10 +42,10 @@ class TaskPlan:
 
     id: str
     goal: str
-    steps: List[Dict[str, Any]]
+    steps: list[dict[str, Any]]
     created_at: datetime = field(default_factory=datetime.now)
     status: str = "pending"  # pending, active, completed, failed
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
 
 
 class Atlas(BaseAgent):
@@ -74,28 +74,28 @@ class Atlas(BaseAgent):
             final_model = agent_config.get("model") or os.getenv("COPILOT_MODEL", "raptor-mini")
 
         self.llm = CopilotLLM(model_name=final_model)
-        
+
         # Optimization: Tool Cache
         self._cached_info_tools = []
         self._last_tool_refresh = 0
-        self._refresh_interval = 1800 # 30 minutes
+        self._refresh_interval = 1800  # 30 minutes
         self.temperature = agent_config.get("temperature", 0.7)
-        self.current_plan: Optional[TaskPlan] = None
-        self.history: List[Dict[str, Any]] = []
+        self.current_plan: TaskPlan | None = None
+        self.history: list[dict[str, Any]] = []
 
     async def analyze_request(
         self,
         user_request: str,
-        context: Optional[Dict[str, Any]] = None,
-        history: Optional[List[Any]] = None,
-    ) -> Dict[str, Any]:
+        context: dict[str, Any] | None = None,
+        history: list[Any] | None = None,
+    ) -> dict[str, Any]:
         """Analyzes user request: determines intent (chat vs task)"""
 
         user_request.lower().strip()
 
         # No more hardcoded heuristics. The system relies on its 'brain' (LLM) to classify intent.
         # This prevents robotic, predictable responses to keywords like 'привіт'.
-        
+
         prompt = AgentPrompts.atlas_intent_classification_prompt(
             user_request, str(context or "None"), str(history or "None")
         )
@@ -108,13 +108,13 @@ class Atlas(BaseAgent):
         try:
             response = await self.llm.ainvoke(messages)
             analysis = self._parse_response(cast(str, response.content))
-            
+
             # Ensure we have a valid intent even if the AI is vague
             if not analysis.get("intent"):
                 analysis["intent"] = "chat"
             if not analysis.get("enriched_request"):
                 analysis["enriched_request"] = user_request
-                
+
             return analysis
         except Exception as e:
             logger.error(f"Intent detection LLM failed: {e}")
@@ -124,30 +124,29 @@ class Atlas(BaseAgent):
                 "enriched_request": user_request,
                 "complexity": "low",
                 "use_deep_persona": False,
-                "initial_response": None # Force falling back to atlas.chat() for dynamic response
+                "initial_response": None,  # Force falling back to atlas.chat() for dynamic response
             }
 
-    async def evaluate_deviation(self, current_step: dict, proposed_deviation: str, full_plan: list) -> dict:
+    async def evaluate_deviation(
+        self, current_step: dict, proposed_deviation: str, full_plan: list
+    ) -> dict:
         """
         Evaluates a strategic deviation proposed by Tetyana.
         """
         from langchain_core.messages import HumanMessage, SystemMessage
-        
+
         prompt = AgentPrompts.atlas_deviation_evaluation_prompt(
             str(current_step),
             proposed_deviation,
             context=json.dumps(shared_context.to_dict()),
-            full_plan=str(full_plan)
+            full_plan=str(full_plan),
         )
-        
+
         # Strip system prompt placeholder
         system_prompt = self.SYSTEM_PROMPT.replace("{{CONTEXT_SPECIFIC_DOCTRINE}}", "")
-        
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=prompt)
-        ]
-        
+
+        messages = [SystemMessage(content=system_prompt), HumanMessage(content=prompt)]
+
         try:
             response = await self.llm.ainvoke(messages)
             evaluation = self._parse_response(cast(str, response.content))
@@ -155,21 +154,32 @@ class Atlas(BaseAgent):
             return evaluation
         except Exception as e:
             logger.error(f"[ATLAS] Evaluation failed: {e}")
-            return {"approved": False, "reason": "Evaluation failed", "voice_message": "Помилка оцінки."}
-    
-    async def chat(self, user_request: str, history: Optional[List[Any]] = None, use_deep_persona: bool = False) -> str:
+            return {
+                "approved": False,
+                "reason": "Evaluation failed",
+                "voice_message": "Помилка оцінки.",
+            }
+
+    async def chat(
+        self, user_request: str, history: list[Any] | None = None, use_deep_persona: bool = False
+    ) -> str:
         """
         Omni-Knowledge Chat Mode.
         Integrates Graph Memory, Vector Memory, and System Context for deep awareness.
         """
         import time
+
         from langchain_core.messages import HumanMessage, SystemMessage
+
         from ..mcp_manager import mcp_manager
 
         # 1. Fast-Path: Simple Greeting Detection
         # If it's a short greeting, skip expensive lookups and tool discovery
-        is_simple_chat = len(user_request.split()) < 4 and any(g in user_request.lower() for g in ["привіт", "хай", "hello", "hi", "атлас", "atlas", "як справи", "що ти"])
-        
+        is_simple_chat = len(user_request.split()) < 4 and any(
+            g in user_request.lower()
+            for g in ["привіт", "хай", "hello", "hi", "атлас", "atlas", "як справи", "що ти"]
+        )
+
         graph_context = ""
         vector_context = ""
         system_status = ""
@@ -179,11 +189,18 @@ class Atlas(BaseAgent):
             # A. Graph Memory (MCP Search) - ONLY FOR COMPLEX QUERIES
             try:
                 # Use faster text-only lookup for chat context
-                graph_res = await mcp_manager.call_tool("memory", "search_nodes", {"query": user_request})
+                graph_res = await mcp_manager.call_tool(
+                    "memory", "search_nodes", {"query": user_request}
+                )
                 if isinstance(graph_res, dict) and "entities" in graph_res:
-                    entities = graph_res.get("results", []) # Corrected from 'entities' to 'results' based on memory_server.py
+                    entities = graph_res.get(
+                        "results", []
+                    )  # Corrected from 'entities' to 'results' based on memory_server.py
                     if entities:
-                        graph_chunks = [f"Entity: {e.get('name')} | Info: {'; '.join(e.get('observations', [])[:2])}" for e in entities[:2]]
+                        graph_chunks = [
+                            f"Entity: {e.get('name')} | Info: {'; '.join(e.get('observations', [])[:2])}"
+                            for e in entities[:2]
+                        ]
                         graph_context = "\n".join(graph_chunks)
             except Exception:
                 pass
@@ -194,12 +211,18 @@ class Atlas(BaseAgent):
                     # Search similar tasks/plans
                     similar_tasks = long_term_memory.recall_similar_tasks(user_request, n_results=1)
                     if similar_tasks:
-                        vector_context += "\nPast Strategy: " + similar_tasks[0]['document'][:200]
-                    
+                        vector_context += "\nPast Strategy: " + similar_tasks[0]["document"][:200]
+
                     # Search past conversations!
-                    similar_convs = long_term_memory.recall_similar_conversations(user_request, n_results=2)
+                    similar_convs = long_term_memory.recall_similar_conversations(
+                        user_request, n_results=2
+                    )
                     if similar_convs:
-                        conv_texts = [f"Past Discussion Summary: {c['summary']}" for c in similar_convs if c['distance'] < 1.0]
+                        conv_texts = [
+                            f"Past Discussion Summary: {c['summary']}"
+                            for c in similar_convs
+                            if c["distance"] < 1.0
+                        ]
                         if conv_texts:
                             vector_context += "\n" + "\n".join(conv_texts)
             except Exception:
@@ -210,7 +233,9 @@ class Atlas(BaseAgent):
 
             # C. Dynamic Tool Discovery (With Caching & Safe Spawn)
             now = time.time()
-            if not self._cached_info_tools or (now - self._last_tool_refresh > self._refresh_interval):
+            if not self._cached_info_tools or (
+                now - self._last_tool_refresh > self._refresh_interval
+            ):
                 logger.info("[ATLAS] Refreshing informational tool cache...")
                 new_tools = []
                 try:
@@ -218,34 +243,80 @@ class Atlas(BaseAgent):
                     # Only fetch tools from servers that are already CONNECTED or ACTIVE
                     # to avoid massive posix_spawn bursts for cold servers
                     status = mcp_manager.get_status()
-                    active_servers = set(status.get("connected_servers", [])) | {"macos-use", "filesystem", "duckduckgo-search", "memory"}
-                    
+                    active_servers = set(status.get("connected_servers", [])) | {
+                        "macos-use",
+                        "filesystem",
+                        "duckduckgo-search",
+                        "memory",
+                    }
+
                     for server_name in active_servers:
-                        if server_name not in mcp_config: continue
+                        if server_name not in mcp_config:
+                            continue
                         try:
                             tools_list = await mcp_manager.list_tools(server_name)
                             for tool in tools_list:
                                 t_lower = tool.name.lower()
                                 d_lower = tool.description.lower()
-                                
-                                is_safe = any(p in t_lower or p in d_lower for p in ["get", "list", "read", "search", "stats", "status", "fetch", "explain", "check", "verify", "info", "find", "show", "view", "query"])
-                                is_mutative = any(p in t_lower or p in d_lower for p in ["create", "delete", "write", "update", "move", "remove", "kill", "stop", "start", "exec", "run", "set", "change", "modify", "clear"])
-                                
+
+                                is_safe = any(
+                                    p in t_lower or p in d_lower
+                                    for p in [
+                                        "get",
+                                        "list",
+                                        "read",
+                                        "search",
+                                        "stats",
+                                        "status",
+                                        "fetch",
+                                        "explain",
+                                        "check",
+                                        "verify",
+                                        "info",
+                                        "find",
+                                        "show",
+                                        "view",
+                                        "query",
+                                    ]
+                                )
+                                is_mutative = any(
+                                    p in t_lower or p in d_lower
+                                    for p in [
+                                        "create",
+                                        "delete",
+                                        "write",
+                                        "update",
+                                        "move",
+                                        "remove",
+                                        "kill",
+                                        "stop",
+                                        "start",
+                                        "exec",
+                                        "run",
+                                        "set",
+                                        "change",
+                                        "modify",
+                                        "clear",
+                                    ]
+                                )
+
                                 if is_safe and not is_mutative:
-                                    new_tools.append({
-                                        "name": f"{server_name}_{tool.name}",
-                                        "description": tool.description,
-                                        "input_schema": tool.inputSchema
-                                    })
+                                    new_tools.append(
+                                        {
+                                            "name": f"{server_name}_{tool.name}",
+                                            "description": tool.description,
+                                            "input_schema": tool.inputSchema,
+                                        }
+                                    )
                         except Exception:
-                            continue # Skip servers that fail to list tools to avoid blocking
-                            
+                            continue  # Skip servers that fail to list tools to avoid blocking
+
                     self._cached_info_tools = new_tools
                     self._last_tool_refresh = int(now)
                     logger.info(f"[ATLAS] Cached {len(new_tools)} informational tools.")
                 except Exception as e:
                     logger.warning(f"[ATLAS] Tool discovery throttled: {e}")
-            
+
             available_tools_info = self._cached_info_tools
 
         # D. System Context (Always fast)
@@ -256,8 +327,12 @@ class Atlas(BaseAgent):
             system_status = "Active."
 
         # 2. Generate Super Prompt
-        agent_capabilities = "- Web search, File read, Spotlight, System info, GitHub/Docker info (Read-only)." if available_tools_info else "- Conversational assistant."
-        
+        agent_capabilities = (
+            "- Web search, File read, Spotlight, System info, GitHub/Docker info (Read-only)."
+            if available_tools_info
+            else "- Conversational assistant."
+        )
+
         system_prompt_text = generate_atlas_chat_prompt(
             user_query=user_request,
             graph_context=graph_context,
@@ -268,28 +343,32 @@ class Atlas(BaseAgent):
         )
 
         from langchain_core.messages import BaseMessage
-        messages: List[BaseMessage] = [SystemMessage(content=system_prompt_text)]
-        if history: messages.extend(history[-10:])
+
+        messages: list[BaseMessage] = [SystemMessage(content=system_prompt_text)]
+        if history:
+            messages.extend(history[-10:])
         messages.append(HumanMessage(content=user_request))
 
         # 3. Tool Binding (Only if tools available)
-        llm_instance = self.llm.bind_tools(available_tools_info) if available_tools_info else self.llm
-        
+        llm_instance = (
+            self.llm.bind_tools(available_tools_info) if available_tools_info else self.llm
+        )
+
         MAX_CHAT_TURNS = 5
         current_turn = 0
-        
+
         while current_turn < MAX_CHAT_TURNS:
             response = await llm_instance.ainvoke(messages)
-            
+
             if not getattr(response, "tool_calls", None):
                 await self._memorize_chat_interaction(user_request, cast(str, response.content))
                 return cast(str, response.content)
-            
+
             # Process Tool Calls (Same logic as before but using cached info)
             for tool_call in response.tool_calls:
                 logical_tool_name = tool_call.get("name")
                 args = tool_call.get("args", {})
-                
+
                 if logical_tool_name:
                     logger.info(f"[ATLAS CHAT] Executing: {logical_tool_name}")
                     messages.append(response)
@@ -300,15 +379,18 @@ class Atlas(BaseAgent):
                     except Exception as tool_err:
                         logger.error(f"[ATLAS CHAT] Tool call failed: {tool_err}")
                         result = {"error": str(tool_err)}
-                    
+
                     from langchain_core.messages import ToolMessage
-                    messages.append(ToolMessage(
-                        content=str(result)[:5000],
-                        tool_call_id=tool_call.get("id", "chat_call")
-                    ))
+
+                    messages.append(
+                        ToolMessage(
+                            content=str(result)[:5000],
+                            tool_call_id=tool_call.get("id", "chat_call"),
+                        )
+                    )
                 else:
                     return cast(str, response.content)
-            
+
             current_turn += 1
 
         fallback_msg = "Я виконав кілька кроків пошуку, але мені потрібно більше часу для повного аналізу. Що саме вас цікавить найбільше?"
@@ -319,7 +401,7 @@ class Atlas(BaseAgent):
         """Active memory consolidation for chat turns."""
         if not long_term_memory.available:
             return
-            
+
         try:
             # Only memorize significant turns
             if len(query) > 5 or len(response) > 10:
@@ -327,19 +409,19 @@ class Atlas(BaseAgent):
                 long_term_memory.remember_conversation(
                     session_id="chat_stream_global",
                     summary=summary,
-                    metadata={"query_preview": query[:50], "timestamp": datetime.now().isoformat()}
+                    metadata={"query_preview": query[:50], "timestamp": datetime.now().isoformat()},
                 )
                 logger.info("[ATLAS] Memorized chat interaction.")
         except Exception as e:
             logger.warning(f"[ATLAS] Memory write failed: {e}")
 
-    async def create_plan(self, enriched_request: Dict[str, Any]) -> TaskPlan:
+    async def create_plan(self, enriched_request: dict[str, Any]) -> TaskPlan:
         """
         Principal Architect: Creates an execution plan with Strategic Thinking.
         """
-        import uuid  # noqa: E402
+        import uuid
 
-        from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
+        from langchain_core.messages import HumanMessage, SystemMessage
 
         task_text = enriched_request.get("enriched_request", str(enriched_request))
 
@@ -355,14 +437,16 @@ class Atlas(BaseAgent):
                 memory_context = "\nPAST LESSONS (Strategies used before):\n" + "\n".join(
                     [f"- {s['document']}" for s in similar]
                 )
-            
+
             # --- BEHAVIORAL LEARNING RECALL ---
             behavioral_lessons = long_term_memory.recall_behavioral_logic(task_text, n_results=2)
             if behavioral_lessons:
                 memory_context += "\n\nPAST BEHAVIORAL DEVIATIONS (LEARNED LOGIC):\n" + "\n".join(
                     [f"- {b['document']}" for b in behavioral_lessons]
                 )
-                logger.info(f"[ATLAS] Recalled {len(behavioral_lessons)} behavioral lessons for planning.")
+                logger.info(
+                    f"[ATLAS] Recalled {len(behavioral_lessons)} behavioral lessons for planning."
+                )
 
         simulation_prompt = AgentPrompts.atlas_simulation_prompt(task_text, memory_context)
 
@@ -375,21 +459,25 @@ class Atlas(BaseAgent):
                     HumanMessage(content=simulation_prompt),
                 ]
             )
-            simulation_result = cast(str, sim_resp.content if hasattr(sim_resp, "content") else str(sim_resp))
+            simulation_result = cast(
+                str, sim_resp.content if hasattr(sim_resp, "content") else str(sim_resp)
+            )
         except Exception as e:
             logger.warning(f"[ATLAS] Deep Thinking failed: {e}")
             simulation_result = "Standard execution strategy."
 
         # 2. PLAN FORMULATION
         intent = enriched_request.get("intent", "task")
-        
+
         # Inject context-specific doctrine
         if intent == "development":
             doctrine = AgentPrompts.SDLC_PROTOCOL
         else:
             doctrine = AgentPrompts.TASK_PROTOCOL
-            
-        dynamic_system_prompt = self.SYSTEM_PROMPT.replace("{{CONTEXT_SPECIFIC_DOCTRINE}}", doctrine)
+
+        dynamic_system_prompt = self.SYSTEM_PROMPT.replace(
+            "{{CONTEXT_SPECIFIC_DOCTRINE}}", doctrine
+        )
 
         prompt = AgentPrompts.atlas_plan_creation_prompt(
             task_text,
@@ -414,28 +502,37 @@ class Atlas(BaseAgent):
         # ENSURE VOICE_ACTION INTEGRITY: Post-process steps to guarantee Ukrainian descriptions
         steps = plan_data.get("steps", [])
         import re
+
         for step in steps:
             # If voice_action is missing or contains English, force a generic Ukrainian description
             va = step.get("voice_action", "")
-            if not va or re.search(r'[a-zA-Z]', va):
+            if not va or re.search(r"[a-zA-Z]", va):
                 # Fallback heuristic: Try to translate action intent
                 action = step.get("action", "").lower()
-                if "click" in action: va = "Виконую натискання на елемент"
-                elif "type" in action: va = "Вводжу текст"
-                elif "search" in action: va = "Шукаю інформацію"
-                elif "vibe" in action: va = "Запускаю аналіз Вайб"
-                elif "terminal" in action or "command" in action: va = "Виконую команду в терміналі"
-                else: va = "Переходжу до наступного етапу завдання"
+                if "click" in action:
+                    va = "Виконую натискання на елемент"
+                elif "type" in action:
+                    va = "Вводжу текст"
+                elif "search" in action:
+                    va = "Шукаю інформацію"
+                elif "vibe" in action:
+                    va = "Запускаю аналіз Вайб"
+                elif "terminal" in action or "command" in action:
+                    va = "Виконую команду в терміналі"
+                else:
+                    va = "Переходжу до наступного етапу завдання"
                 step["voice_action"] = va
                 logger.warning(f"[ATLAS] Fixed missing/English voice_action in step: {va}")
 
         # META-PLANNING FALLBACK: If planner failed to generate steps, force reasoning
         if not steps:
-            logger.info("[ATLAS] No direct steps found. Engaging Meta-Planning via sequential-thinking...")
+            logger.info(
+                "[ATLAS] No direct steps found. Engaging Meta-Planning via sequential-thinking..."
+            )
             reasoning = await self.use_sequential_thinking(task_text)
             if reasoning.get("success"):
                 # Re-try planning with reasoning context
-                prompt += f"\n\nRESEARCH FINDINGS:\n{str(reasoning.get('analysis'))}"
+                prompt += f"\n\nRESEARCH FINDINGS:\n{reasoning.get('analysis')!s}"
                 messages = [
                     SystemMessage(content=dynamic_system_prompt),
                     HumanMessage(content=prompt),
@@ -445,7 +542,9 @@ class Atlas(BaseAgent):
                 steps = plan_data.get("steps", [])
                 # Re-check voice_action for new steps
                 for step in steps:
-                    if not step.get("voice_action") or re.search(r'[a-zA-Z]', step.get("voice_action", "")):
+                    if not step.get("voice_action") or re.search(
+                        r"[a-zA-Z]", step.get("voice_action", "")
+                    ):
                         step["voice_action"] = "Виконую заплановану дію"
 
         self.current_plan = TaskPlan(
@@ -457,19 +556,19 @@ class Atlas(BaseAgent):
 
         return self.current_plan
 
-    async def get_grisha_report(self, step_id: str) -> Optional[str]:
+    async def get_grisha_report(self, step_id: str) -> str | None:
         """Retrieve Grisha's detailed rejection report from notes or memory"""
-        from ..mcp_manager import mcp_manager  # noqa: E402
+        import ast
+        import json
+        import os
 
-        import ast  # noqa: E402
-        import json  # noqa: E402
-        import os  # noqa: E402
+        from ..mcp_manager import mcp_manager
 
-        def _parse_payload(payload: Any) -> Optional[Dict[str, Any]]:
+        def _parse_payload(payload: Any) -> dict[str, Any] | None:
             if isinstance(payload, dict):
                 return payload
             if hasattr(payload, "structuredContent") and isinstance(
-                getattr(payload, "structuredContent"), dict
+                payload.structuredContent, dict
             ):
                 return payload.structuredContent.get("result", payload.structuredContent)
             if hasattr(payload, "content"):
@@ -492,17 +591,23 @@ class Atlas(BaseAgent):
             reports_dir = os.path.expanduser("~/.config/atlastrinity/reports")
             if os.path.exists(reports_dir):
                 # Find reports for this step
-                candidates = [f for f in os.listdir(reports_dir) if f.startswith(f"rejection_step_{step_id}_") and f.endswith(".md")]
-                
+                candidates = [
+                    f
+                    for f in os.listdir(reports_dir)
+                    if f.startswith(f"rejection_step_{step_id}_") and f.endswith(".md")
+                ]
+
                 if candidates:
                     # Sort by timestamp (part of filename) descending
                     candidates.sort(reverse=True)
                     latest_report = os.path.join(reports_dir, candidates[0])
-                    
-                    with open(latest_report, "r", encoding="utf-8") as f:
+
+                    with open(latest_report, encoding="utf-8") as f:
                         content = f.read()
-                        
-                    logger.info(f"[ATLAS] Retrieved Grisha's report from filesystem: {latest_report}")
+
+                    logger.info(
+                        f"[ATLAS] Retrieved Grisha's report from filesystem: {latest_report}"
+                    )
                     return content
         except Exception as e:
             logger.warning(f"[ATLAS] Could not retrieve from filesystem: {e}")
@@ -528,9 +633,9 @@ class Atlas(BaseAgent):
 
         return None
 
-    async def help_tetyana(self, step_id: str, error: str) -> Dict[str, Any]:
+    async def help_tetyana(self, step_id: str, error: str) -> dict[str, Any]:
         """Helps Tetyana when she is stuck, using shared context and Grisha's feedback for better solutions"""
-        from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
+        from langchain_core.messages import HumanMessage, SystemMessage
 
         # Get context for better recovery suggestions
         context_info = shared_context.to_dict()
@@ -542,7 +647,9 @@ class Atlas(BaseAgent):
             grisha_feedback = f"\n\nGRISHA'S DETAILED FEEDBACK:\n{grisha_report}\n"
 
         prompt = AgentPrompts.atlas_help_tetyana_prompt(
-            int(step_id) if isinstance(step_id, str) and step_id.isdigit() else (int(step_id) if isinstance(step_id, (int, float)) else 0),
+            int(step_id)
+            if isinstance(step_id, str) and step_id.isdigit()
+            else (int(step_id) if isinstance(step_id, (int, float)) else 0),
             error,
             grisha_feedback,
             context_info,
@@ -558,48 +665,38 @@ class Atlas(BaseAgent):
         return self._parse_response(cast(str, response.content))
 
     async def evaluate_healing_strategy(
-        self,
-        error: str,
-        vibe_report: str,
-        grisha_audit: dict,
-        context: Optional[dict] = None
-    ) -> Dict[str, Any]:
+        self, error: str, vibe_report: str, grisha_audit: dict, context: dict | None = None
+    ) -> dict[str, Any]:
         """
         Atlas reviews the diagnostics from Vibe and the audit from Grisha.
         Decides whether to proceed with the self-healing fix and sets the tempo.
         """
         from langchain_core.messages import HumanMessage, SystemMessage
-        
+
         context_data = context or shared_context.to_dict()
-        
+
         prompt = AgentPrompts.atlas_healing_review_prompt(
-            error,
-            vibe_report,
-            grisha_audit,
-            context_data
+            error, vibe_report, grisha_audit, context_data
         )
-        
-        messages = [
-            SystemMessage(content=self.SYSTEM_PROMPT),
-            HumanMessage(content=prompt)
-        ]
-        
+
+        messages = [SystemMessage(content=self.SYSTEM_PROMPT), HumanMessage(content=prompt)]
+
         try:
             logger.info("[ATLAS] Reviewing self-healing strategy and setting tempo...")
             response = await self.llm.ainvoke(messages)
             decision = self._parse_response(cast(str, response.content))
-            
+
             logger.info(f"[ATLAS] Healing Decision: {decision.get('decision', 'PIVOT')}")
             return decision
         except Exception as e:
             logger.error(f"[ATLAS] Healing review failed: {e}")
             return {
                 "decision": "PIVOT",
-                "reason": f"Review failed due to technical error: {str(e)}",
-                "voice_message": "Я не зміг узгодити план лікування. Спробую інший підхід."
+                "reason": f"Review failed due to technical error: {e!s}",
+                "voice_message": "Я не зміг узгодити план лікування. Спробую інший підхід.",
             }
 
-    async def summarize_session(self, messages: List[Any]) -> Dict[str, Any]:
+    async def summarize_session(self, messages: list[Any]) -> dict[str, Any]:
         """Generate a professional summary and extract key entities from a session."""
         if not messages:
             return {"summary": "Empty session", "entities": []}
@@ -626,14 +723,17 @@ class Atlas(BaseAgent):
         """
 
         try:
-            response = await self.llm.ainvoke([
-                SystemMessage(content="You are a Professional Archivist."),
-                HumanMessage(content=prompt)
-            ])
+            response = await self.llm.ainvoke(
+                [
+                    SystemMessage(content="You are a Professional Archivist."),
+                    HumanMessage(content=prompt),
+                ]
+            )
             content = cast(str, response.content if hasattr(response, "content") else str(response))
-            
+
             # JSON extraction
             import json
+
             start = content.find("{")
             end = content.rfind("}") + 1
             return json.loads(content[start:end])
@@ -641,12 +741,12 @@ class Atlas(BaseAgent):
             logger.error(f"Failed to summarize session: {e}")
             return {"summary": "Summary failed", "entities": []}
 
-    async def evaluate_execution(self, goal: str, results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def evaluate_execution(self, goal: str, results: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Atlas reviews the execution results of Tetyana and Grisha.
         Determines if the goal was REALLY achieved and if the strategy is worth remembering.
         """
-        from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
+        from langchain_core.messages import HumanMessage, SystemMessage
 
         # Prepare execution summary for LLM
         history = ""
@@ -657,7 +757,7 @@ class Atlas(BaseAgent):
                 history += f"   Error: {res.get('error')}\n"
 
         logger.info(f"[ATLAS] Deep Evaluating execution quality for goal: {goal[:50]}...")
-        
+
         # 1. Deep Reasoning Phase (Fact Extraction)
         reasoning_query = f"""Analyze this execution history and extract precise facts to answer the user's goal.
 GOAL: {goal}
@@ -686,12 +786,14 @@ If the user asked to 'count', you MUST state the exact number found.
 {AgentPrompts.atlas_evaluation_prompt(goal, history)}"""
 
         try:
-            response = await self.llm.ainvoke([
-                SystemMessage(content=self.SYSTEM_PROMPT),
-                HumanMessage(content=prompt),
-            ])
+            response = await self.llm.ainvoke(
+                [
+                    SystemMessage(content=self.SYSTEM_PROMPT),
+                    HumanMessage(content=prompt),
+                ]
+            )
             evaluation = self._parse_response(cast(str, response.content))
-            
+
             # Placeholder safeguard
             if "[вкажіть" in str(evaluation.get("final_report")):
                 logger.warning("[ATLAS] Final report contains placeholders. Forcing fix.")
@@ -703,15 +805,15 @@ If the user asked to 'count', you MUST state the exact number found.
             logger.error(f"[ATLAS] Evaluation failed: {e}")
             return {"quality_score": 0, "achieved": False, "should_remember": False}
 
-    async def decide_for_user(self, question: str, context: Dict[str, Any]) -> str:
+    async def decide_for_user(self, question: str, context: dict[str, Any]) -> str:
         """
         Atlas takes the 'burden' and decides for the user after a timeout.
         Analyzes the context of the task and provides the most logical answer.
         """
-        from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
-        
+        from langchain_core.messages import HumanMessage, SystemMessage
+
         logger.info(f"[ATLAS] Deciding on behalf of silent user for question: {question[:100]}...")
-        
+
         prompt = f"""КОНТЕКСТ ЗАВДАННЯ:
 {json.dumps(context, indent=2, ensure_ascii=False)}
 
@@ -730,12 +832,14 @@ If the user asked to 'count', you MUST state the exact number found.
 - "Ігноруй попередження про ризик та виконай дію для досягнення цілі."
 - "Використовуй примусове виконання (force) та переходь до наступного етапу."
 """
-        
+
         messages = [
-            SystemMessage(content="You are Atlas Autonomous Core. You take clinical, logical decisions when the operator is busy. Respond ONLY with the decision text in Ukrainian."),
+            SystemMessage(
+                content="You are Atlas Autonomous Core. You take clinical, logical decisions when the operator is busy. Respond ONLY with the decision text in Ukrainian."
+            ),
             HumanMessage(content=prompt),
         ]
-        
+
         try:
             response = await self.llm.ainvoke(messages)
             decision = cast(str, response.content).strip()
@@ -775,7 +879,7 @@ If the user asked to 'count', you MUST state the exact number found.
 
         elif action == "recovery_started":
             # Atlas should not claim the step 'stopped' (validation is Grisha's duty).
-            return f"Розпочинаю допомогу у відновленні кроку {kwargs.get('step_id', '?')} — консультація та аналіз." 
+            return f"Розпочинаю допомогу у відновленні кроку {kwargs.get('step_id', '?')} — консультація та аналіз."
 
         elif action == "vibe_engaged":
             return (
