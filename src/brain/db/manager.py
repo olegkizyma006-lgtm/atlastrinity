@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
+import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from .schema import Base
@@ -236,6 +237,77 @@ class DatabaseManager:
                 session.add(trinity)
                 await session.commit()
                 print("[DB] Seeding complete.")
+
+    async def create_table_from_df(self, table_name: str, df: pd.DataFrame) -> bool:
+        """
+        Dynamically create a table in the database matching the DataFrame schema.
+        Used for High-Precision Ingestion.
+        """
+        if not self.available:
+            return False
+
+        from sqlalchemy import Table, Column, String, Integer, Float, DateTime, Boolean, MetaData, Text
+        import pandas as pd
+
+        # 1. Map pandas dtypes to SQLAlchemy types
+        def map_dtype(col):
+            t = df[col].dtype
+            if pd.api.types.is_integer_dtype(t):
+                return Integer
+            elif pd.api.types.is_float_dtype(t):
+                return Float
+            elif pd.api.types.is_datetime64_any_dtype(t):
+                return DateTime
+            elif pd.api.types.is_bool_dtype(t):
+                return Boolean
+            else:
+                return Text # Default to Text for objects/strings
+
+        # 2. Define the new table
+        metadata = MetaData()
+        columns = [Column("row_id", Integer, primary_key=True, autoincrement=True)]
+        for col_name in df.columns:
+            safe_col = str(col_name).lower().replace(" ", "_").replace("-", "_")
+            # If the CSV has an 'id' or 'row_id' column, we rename the existing one to avoid collision
+            if safe_col in ["row_id"]:
+                safe_col = f"original_{safe_col}"
+            columns.append(Column(safe_col, map_dtype(col_name)))
+
+        # 3. Create the table sync-style via engine.run_sync
+        def sync_create(connection):
+            new_table = Table(table_name, metadata, *columns, extend_existing=True)
+            metadata.create_all(connection)
+
+        try:
+            async with self._engine.begin() as conn:
+                await conn.run_sync(sync_create)
+            
+            # 4. Bulk insert data
+            async with await self.get_session() as session:
+                # Convert DF to list of dicts with sanitized keys
+                sanitized_data = []
+                for _, row in df.iterrows():
+                    d = {}
+                    for col_name in df.columns:
+                        safe_col = str(col_name).lower().replace(" ", "_").replace("-", "_")
+                        d[safe_col] = row[col_name] if pd.notnull(row[col_name]) else None
+                    sanitized_data.append(d)
+                
+                # Dynamic insert is tricky with SQLAlchemy async, 
+                # we'll use raw SQL text for simplicity and performance in bulk ingestion
+                from sqlalchemy import text
+                cols = ", ".join([f'"{str(c).lower().replace(" ", "_").replace("-", "_")}"' for c in df.columns])
+                placeholders = ", ".join([f":{str(c).lower().replace(" ", "_").replace("-", "_")}" for c in df.columns])
+                sql = f'INSERT INTO "{table_name}" ({cols}) VALUES ({placeholders})'
+                
+                await session.execute(text(sql), sanitized_data)
+                await session.commit()
+                
+            print(f"[DB] Dynamic table '{table_name}' created and populated with {len(df)} rows.")
+            return True
+        except Exception as e:
+            print(f"[DB] Failed to create dynamic table '{table_name}': {e}")
+            return False
 
     async def get_session(self) -> AsyncSession:
         """Get a new async session."""

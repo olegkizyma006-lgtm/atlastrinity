@@ -4,14 +4,9 @@ from typing import Any, Dict, List, Optional
 
 from mcp.server import FastMCP
 
-# Setup paths for internal imports
-current_dir = os.path.dirname(os.path.abspath(__file__))
-root = os.path.join(current_dir, "..", "..")
-sys.path.insert(0, os.path.abspath(root))
-
-from brain.db.manager import db_manager  # noqa: E402
-from brain.knowledge_graph import knowledge_graph  # noqa: E402
-from brain.memory import long_term_memory  # noqa: E402
+from src.brain.db.manager import db_manager  # noqa: E402
+from src.brain.knowledge_graph import knowledge_graph  # noqa: E402
+from src.brain.memory import long_term_memory  # noqa: E402
 
 server = FastMCP("memory")
 
@@ -416,19 +411,88 @@ async def delete_entity(name: str) -> Dict[str, Any]:
     return {"success": True, "deleted": True}
 
 
-@server.tool()
-async def promote_knowledge(node_id: str, target_namespace: str = "global", agent_name: str = "atlas") -> Dict[str, Any]:
-    """
-    Elevate a node (and its edges) from a task-specific namespace to the Golden Fund (global).
-    
-    Args:
-        node_id: The ID of the node to promote.
-        target_namespace: Usually 'global'.
-        agent_name: Name of the agent performing the promotion.
-    """
-    await db_manager.initialize()
-    success = await knowledge_graph.promote_node(node_id, target_namespace=target_namespace, agent_name=agent_name)
     return {"success": success, "node_id": node_id, "target": target_namespace, "agent": agent_name}
+
+
+@server.tool()
+async def ingest_verified_dataset(
+    file_path: str, 
+    dataset_name: str, 
+    namespace: str = "global", 
+    task_id: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    High-Precision Ingestion Pipeline:
+    1. Validates data quality and integrity.
+    2. Creates a dedicated SQLite table for structured storage.
+    3. Indexes metadata in the Knowledge Graph.
+    4. Syncs semantic preview to Vector Memory.
+    """
+    import pandas as pd
+    from src.brain.data_guard import data_guard
+    from pathlib import Path
+
+    path = Path(file_path)
+    if not path.exists():
+        return {"error": f"File not found: {file_path}"}
+
+    # 1. Load Data
+    try:
+        if path.suffix == ".csv":
+            df = pd.read_csv(path)
+        elif path.suffix in [".xlsx", ".xls"]:
+            df = pd.read_excel(path)
+        elif path.suffix == ".json":
+            df = pd.read_json(path)
+        else:
+            return {"error": f"Unsupported format: {path.suffix}"}
+    except Exception as e:
+        return {"error": f"Failed to load file: {e}"}
+
+    # 2. Validate Quality
+    validation = data_guard.validate_dataframe(df, dataset_name)
+    if not validation["is_worthy"]:
+        return {
+            "success": False, 
+            "error": "Dataset rejected by Quality Guard", 
+            "validation_report": validation
+        }
+
+    # 3. Create Structured Table
+    await db_manager.initialize()
+    table_name = f"dataset_{dataset_name.lower().replace(' ', '_').replace('-', '_')}"
+    db_success = await db_manager.create_table_from_df(table_name, df)
+    
+    if not db_success:
+        return {"success": False, "error": f"Failed to create structured table '{table_name}'"}
+
+    # 4. Register in Knowledge Graph
+    node_id = f"dataset:{dataset_name.lower().replace(' ', '_')}"
+    attributes = {
+        "description": f"Verified High-Precision Dataset: {dataset_name}",
+        "table_name": table_name,
+        "row_count": len(df),
+        "columns": list(df.columns),
+        "validation_score": 1.0 - validation["checks"]["null_ratio"],
+        "content_preview": df.head(10).to_string() # Semantic preview for vector search
+    }
+
+    kg_success = await knowledge_graph.add_node(
+        node_type="DATASET",
+        node_id=node_id,
+        attributes=attributes,
+        namespace=namespace,
+        task_id=task_id,
+        sync_to_vector=True
+    )
+
+    return {
+        "success": kg_success,
+        "node_id": node_id,
+        "table_name": table_name,
+        "validation_report": validation,
+        "message": f"Dataset '{dataset_name}' successfully ingested and registered in {namespace}."
+    }
 
 
 if __name__ == "__main__":
