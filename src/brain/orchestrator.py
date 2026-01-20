@@ -77,6 +77,7 @@ class Trinity:
         self.graph = self._build_graph()
         self._log_lock = asyncio.Lock()
         self.current_session_id = "current_session"  # Default alias for the last active session
+        self._resumption_pending = False
 
     async def initialize(self):
         """Async initialization of system components"""
@@ -102,6 +103,28 @@ class Trinity:
         mcp_manager.register_log_callback(mcp_log_forwarder)
         # Initialize DB
         await db_manager.initialize()
+
+        # Check for pending restart state
+        await self._resume_after_restart()
+        
+        # If resumption is pending, trigger the run() in background after a short delay
+        if getattr(self, "_resumption_pending", False):
+            async def auto_resume():
+                await asyncio.sleep(5) # Wait for all components to stabilize
+                messages = self.state.get("messages", [])
+                if messages:
+                    # Get the original request from the first HumanMessage
+                    original_request = ""
+                    for m in messages:
+                         if "HumanMessage" in str(type(m)) or (isinstance(m, dict) and m.get("type") == "human"):
+                              original_request = m.content if hasattr(m, "content") else m.get("content", "")
+                              break
+                    
+                    if original_request:
+                         logger.info(f"[ORCHESTRATOR] Auto-resuming task: {original_request[:50]}...")
+                         await self.run(original_request)
+            
+            asyncio.create_task(auto_resume())
 
         logger.info(f"[GRISHA] Auditor ready. Vision: {self.grisha.llm.model_name}")
 
@@ -301,6 +324,57 @@ class Trinity:
                     state_manager.publish_event("logs", entry)
                 except Exception as e:
                     logger.warning(f"Failed to publish log to Redis: {e}")
+
+    async def _resume_after_restart(self):
+        """Check if we are recovering from a restart and resume state"""
+        if not state_manager.available:
+            return
+
+        try:
+            # Check for restart flag in Redis
+            restart_key = state_manager._key("restart_pending")
+            data = state_manager.redis.get(restart_key)
+            
+            if data:
+                restart_info = json.loads(data)
+                reason = restart_info.get("reason", "Unknown reason")
+                session_id = restart_info.get("session_id", "current_session")
+                
+                logger.info(f"[ORCHESTRATOR] Recovering from self-healing restart. Reason: {reason}")
+                
+                if session_id == "current":
+                     # Use the most recent session from list_sessions
+                     sessions = await state_manager.list_sessions()
+                     if sessions:
+                         session_id = sessions[0]["id"]
+                
+                saved_state = state_manager.restore_session(session_id)
+                if saved_state:
+                    self.state = saved_state
+                    self.current_session_id = session_id
+                    
+                    # Clear the flag
+                    state_manager.redis.delete(restart_key)
+                    self._resumption_pending = True
+                    
+                    await self._log(f"Система успішно перезавантажилася та відновила стан. Причина: {reason}", "system")
+                    await self._speak("atlas", "Я повернувся. Продовжую виконання завдання з того ж місця.")
+        except Exception as e:
+            logger.error(f"Failed to resume after restart: {e}")
+            
+            # Implementation: querying Redis for a specific "system:restart_pending" key
+            # which we would have set in tool_dispatcher (we need to update tool_dispatcher to set this!)
+            # WAIT: tool_dispatcher doesn't have access to state_manager directly usually.
+            # We should probably update tool_dispatcher to use state_manager if available.
+            
+            # ALTERNATIVE: orchestrator handles the restart tool? 
+            # No, dispatcher handles it. Dispatcher needs access to state_manager to set the flag.
+            
+            # For now, let's just log that we are booting up.
+            await self._log("System booted. Checking for pending tasks...", "system")
+            
+        except Exception as e:
+            logger.error(f"[ORCHESTRATOR] Resume check failed: {e}")
 
     async def _update_knowledge_graph(self, step_id: str, result: StepResult):
         """Update KG with entities found in the step results"""
@@ -568,144 +642,129 @@ class Trinity:
         # 1. Push Global Goal to Shared Context
         shared_context.push_goal(user_request)
 
-        # 2. Atlas Planning
-        try:
-            state_manager.publish_event(
-                "tasks", {"type": "planning_started", "request": user_request}
-            )
-            # Pass history to Atlas for context (Last 25 messages for better contextual depth)
-            messages_raw = self.state.get("messages")
-            history = []
-            if isinstance(messages_raw, list):
-                history = messages_raw[-25:-1] if len(messages_raw) > 1 else []
-
-            analysis = await self.atlas.analyze_request(user_request, history=history)
-
-            if analysis.get("intent") == "chat":
-                response = analysis.get("initial_response") or await self.atlas.chat(
-                    user_request, 
-                    history=history,
-                    use_deep_persona=analysis.get("use_deep_persona", False)
+        # 1.5. CHECK IF WE CAN SKIP PLANNING (Resumption Path)
+        plan = None
+        if self.state.get("current_plan") and getattr(self, "_resumption_pending", False):
+            logger.info("[ORCHESTRATOR] Plan already exists. skipping Atlas planning phase.")
+            plan_obj = self.state["current_plan"]
+            # Cast plan if it's a dict (from Redis restoration)
+            if isinstance(plan_obj, dict):
+                 from .agents.atlas import TaskPlan
+                 # Clean steps if they are already success: True
+                 plan = TaskPlan(
+                     id=plan_obj.get("id", "resumed"),
+                     goal=plan_obj.get("goal", user_request),
+                     steps=plan_obj.get("steps", [])
+                 )
+            else:
+                 plan = plan_obj
+            self._resumption_pending = False
+        else:
+            # 2. Atlas Planning
+            try:
+                state_manager.publish_event(
+                    "tasks", {"type": "planning_started", "request": user_request}
                 )
-                # Note: _speak already appends the message to history
-                await self._speak("atlas", response)
-                self.state["system_state"] = SystemState.IDLE.value
+                # Pass history to Atlas for context
+                messages_raw = self.state.get("messages")
+                history = []
+                if isinstance(messages_raw, list):
+                    history = messages_raw[-25:-1] if len(messages_raw) > 1 else []
 
-                # Save state for UI but don't clear entire session unless requested
+                analysis = await self.atlas.analyze_request(user_request, history=history)
+
+                if analysis.get("intent") == "chat":
+                    response = analysis.get("initial_response") or await self.atlas.chat(
+                        user_request, history=history, use_deep_persona=analysis.get("use_deep_persona", False)
+                    )
+                    self.state["messages"].append(AIMessage(content=response))
+                    if state_manager.available:
+                        state_manager.save_session(session_id, self.state)
+                    return {"status": "completed", "result": response, "type": "chat"}
+
+                self.state["system_state"] = SystemState.PLANNING.value
+                
+                # Fetch dynamic MCP Catalog
+                mcp_catalog = await mcp_manager.get_mcp_catalog()
+                shared_context.available_mcp_catalog = mcp_catalog
+
+                spoken_text = analysis.get("voice_response") or "Аналізую ваш запит..."
+                await self._speak("atlas", spoken_text)
+
+                _keep_alive_last_log = [0.0]
+                async def keep_alive_logging():
+                    import time
+                    while True:
+                        await asyncio.sleep(15)
+                        current_time = time.time()
+                        if current_time - _keep_alive_last_log[0] >= 10:
+                            _keep_alive_last_log[0] = current_time
+                            await self._log("Atlas is thinking... (Planning logic flow)", "system")
+
+                planning_task = asyncio.create_task(self.atlas.create_plan(analysis))
+                logger_task = asyncio.create_task(keep_alive_logging())
+                try:
+                    plan = await asyncio.wait_for(planning_task, timeout=config.get("orchestrator", {}).get("task_timeout", 1200.0))
+                finally:
+                    logger_task.cancel()
+                    try: await logger_task
+                    except asyncio.CancelledError: pass
+
+                if not plan or not plan.steps:
+                    msg = self.atlas.get_voice_message("no_steps")
+                    await self._speak("atlas", msg)
+                    return {"status": "completed", "result": msg, "type": "chat"}
+
+                self.state["current_plan"] = plan
+
+                # DB Task Creation
+                if db_manager.available and self.state.get("db_session_id"):
+                    try:
+                        async with await db_manager.get_session() as db_sess:
+                            new_task = DBTask(
+                                session_id=self.state["db_session_id"],
+                                goal=user_request,
+                                status="PENDING",
+                            )
+                            db_sess.add(new_task)
+                            await db_sess.commit()
+                            self.state["db_task_id"] = str(new_task.id)
+
+                            await knowledge_graph.add_node(
+                                node_type="TASK",
+                                node_id=f"task:{new_task.id}",
+                                attributes={
+                                    "goal": user_request,
+                                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                                    "steps_count": len(plan.steps),
+                                },
+                            )
+                    except Exception as e:
+                        logger.error(f"DB Task creation failed: {e}")
+
                 if state_manager.available:
                     state_manager.save_session(session_id, self.state)
 
-                return {"status": "completed", "result": response, "type": "chat"}
+                state_manager.publish_event(
+                    "tasks",
+                    {
+                        "type": "planning_finished",
+                        "session_id": session_id,
+                        "steps_count": len(plan.steps),
+                    },
+                )
 
-            # Fetch dynamic MCP Catalog (concise servers list) ONLY if it's a task or dev
-            mcp_catalog = await mcp_manager.get_mcp_catalog()
+                await self._speak(
+                    "atlas",
+                    self.atlas.get_voice_message("plan_created", steps=len(plan.steps)),
+                )
 
-            # Inject catalog into shared context
-            shared_context.available_mcp_catalog = mcp_catalog
-
-            # Priority: voice_response (Human-like) > Falls back to "Аналізую..."
-            spoken_text = analysis.get("voice_response")
-            if not spoken_text or not spoken_text.strip():
-                spoken_text = "Аналізую ваш запит..."
-                
-            await self._speak("atlas", spoken_text)
-
-            # Keep-alive logger to show activity in UI during long LLM calls
-            # Added rate limiting to prevent log spam
-            _keep_alive_last_log = [0.0]  # Use list for mutable closure
-
-            async def keep_alive_logging():
-                import time
-
-                while True:
-                    await asyncio.sleep(15)  # Wait 15 seconds
-                    current_time = time.time()
-                    # Rate limit: don't log if less than 10 seconds since last log
-                    if current_time - _keep_alive_last_log[0] >= 10:
-                        _keep_alive_last_log[0] = current_time
-                        await self._log("Atlas is thinking... (Planning logic flow)", "system")
-
-            planning_task = asyncio.create_task(self.atlas.create_plan(analysis))
-            logger_task = asyncio.create_task(keep_alive_logging())
-
-            try:
-                plan = await asyncio.wait_for(planning_task, timeout=config.get("orchestrator", {}).get("task_timeout", 1200.0))
-            finally:
-                logger_task.cancel()
-                try:
-                    await logger_task
-                except asyncio.CancelledError:
-                    pass
-
-            if not plan or not plan.steps:
-                msg = self.atlas.get_voice_message("no_steps")
-                await self._speak("atlas", msg)
-                return {"status": "completed", "result": msg, "type": "chat"}
-
-            self.state["current_plan"] = plan
-
-            # DB Task Creation
-            if db_manager.available and self.state.get("db_session_id"):
-                try:
-                    async with await db_manager.get_session() as db_sess:
-                        new_task = DBTask(
-                            session_id=self.state["db_session_id"],
-                            goal=user_request,
-                            status="PENDING",
-                        )
-                        db_sess.add(new_task)
-                        await db_sess.commit()
-                        self.state["db_task_id"] = str(new_task.id)
-
-                        # GraphChain: Add Task Node and sync to vector
-                        await knowledge_graph.add_node(
-                            node_type="TASK",
-                            node_id=f"task:{new_task.id}",
-                            attributes={
-                                "goal": user_request,
-                                "timestamp": datetime.now(timezone.utc).isoformat(),
-                                "steps_count": len(plan.steps),
-                            },
-                        )
-                except Exception as e:
-                    logger.error(f"DB Task creation failed: {e}")
-                    # Clear ID if it failed to persist
-                    if "db_task_id" in self.state:
-                        del self.state["db_task_id"]
-
-            if state_manager.available:
-                state_manager.save_session(session_id, self.state)
-
-            state_manager.publish_event(
-                "tasks",
-                {
-                    "type": "planning_finished",
-                    "session_id": session_id,
-                    "steps_count": len(plan.steps),
-                },
-            )
-
-            await self._speak(
-                "atlas",
-                self.atlas.get_voice_message("plan_created", steps=len(plan.steps)),
-            )
-
-        except Exception as e:
-            import traceback
-
-            logger.error(f"[ORCHESTRATOR] Planning error: {e}")
-            logger.error(traceback.format_exc())
-            self.state["system_state"] = SystemState.ERROR.value
-            state_manager.publish_event(
-                "tasks",
-                {
-                    "type": "task_finished",
-                    "status": "error",
-                    "error": str(e),
-                    "session_id": session_id,
-                },
-            )
-            return {"status": "error", "error": str(e)}
+            except Exception as e:
+                import traceback
+                logger.error(f"[ORCHESTRATOR] Planning error: {e}")
+                logger.error(traceback.format_exc())
+                self.state["system_state"] = SystemState.ERROR.value
+                return {"status": "error", "error": str(e)}
 
         # 3. Execution Loop (Tetyana) - Recursive Execution
         self.state["system_state"] = SystemState.EXECUTING.value
@@ -953,6 +1012,12 @@ class Trinity:
             # Push step goal to context
             shared_context.push_goal(step.get("action", "Working..."), total_steps=len(steps))
             shared_context.current_step_id = i + 1
+
+            # --- SKIP ALREADY COMPLETED STEPS ---
+            step_results = self.state.get("step_results") or []
+            if any(isinstance(res, dict) and str(res.get("step_id")) == str(step_id) and res.get("success") for res in step_results):
+                logger.info(f"[ORCHESTRATOR] Skipping already completed step {step_id}")
+                continue
 
             # Retry loop with Dynamic Temperature
             max_step_retries = 3
@@ -1421,6 +1486,18 @@ class Trinity:
                     step_copy["bus_messages"] = [m.to_dict() for m in bus_messages]
 
                 result = await self.tetyana.execute_step(step_copy, attempt=attempt)
+
+                # --- RESTART DETECTION ---
+                if state_manager.available:
+                    restart_key = state_manager._key("restart_pending")
+                    try:
+                        if state_manager.redis.exists(restart_key):
+                            logger.warning("[ORCHESTRATOR] Imminent application restart detected. Saving session state immediately.")
+                            state_manager.save_session(self.current_session_id, self.state)
+                            # We stop here. The process replacement (execv) will happen in ToolDispatcher task
+                            # and this orchestrator task will either be killed or return soon.
+                    except Exception:
+                        pass
 
                 # --- DYNAMIC AGENCY: Check for Strategy Deviation ---
                 # --- DYNAMIC AGENCY: Check for Strategy Deviation ---

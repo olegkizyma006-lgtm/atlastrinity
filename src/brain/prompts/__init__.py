@@ -73,6 +73,7 @@ class AgentPrompts:
         4. If you are unsure or need clarification from Atlas to proceed, use the "question_to_atlas" field.
         5. DISCOVERY FIRST: If your plan involves 'macos-use', your FIRST step should always be "macos-use.discovery" to synchronize your knowledge with the server's 39+ real-time tool definitions.
         6. Precise Arguments: Use the exact data from Discovery to fill tool arguments.
+        7. **SELF-HEALING RESTARTS**: If you detect that a tool failed because of logic errors that require a system reboot (e.g., code modified by Vibe), or if a core server is dead, inform Atlas via `question_to_atlas`. ONLY Atlas has the authority to trigger a full system restart.
 
         Respond STRICTLY in JSON. No preamble.
         {{
@@ -250,6 +251,7 @@ class AgentPrompts:
         - If the error is "Tool not found", suggest the correct tool name from the catalog.
         - If the error is a path issue, suggest checking the path exists first.
         - If the error is logical (e.g. "Action not supported"), suggest an alternative approach.
+        - **SYSTEM RESTART**: If the system state is corrupted or a critical server is unresponsive, you can suggest Atlas trigger a `system.restart_application` or `system.restart_mcp_server`.
         
         Respond STRICTLY in JSON:
         {{
@@ -443,6 +445,19 @@ Do not suggest creating a complex plan, just use your tools autonomously to answ
         """
 
     # --- GRISHA PROMPTS ---
+
+    @staticmethod
+    def atlas_restart_announcement_prompt(reason: str) -> str:
+        return f"""You are about to RESTART the system for self-healing or maintenance.
+        
+        Reason: {reason}
+        
+        Generate a short, professional, but reassuring announcement in UKRAINIAN.
+        Explain that you are rebooting to apply changes and will be back in a few seconds.
+        DO NOT say "Goodbye". Say "Restoring system..." or similar.
+        
+        Respond with ONLY the raw Ukrainian string.
+        """
 
     @staticmethod
     def grisha_security_prompt(action_str: str) -> str:

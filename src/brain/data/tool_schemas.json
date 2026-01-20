@@ -932,17 +932,7 @@
         },
         "description": "Execute raw AppleScript"
     },
-    "restart_mcp_server": {
-        "server": "system",
-        "required": [
-            "server_name"
-        ],
-        "optional": [],
-        "types": {
-            "server_name": "str"
-        },
-        "description": "Internal tool to restart an MCP server"
-    },
+
     "create_or_update_file": {
         "server": "github",
         "description": "Create or update a file in a repository.",
@@ -1277,5 +1267,30 @@
             "language": "str"
         },
         "description": "Record audio from microphone and transcribe it."
+    },
+    "restart_application": {
+        "server": "system",
+        "required": [
+            "reason"
+        ],
+        "optional": [],
+        "types": {
+            "reason": "str"
+        },
+        "description": "Restart the entire AtlasTrinity application (Graceful Shutdown + ExecV)"
+    },
+    "restart_mcp_server": {
+        "server": "system",
+        "required": [
+            "server_name"
+        ],
+        "optional": [
+            "reason"
+        ],
+        "types": {
+            "server_name": "str",
+            "reason": "str"
+        },
+        "description": "Restart a specific MCP server instance"
     }
 }

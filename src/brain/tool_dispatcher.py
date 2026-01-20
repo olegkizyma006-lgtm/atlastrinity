@@ -695,6 +695,36 @@ class ToolDispatcher:
         elif tool_name == "query_db":
             # For now, we don't expose raw SQL to agents for safety, but we could implement specific queries
             return {"success": False, "error": "Direct DB queries via LLM are currently restricted for safety."}
+
+        elif tool_name == "restart_application":
+            reason = args.get("reason", "Manual restart triggered")
+            logger.warning(f"[SYSTEM] Application restart triggered: {reason}")
+            
+            # trigger async restart to allow this request to complete
+            import sys
+            import os
+            
+            async def delayed_restart():
+                # Set restart_pending flag in Redis for resumption logic
+                if self.state_manager.available:
+                    restart_metadata = {
+                        "reason": reason,
+                        "timestamp": datetime.now().isoformat(),
+                        "session_id": "current" # Or a specific active session ID if known
+                    }
+                    self.state_manager.redis.set(self.state_manager._key("restart_pending"), json.dumps(restart_metadata))
+                    logger.info("[SYSTEM] restart_pending flag set in Redis.")
+
+                await asyncio.sleep(2.0)
+                logger.info("[SYSTEM] Executing os.execv restart now...")
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+
+            asyncio.create_task(delayed_restart())
+            
+            return {
+                "success": True,
+                "result": "Initiating graceful restart sequence. I will be back in a moment."
+            }
             
         elif tool_name == "system" or tool_name == "status":
             # Generic status/meta tool for informational steps

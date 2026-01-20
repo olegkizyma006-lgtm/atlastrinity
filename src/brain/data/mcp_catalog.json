@@ -84,10 +84,12 @@
         "description": "Internal Trinity System tools",
         "capabilities": [
             "Restarting MCP servers",
+            "Restarting the main AtlasTrinity application (Self-Healing)",
             "System status management"
         ],
         "key_tools": [
-            "restart_mcp_server"
+            "restart_mcp_server",
+            "restart_application"
         ],
         "when_to_use": "Use when an MCP server is unresponsive or needs a restart."
     },
