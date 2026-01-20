@@ -1187,5 +1187,62 @@
     "optional": [],
     "types": {},
     "description": "Reload the Vibe configuration from disk"
+  },
+  "devtools_check_mcp_health": {
+    "server": "devtools",
+    "required": [],
+    "optional": [],
+    "description": "Run the system-wide MCP health check script. Ping all enabled servers and report their status."
+  },
+  "devtools_launch_inspector": {
+    "server": "devtools",
+    "required": ["server_name"],
+    "optional": [],
+    "types": {
+      "server_name": "str"
+    },
+    "description": "Launch the official MCP Inspector for a specific server (Tier 1-4). Returns localhost URL."
+  },
+  "devtools_validate_config": {
+    "server": "devtools",
+    "required": [],
+    "optional": [],
+    "description": "Validate the syntax and basic structure of the local MCP configuration file."
+  },
+  "devtools_lint_python": {
+    "server": "devtools",
+    "required": [],
+    "optional": ["file_path"],
+    "types": {
+      "file_path": "str"
+    },
+    "description": "Run the 'ruff' linter on a specific file or directory. Returns structured JSON results."
+  },
+  "devtools_lint_js": {
+    "server": "devtools",
+    "required": [],
+    "optional": ["file_path"],
+    "types": {
+      "file_path": "str"
+    },
+    "description": "Run 'oxlint' on a specific file or directory (for JS/TS). Returns structured JSON results."
+  },
+  "devtools_find_dead_code": {
+    "server": "devtools",
+    "required": [],
+    "optional": ["target_path"],
+    "types": {
+      "target_path": "str"
+    },
+    "description": "Run 'knip' to find unused files, dependencies, and exports."
+  },
+  "devtools_check_integrity": {
+    "server": "devtools",
+    "required": [],
+    "optional": ["path"],
+    "types": {
+      "path": "str"
+    },
+    "description": "Run 'pyrefly' to check code integrity and find generic coding errors."
   }
 }
