@@ -9,3 +9,5 @@ isort>=5.13.0
 mypy>=1.8.0
 types-requests>=2.31.0
 types-PyYAML>=6.0.0
+ruff>=0.14.0
+pyrefly>=0.49.0

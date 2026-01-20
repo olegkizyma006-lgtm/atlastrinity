@@ -25,15 +25,15 @@ python3 scripts/setup_dev.py
 
 **Що робить setup:**
 - ✅ Створює Python venv (.venv)
-- ✅ Встановлює PostgreSQL, Redis через Homebrew
+- ✅ Встановлює Redis через Homebrew
 - ✅ **FORCED Build**: Завжди перекомпілює Swift MCP сервер (macos-use) для чистоти бінарника
 - ✅ Встановлює Python залежності (requirements.txt)
-- ✅ Встановлює NPM пакети та 8 основних MCP серверів
+- ✅ Встановлює NPM пакети та **12+ MCP серверів** (Swift, Python, Node)
 - ✅ Завантажує AI моделі (Faster-Whisper, Ukrainian TTS)
 - ✅ **FORCED Sync**: Перезаписує глобальні конфігурації в ~/.config/atlastrinity/ актуальними темплейтами
-- ✅ Ініціалізує базу даних PostgreSQL (таблиця `recovery_attempts`)
-- ✅ Запускає Redis, PostgreSQL сервіси
-- ✅ Налаштовує тайм-аути на **3600s** для стабільної роботи
+- ✅ Ініціалізує базу даних **SQLite** (таблиця `recovery_attempts`)
+- ✅ Запускає Redis сервіс
+- ✅ Налаштовує тайм-аути на **3600s** та встановлює дев-інструменти (Ruff, Pyrefly, Oxlint, Knip, MCP Inspector)
 
 ### 3. Налаштування API Ключів
 
@@ -65,7 +65,7 @@ npm run dev
 
 ```bash
 # Перевірка сервісів
-brew services list | grep -E "redis|postgresql"
+brew services list | grep "redis"
 
 # Перевірка Python залежностей
 .venv/bin/python -c "import faster_whisper, ukrainian_tts; print('OK')"
@@ -80,20 +80,26 @@ cat ~/.config/atlastrinity/mcp/config.json | jq '.mcpServers | keys'
 ## Доступні MCP Сервери
 
 ### Tier 1 (Критичні - Завжди Ввімкнені)
-- **macos-use** - Нативний контроль macOS (Swift, **52 інструменти**)
-- **filesystem** - Файлові операції
-- **sequential-thinking** - Динамічне планування
+- **macos-use** - Нативний контроль macOS (Swift, **39 інструментів**)
+- **filesystem** - Файлові операції (Node)
+- **sequential-thinking** - Динамічне планування (Node)
+- **system** - Керування станом Trinity та самовідновлення (Python)
 
-### Tier 2 (Високий Пріоритет - Ввімкнені)
-- **vibe** - AI Coding & Self-healing (**10 інструментів**)
-- **memory** - Граф знань (Atlas, Tetyana, Grisha) + Namespace Filtering
-- **graph** - Візуалізація зв'язків
-- **redis** - Asyncio Persistence (Fast State management)
-- **puppeteer** - Браузерна автоматизація
-- **chrome-devtools** - Debugging
+### Tier 2 (Високий Пріоритет - Ввімкнені за замовчуванням)
+- **vibe** - AI Coding & Self-healing (Python, **18 інструментів**)
+- **memory** - Knowledge Graph & Long-term Memory (Python, SQLite + ChromaDB)
+- **graph** - Візуалізація графу знань (Python)
+- **redis** - Asyncio Persistence & State Inspection (Python)
+- **github** - Повна інтеграція з GitHub API (Node)
+- **duckduckgo-search** - Швидкий пошук без API ключів (Python)
+- **whisper-stt** - Розпізнавання мови (Whisper, Python)
 
-### Tier 3-4 (Опціональні - Вимкнені за замовчуванням)
-- apple-mcp, github, duckduckgo-search, context7, whisper-stt, docker, postgres, slack, time, graph
+### Tier 3 (Додаткові)
+- **puppeteer** - Браузерна автоматизація (Node, Headless)
+
+### Tier 4 (Спеціалізовані / Дебаг)
+- **chrome-devtools** - Детальне налагодження Chrome (Node)
+- **Debug Tool**: MCP Inspector (`npx @modelcontextprotocol/inspector`)
 
 ## Архітектура Агентів
 
@@ -139,47 +145,34 @@ cat ~/.config/atlastrinity/mcp/config.json | jq '.mcpServers | keys'
 
 ## Структура Проекту
 
-```
+```text
 atlastrinity/
 ├── src/
-│   ├── brain/              # Python Brain (FastAPI)
-│   │   ├── agents/         # Atlas, Tetyana, Grisha
-│   │   ├── mcp_manager.py  # MCP клієнт
-│   │   ├── memory.py       # ChromaDB long-term memory
-│   │   └── server.py       # FastAPI endpoints
-│   ├── main/               # Electron Main Process
-│   ├── renderer/           # React UI
-│   └── mcp_server/         # Кастомні MCP сервери
-│       ├── memory_server.py
-│       ├── notes_server.py  # 🆕
-│       ├── terminal_server.py
-│       └── ...
-├── config/                 # Конфіги проекту
-│   ├── config.yaml         # Основна конфігурація
-│   └── config_sync.py      # Синхронізація з ~/.config
-├── scripts/
-│   ├── setup_dev.py        # 🔧 Головний setup скрипт
-│   └── setup.sh            # Wrapper для setup_dev.py
-└── ~/.config/atlastrinity/ # Глобальні конфіги (створюються setup)
-    ├── .env                # API ключі
-    ├── config.yaml         # Копія конфігурації
-    ├── mcp/
-    │   └── config.json     # MCP серверів конфігурація
-    ├── memory/             # ChromaDB
-    ├── models/             # AI моделі
-    │   ├── tts/
-    │   └── faster-whisper/
-    ├── logs/               # Логи системи
-    └── notes/              # 🆕 Текстові нотатки агентів
+│   ├── brain/                # Python Core (FastAPI, Agents, Logic)
+│   │   ├── agents/           # Atlas (Strategist), Tetyana (Executor), Grisha (Validator)
+│   │   ├── db/               # Database Manager & SQLAlchemy Models
+│   │   ├── prompts/          # Unified Agent Intelligence Protocols
+│   │   ├── mcp_manager.py    # MCP Client & Dynamic Tool Dispatcher
+│   │   ├── orchestrator.py   # Trinity Recursive State Graph
+│   │   └── server.py         # Main API Gateway
+│   ├── main/                 # Electron Browser/Host Process (TypeScript)
+│   ├── renderer/             # Frontend UI (React + Vite + Vanilla CSS)
+│   └── mcp_server/           # Custom local MCP servers (Python)
+│       ├── vibe_server.py    # Self-healing & Coding
+│       ├── memory_server.py  # Knowledge Graph Interface
+│       └── graph_server.py   # Visual Analytics
+├── scripts/                  # DevOps, Setup & Diagnostic Utilities
+├── vendor/                   # External MCP modules (macos-use Swift server)
+├── config/                   # Configuration Blueprints (YAML)
+├── tests/                    # Comprehensive Test Suite (50+ Unit/Integration tests)
+└── ~/.config/atlastrinity/   # APPLICATION RUNTIME STATE (Production)
+    ├── .env                  # Secure Credentials
+    ├── atlastrinity.db       # Active SQLite Knowledge Base
+    ├── mcp/config.json       # Live MCP Mesh Topology
+    └── models/               # Locally Hosted AI (STT/TTS) Models
 ```
 
 ## Troubleshooting
-
-### PostgreSQL не запускається
-```bash
-brew services restart postgresql@17
-brew services list
-```
 
 ### Redis не запускається
 ```bash

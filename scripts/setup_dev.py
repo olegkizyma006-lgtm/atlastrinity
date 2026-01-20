@@ -99,7 +99,7 @@ def ensure_directories():
 def check_system_tools():
     """Перевіряє наявність базових інструментів"""
     print_step("Перевірка базових інструментів...")
-    tools = ["brew", "bun", "swift", "npm", "vibe"]
+    tools = ["brew", "bun", "swift", "npm", "vibe", "oxlint", "knip", "ruff", "pyrefly"]
     missing = []
 
     for tool in tools:
@@ -122,6 +122,12 @@ def check_system_tools():
             except Exception:
                 print_success(f"{tool} знайдено")
         else:
+            # Check venv for python tools
+            if tool in ["ruff", "pyrefly"]:
+                venv_tool = PROJECT_ROOT / ".venv" / "bin" / tool
+                if venv_tool.exists():
+                    print_success(f"{tool} знайдено у .venv")
+                    continue
             if tool == "vibe":
                 print_warning("Vibe CLI не знайдено! (Буде встановлено нижче)")
             else:
@@ -137,7 +143,8 @@ def check_system_tools():
             bun_bin = Path.home() / ".bun" / "bin"
             os.environ["PATH"] += os.pathsep + str(bun_bin)
             print_success("Bun встановлено")
-            if "bun" in missing: missing.remove("bun")
+            if "bun" in missing:
+                missing.remove("bun")
         except Exception as e:
             print_error(f"Не вдалося встановити Bun: {e}")
 
@@ -148,9 +155,22 @@ def check_system_tools():
             # Official vibe installation script
             subprocess.run("curl -fsSL https://get.vibe.sh | sh", shell=True, check=True)
             print_success("Vibe CLI встановлено")
-            if "vibe" in missing: missing.remove("vibe")
+            if "vibe" in missing:
+                missing.remove("vibe")
         except Exception as e:
             print_error(f"Не вдалося встановити Vibe: {e}")
+
+    # Auto-install JS dev tools if missing
+    if any(t in missing for t in ["oxlint", "knip"]):
+        print_info("Деякі JS інструменти (oxlint/knip) відсутні. Спроба встановити через npm...")
+        try:
+            subprocess.run(["npm", "install", "-g", "oxlint", "knip"], check=False)
+            print_success("JS інструменти встановлено")
+            for t in ["oxlint", "knip"]:
+                if t in missing:
+                    missing.remove(t)
+        except Exception:
+            pass
 
     if "swift" in missing:
         print_error("Swift необхідний для компіляції macos-use MCP серверу!")
@@ -301,26 +321,26 @@ def install_brew_deps():
                 capture_output=True,
                 text=True,
             )
-            
+
             is_running = False
             if result.returncode == 0:
                 if '"running":true' in result.stdout.replace(" ", ""):
                     is_running = True
-            
+
             if is_running:
                 print_success(f"{service} вже запущено")
             else:
                 print_info(f"Запуск {service}...")
                 # Use check=False and check output for 'already started'
-                res = subprocess.run(["brew", "services", "start", service], capture_output=True, text=True)
+                res = subprocess.run(
+                    ["brew", "services", "start", service], capture_output=True, text=True
+                )
                 if res.returncode == 0 or "already started" in res.stderr.lower():
                     print_success(f"{service} запущено")
                 else:
                     print_warning(f"Не вдалося запустити {service}: {res.stderr.strip()}")
         except Exception as e:
             print_warning(f"Не вдалося запустити {service}: {e}")
-
-
 
     return True
 
@@ -378,7 +398,7 @@ def verify_mcp_package_versions():
         from src.brain.mcp_preflight import (
             check_system_limits,
             scan_mcp_config_for_package_issues,
-        )  # noqa: E402
+        )
     except ImportError:
         print_warning("Could not import mcp_preflight. Skipping pre-check.")
         return []
@@ -402,10 +422,14 @@ def install_deps():
     print_step("Встановлення залежностей...")
 
     # 1. Python
-    venv_python = str(VENV_PATH / "/bin/python") if (VENV_PATH / "bin" / "python").exists() else str(VENV_PATH / "bin" / "python")
+    venv_python = (
+        str(VENV_PATH / "/bin/python")
+        if (VENV_PATH / "bin" / "python").exists()
+        else str(VENV_PATH / "bin" / "python")
+    )
     # Actually VENV_PATH / "bin" / "python" is more standard, but I'll use what was there or improved.
     venv_python = str(VENV_PATH / "bin" / "python")
-    
+
     # Update PIP first
     subprocess.run([venv_python, "-m", "pip", "install", "-U", "pip"], capture_output=True)
 
@@ -436,10 +460,12 @@ def install_deps():
             "@modelcontextprotocol/server-filesystem",
             "@modelcontextprotocol/server-puppeteer",
             "@modelcontextprotocol/server-github",
+            "@modelcontextprotocol/server-memory",
+            "@modelcontextprotocol/inspector",
         ]
         print_info("Updating critical MCP packages...")
         subprocess.run(
-            ["npm", "install"] + mcp_packages,
+            ["npm", "install", *mcp_packages],
             cwd=PROJECT_ROOT,
             capture_output=True,
             check=True,
@@ -460,7 +486,7 @@ def sync_configs():
         # Force overwrite: copy templates to global configs
         config_yaml_src = PROJECT_ROOT / "config" / "config.yaml.template"
         config_yaml_dst = CONFIG_ROOT / "config.yaml"
-        
+
         mcp_json_src = PROJECT_ROOT / "src" / "mcp_server" / "config.json.template"
         mcp_json_dst = CONFIG_ROOT / "mcp" / "config.json"
 
@@ -471,6 +497,7 @@ def sync_configs():
         else:
             # Fallback: create minimal config
             import yaml
+
             defaults = {
                 "agents": {
                     "atlas": {"model": "gpt-5-mini", "temperature": 0.7},
@@ -500,14 +527,16 @@ def sync_configs():
             print_success(f"Copied .env -> {env_dst}")
 
         # Copy vibe_config.toml template (Overwrite)
-        vibe_toml_src = PROJECT_ROOT / "src" / "mcp_server" / "templates" / "vibe_config.toml.template"
+        vibe_toml_src = (
+            PROJECT_ROOT / "src" / "mcp_server" / "templates" / "vibe_config.toml.template"
+        )
         vibe_toml_dst = CONFIG_ROOT / "vibe_config.toml"
         if vibe_toml_src.exists():
             shutil.copy2(vibe_toml_src, vibe_toml_dst)
             print_success("FORCED SYNC: Overwrote vibe_config.toml from project template")
         else:
             print_warning("vibe_config.toml.template missing, skipped overwrite")
-        
+
         print_info("All configurations are in ~/.config/atlastrinity/")
         print_info("Edit configs there directly (no sync needed)")
         return True
@@ -551,7 +580,7 @@ try:
 except ImportError:
     def _patch_tts_config(d): pass
 
-cache_dir = Path('{DIRS['tts_models']}')
+cache_dir = Path('{DIRS["tts_models"]}')
 cache_dir.mkdir(parents=True, exist_ok=True)
 
 from ukrainian_tts.tts import TTS
@@ -581,7 +610,9 @@ print('TTS OK')
         else:
             # Check if it failed specifically because of feats_stats.npz and try to provide helpful info
             if "feats_stats.npz" in res.stderr or "feats_stats.npz" in res.stdout:
-                print_warning("Виявлено проблему з feats_stats.npz. Спробуйте вручну видалити папку models/tts та запустити знову.")
+                print_warning(
+                    "Виявлено проблему з feats_stats.npz. Спробуйте вручну видалити папку models/tts та запустити знову."
+                )
             print_warning(f"Помилка завантаження TTS: {res.stderr or res.stdout}")
     except Exception as e:
         print_warning(f"Помилка завантаження TTS: {e}")
@@ -590,10 +621,10 @@ print('TTS OK')
 def backup_databases():
     """Архівує SQLite базу та ChromaDB для синхронізації через Git"""
     print_step("Створення резервних копій баз даних...")
-    
+
     backup_dir = PROJECT_ROOT / "backups" / "databases"
     backup_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # 1. Backup SQLite database
     sqlite_src = CONFIG_ROOT / "atlastrinity.db"
     if sqlite_src.exists():
@@ -602,7 +633,7 @@ def backup_databases():
         print_success(f"SQLite база збережена: {sqlite_dst}")
     else:
         print_warning("SQLite база не знайдена, пропускаємо.")
-    
+
     # 2. Backup ChromaDB (vector database)
     chroma_src = CONFIG_ROOT / "memory"
     if chroma_src.exists():
@@ -613,27 +644,29 @@ def backup_databases():
         print_success(f"ChromaDB (векторна база) збережена: {chroma_dst}")
     else:
         print_warning("ChromaDB не знайдена, пропускаємо.")
-    
+
     print_info(f"Резервні копії збережено в: {backup_dir}")
-    print_info("Тепер ви можете зробити: git add backups/ && git commit -m 'backup: database snapshot'")
+    print_info(
+        "Тепер ви можете зробити: git add backups/ && git commit -m 'backup: database snapshot'"
+    )
 
 
 def restore_databases():
     """Відновлює бази даних з архіву"""
     print_step("Відновлення баз даних з резервних копій...")
-    
+
     backup_dir = PROJECT_ROOT / "backups" / "databases"
     if not backup_dir.exists():
         print_warning("Резервні копії не знайдено. Виконайте git pull або backup_databases().")
         return
-    
+
     # 1. Restore SQLite
     sqlite_src = backup_dir / "atlastrinity.db"
     if sqlite_src.exists():
         sqlite_dst = CONFIG_ROOT / "atlastrinity.db"
         shutil.copy2(sqlite_src, sqlite_dst)
         print_success(f"SQLite база відновлена: {sqlite_dst}")
-    
+
     # 2. Restore ChromaDB
     chroma_src = backup_dir / "memory"
     if chroma_src.exists():
@@ -642,7 +675,7 @@ def restore_databases():
             shutil.rmtree(chroma_dst)
         shutil.copytree(chroma_src, chroma_dst)
         print_success(f"ChromaDB відновлена: {chroma_dst}")
-    
+
     print_success("Бази даних успішно відновлено!")
 
 
@@ -651,7 +684,9 @@ async def verify_database_tables():
     print_step("Детальна перевірка таблиць бази даних...")
     venv_python = str(VENV_PATH / "bin" / "python")
     try:
-        subprocess.run([venv_python, str(PROJECT_ROOT / "scripts" / "verify_db_tables.py")], check=True)
+        subprocess.run(
+            [venv_python, str(PROJECT_ROOT / "scripts" / "verify_db_tables.py")], check=True
+        )
         return True
     except Exception as e:
         print_error(f"Помилка при верифікації таблиць: {e}")
@@ -684,14 +719,39 @@ def check_services():
                     print_success(f"{label} запущено (CLI)")
                     continue
 
-
-
             print_warning(f"{label} НЕ запущено. Спробуйте: brew services start {service}")
 
         except Exception as e:
             print_warning(f"Не вдалося перевірити {label}: {e}")
 
 
+def run_integrity_check():
+    """Runs ruff and oxlint to ensure the setup is clean"""
+    print_step("Запуск перевірки цілісності коду (Integrity Check)...")
+    venv_python = str(VENV_PATH / "bin" / "python")
+
+    # Python checks
+    try:
+        print_info("Перевірка Python (Ruff)...")
+        subprocess.run([venv_python, "-m", "ruff", "check", "."], cwd=PROJECT_ROOT, check=True)
+        print_success("Python integrity OK")
+    except subprocess.CalledProcessError:
+        print_warning(
+            "Виявлено проблеми в Python коді. Запустіть 'npm run format:write' для виправлення."
+        )
+    except Exception as e:
+        print_warning(f"Не вдалося запустити Ruff: {e}")
+
+    # TS/JS checks
+    if shutil.which("oxlint"):
+        try:
+            print_info("Перевірка TS/JS (Oxlint)...")
+            subprocess.run(["oxlint", "--ignore-path", ".gitignore"], cwd=PROJECT_ROOT, check=True)
+            print_success("TS/JS integrity OK")
+        except subprocess.CalledProcessError:
+            print_warning("Виявлено проблеми в TS/JS коді.")
+        except Exception as e:
+            print_warning(f"Не вдалося запустити Oxlint: {e}")
 
 
 def main():
@@ -705,7 +765,7 @@ def main():
 
     check_python_version()
     ensure_directories()
-    
+
     # Auto-restore databases if backups exist (from git clone)
     backup_dir = PROJECT_ROOT / "backups" / "databases"
     if backup_dir.exists() and not (CONFIG_ROOT / "atlastrinity.db").exists():
@@ -743,12 +803,12 @@ def main():
     sync_configs()
 
     ensure_database()  # Now dependencies are ready and config is synced
-    
+
     # Run detailed table verification
     asyncio.run(verify_database_tables())
 
     build_swift_mcp()
-    
+
     # Ensure all binaries are executable
     print_step("Налаштування прав доступу для бінарних файлів...")
     bin_dirs = [PROJECT_ROOT / "bin", PROJECT_ROOT / "vendor"]
@@ -759,13 +819,14 @@ def main():
                     fpath = Path(root) / f
                     # If it looks like an executable (macos-use, terminal, etc)
                     if "macos-use" in f or "vibe" in f or fpath.suffix == "":
-                         try:
-                             os.chmod(fpath, 0o755)
-                         except Exception:
-                             pass
+                        try:
+                            os.chmod(fpath, 0o755)
+                        except Exception:
+                            pass
 
     download_models()
     check_services()
+    run_integrity_check()
 
     print("\n" + "=" * 60)
     print_success("✅ Налаштування завершено!")
@@ -776,18 +837,19 @@ def main():
     print("  2. Запустіть систему: npm run dev")
     print("")
     print_info("Доступні MCP сервери:")
-    print("  - memory: Граф знань & Long-term Memory (Atlas, Tetyana, Grisha)")
-    print("  - macos-use: Нативний контроль macOS + Термінал (Tetyana, Grisha)")
-    print("  - vibe: Coding Agent & Self-Healing (Atlas, Tetyana, Grisha)")
-    print("  - filesystem: Файлові операції (Tetyana, Grisha)")
-    print("  - sequential-thinking: Глибоке мислення (Atlas, Tetyana, Grisha)")
-    print("  - chrome-devtools: Автоматизація Chrome (Tetyana)")
-    print("  - puppeteer: Веб-скрейпінг та пошук (Tetyana, Grisha)")
-    print("  - github: Офіційний GitHub MCP (PRs, Issues, Code Search)")
-    print("  - duckduckgo-search: Швидкий пошук без ключів (Tetyana, Grisha)")
-    print("  - whisper-stt: Локальне розпізнавання мови (Tetyana)")
-    print("  - graph: Візуалізація графу знань (Atlas, Grisha)")
-    print("  - self-healing: Автоматичне відновлення стану та перезапуск (System-wide)")
+    print("  - memory: Граф знань & Long-term Memory (Python)")
+    print("  - macos-use: Нативний контроль macOS + Термінал (Swift)")
+    print("  - vibe: Coding Agent & Self-Healing (Python)")
+    print("  - filesystem: Файлові операції (Node)")
+    print("  - sequential-thinking: Глибоке мислення (Node)")
+    print("  - chrome-devtools: Автоматизація Chrome (Node)")
+    print("  - puppeteer: Веб-скрейпінг та пошук (Node)")
+    print("  - github: Офіційний GitHub MCP (Node)")
+    print("  - duckduckgo-search: Швидкий пошук (Python)")
+    print("  - whisper-stt: Локальне розпізнавання мови (Python)")
+    print("  - graph: Візуалізація графу знань (Python)")
+    print("  - self-healing: Автоматичне відновлення стану (System-wide)")
+    print("  - MCP Inspector: Дебаг MCP серверів (npx @modelcontextprotocol/inspector)")
     print("=" * 60 + "\n")
 
 
