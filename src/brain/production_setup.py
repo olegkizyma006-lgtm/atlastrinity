@@ -175,6 +175,16 @@ def copy_config_if_needed():
     else:
         print(f"[Production Setup] ⚠️  Source not found: {mcp_src}")
 
+    # 4. vibe_config.toml - Simple copy if missing (Vibe manages its own defaults)
+    vibe_src = resources_path / "mcp_server" / "templates" / "vibe_config.toml.template"
+    vibe_dst = CONFIG_ROOT / "vibe_config.toml"
+    if vibe_src.exists() and not vibe_dst.exists():
+        vibe_dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(vibe_src, vibe_dst)
+        print("[Production Setup] ✓ Created: vibe_config.toml")
+    elif vibe_dst.exists():
+        print("[Production Setup] ✓ Preserved: vibe_config.toml")
+
     print("[Production Setup] ✓ Config files synchronized")
 
 

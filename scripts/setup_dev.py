@@ -498,6 +498,15 @@ def sync_configs():
         if env_src.exists() and not env_dst.exists():
             shutil.copy2(env_src, env_dst)
             print_success(f"Copied .env -> {env_dst}")
+
+        # Copy vibe_config.toml template (Overwrite)
+        vibe_toml_src = PROJECT_ROOT / "src" / "mcp_server" / "templates" / "vibe_config.toml.template"
+        vibe_toml_dst = CONFIG_ROOT / "vibe_config.toml"
+        if vibe_toml_src.exists():
+            shutil.copy2(vibe_toml_src, vibe_toml_dst)
+            print_success("FORCED SYNC: Overwrote vibe_config.toml from project template")
+        else:
+            print_warning("vibe_config.toml.template missing, skipped overwrite")
         
         print_info("All configurations are in ~/.config/atlastrinity/")
         print_info("Edit configs there directly (no sync needed)")

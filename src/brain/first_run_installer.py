@@ -52,6 +52,7 @@ class SetupStep(Enum):
     DOWNLOAD_TTS = "download_tts"
     DOWNLOAD_STT = "download_stt"
     BUILD_MACOS_USE = "build_macos_use"
+    INSTALL_VIBE = "install_vibe"
     SETUP_COMPLETE = "setup_complete"
 
 
@@ -345,6 +346,33 @@ class FirstRunInstaller:
         """Install Redis"""
         return self._install_brew_package(SetupStep.INSTALL_REDIS, "redis", check_cmd="redis-cli")
 
+    def install_vibe(self) -> bool:
+        """Install Mistral Vibe CLI"""
+        self._report(SetupStep.INSTALL_VIBE, 0.0, "Перевірка Vibe CLI...")
+        
+        if shutil.which("vibe"):
+            self._report(SetupStep.INSTALL_VIBE, 1.0, "Vibe CLI вже встановлено ✓")
+            return True
+            
+        self._report(SetupStep.INSTALL_VIBE, 0.3, "Встановлення Vibe CLI...")
+        
+        # Install via official script
+        cmd = "curl -fsSL https://get.vibe.sh | sh"
+        code, stdout, stderr = _run_command_async(cmd, timeout=300)
+        
+        if code == 0:
+            self._report(SetupStep.INSTALL_VIBE, 1.0, "Vibe CLI успішно встановлено ✓")
+            return True
+        else:
+            self._report(
+                SetupStep.INSTALL_VIBE, 
+                1.0, 
+                "Помилка встановлення Vibe CLI", 
+                success=False, 
+                error=stderr[:100]
+            )
+            return False
+
     def install_postgres(self) -> bool:
         """Install PostgreSQL (skipped if using SQLite backend)"""
         from .config_loader import config as sys_config
@@ -612,6 +640,7 @@ class FirstRunInstaller:
         # 4. Install services (important but can continue)
         self.install_docker()
         self.install_redis()
+        self.install_vibe()
         # self.install_postgres() # Перейшли на SQLite, установка PostgreSQL більше не є обов'язковою
 
         # 5. Start services

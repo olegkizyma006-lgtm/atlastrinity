@@ -35,6 +35,11 @@ def check_docker_installed() -> bool:
     return os.path.exists("/Applications/Docker.app") or shutil.which("docker") is not None
 
 
+def check_vibe_installed() -> bool:
+    """Check if Mistral Vibe CLI is installed"""
+    return shutil.which("vibe") is not None
+
+
 def is_docker_running() -> bool:
     """Check if Docker daemon is active"""
     # docker info is a reliable way to check if daemon is responsive
@@ -290,6 +295,46 @@ def ensure_chrome(force_check: bool = False) -> bool:
     return False
 
 
+def ensure_vibe(force_check: bool = False) -> bool:
+    """
+    Ensure Mistral Vibe CLI is installed.
+    """
+    flag_file = CONFIG_ROOT / ".vibe_ready"
+    first_run = not flag_file.exists() or force_check
+
+    if not first_run:
+        if check_vibe_installed():
+            return True
+        logger.info("[Services] Vibe CLI not found, attempting to install...")
+
+    if check_vibe_installed():
+        if first_run:
+            flag_file.touch()
+        return True
+
+    logger.info("[Services] Installing Mistral Vibe CLI via official script...")
+    try:
+        # Using shell=True safely here as the command is hardcoded and trusted
+        result = subprocess.run(
+            "curl -fsSL https://get.vibe.sh | sh",
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        if result.returncode == 0:
+            logger.info("[Services] ✓ Mistral Vibe CLI installed successfully.")
+            if first_run:
+                flag_file.touch()
+            return True
+        else:
+            logger.error(f"[Services] ✗ Failed to install Vibe CLI: {result.stderr}")
+            return False
+    except Exception as e:
+        logger.error(f"[Services] Error installing Vibe CLI: {e}")
+        return False
+
+
 async def ensure_all_services(force_check: bool = False):
     """
     Run check for all required system services asynchronously.
@@ -320,7 +365,12 @@ async def ensure_all_services(force_check: bool = False):
         chrome_ok = await asyncio.to_thread(ensure_chrome, force_check)
         ServiceStatus.details["chrome"] = "ok" if chrome_ok else "missing"
 
-        if redis_ok and docker_ok and db_ok:
+        # Check Vibe
+        ServiceStatus.status_message = "Ensuring Vibe CLI is available..."
+        vibe_ok = await asyncio.to_thread(ensure_vibe, force_check)
+        ServiceStatus.details["vibe"] = "ok" if vibe_ok else "failed"
+
+        if redis_ok and docker_ok and db_ok and vibe_ok:
             ServiceStatus.is_ready = True
             ServiceStatus.status_message = "System services ready"
             logger.info("[Services] All system services are ready.")
