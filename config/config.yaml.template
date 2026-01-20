@@ -89,6 +89,13 @@ mcp:
     model: large-v3-turbo
     language: uk
 
+  devtools:
+    enabled: true
+    ruff_enabled: true
+    oxlint_enabled: true
+    knip_enabled: true
+    pyrefly_enabled: true
+
   # === TIER 3: ADDITIONAL (Додаткові) ===
   puppeteer:
     enabled: true

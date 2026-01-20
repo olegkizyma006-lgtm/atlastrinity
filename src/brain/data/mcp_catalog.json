@@ -248,5 +248,24 @@
     ],
     "key_tools": ["redis_get", "redis_keys", "redis_info", "redis_ttl", "redis_hgetall"],
     "when_to_use": "Inspecting session state, verifying restart_pending flags, debugging persistence issues, or managing temporary cross-agent flags."
+  },
+  "devtools": {
+    "name": "devtools",
+    "tier": 2,
+    "category": "developer",
+    "description": "Developer Tools (Linter & Analysis) wrapper",
+    "capabilities": [
+      "Python linting (Ruff)",
+      "JavaScript/TypeScript linting (Oxlint)",
+      "Dead code analysis (Knip)",
+      "Code integrity check (Pyrefly)"
+    ],
+    "key_tools": [
+      "devtools_lint_python",
+      "devtools_lint_js",
+      "devtools_find_dead_code",
+      "devtools_check_integrity"
+    ],
+    "when_to_use": "Validating code quality, finding errors, and checking project health."
   }
 }

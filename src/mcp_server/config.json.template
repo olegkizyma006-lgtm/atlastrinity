@@ -156,6 +156,21 @@
         "tetyana"
       ]
     },
+    "devtools": {
+      "command": "python3",
+      "connect_timeout": 60,
+      "args": [
+        "-m",
+        "src.mcp_server.devtools_server"
+      ],
+      "description": "Developer Tools (Linter & Analysis) wrapper (Ruff, Oxlint, Knip, Pyrefly).",
+      "disabled": false,
+      "tier": 2,
+      "agents": [
+        "grisha",
+        "tetyana"
+      ]
+    },
     "github": {
       "command": "npx",
       "connect_timeout": 60,

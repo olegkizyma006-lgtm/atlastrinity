@@ -309,6 +309,7 @@ def check_mcp_servers():
         "duckduckgo": "duckduckgo_search_server.py",
         "whisper": "whisper_server.py",
         "redis": "redis_server.py",
+        "devtools": "devtools_server.py",
     }
 
     mcp_src_dir = PROJECT_ROOT / "src" / "mcp_server"

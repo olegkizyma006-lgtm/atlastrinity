@@ -93,6 +93,7 @@ cat ~/.config/atlastrinity/mcp/config.json | jq '.mcpServers | keys'
 - **github** - Повна інтеграція з GitHub API (Node)
 - **duckduckgo-search** - Швидкий пошук без API ключів (Python)
 - **whisper-stt** - Розпізнавання мови (Whisper, Python)
+- **devtools** - Валідація коду та безпеки (Ruff, Oxlint, Knip, Pyrefly)
 
 ### Tier 3 (Додаткові)
 - **puppeteer** - Браузерна автоматизація (Node, Headless)
