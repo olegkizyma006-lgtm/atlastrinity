@@ -1,12 +1,13 @@
 import os
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from mcp.server import FastMCP
 
 from src.brain.db.manager import db_manager  # noqa: E402
 from src.brain.knowledge_graph import knowledge_graph  # noqa: E402
 from src.brain.memory import long_term_memory  # noqa: E402
+from src.brain.logger import logger
 
 server = FastMCP("memory")
 
@@ -30,7 +31,7 @@ def _normalize_entity(ent: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @server.tool()
-async def create_entities(entities: List[Dict[str, Any]]) -> Dict[str, Any]:
+async def create_entities(entities: List[Dict[str, Any]], namespace: str = "global", task_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Args:
         entities: List of entity dictionaries. Each must have a 'name' field.
@@ -158,7 +159,7 @@ async def bulk_ingest_table(file_path: str, table_name: str, namespace: str = "g
 
 
 @server.tool()
-async def add_observations(name: str, observations: List[str]) -> Dict[str, Any]:
+async def add_observations(name: str, observations: List[str], namespace: str = "global", task_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Args:
         name: The name of the entity to update
@@ -174,7 +175,7 @@ async def add_observations(name: str, observations: List[str]) -> Dict[str, Any]
     
     # Get existing
     from sqlalchemy import select
-    from brain.db.schema import KGNode
+    from src.brain.db.schema import KGNode
     
     session = await db_manager.get_session()
     try:
@@ -216,7 +217,7 @@ async def get_entity(name: str) -> Dict[str, Any]:
     node_id = _get_id(name)
     
     from sqlalchemy import select
-    from brain.db.schema import KGNode
+    from src.brain.db.schema import KGNode
     
     session = await db_manager.get_session()
     try:
@@ -246,7 +247,7 @@ async def list_entities() -> Dict[str, Any]:
     await db_manager.initialize()
     
     from sqlalchemy import select
-    from brain.db.schema import KGNode
+    from src.brain.db.schema import KGNode
     
     session = await db_manager.get_session()
     try:
@@ -260,7 +261,7 @@ async def list_entities() -> Dict[str, Any]:
 
 
 @server.tool()
-async def search(query: str, limit: int = 10) -> Dict[str, Any]:
+async def search(query: str, limit: int = 10, namespace: Optional[str] = None) -> Dict[str, Any]:
     """
     Args:
         query: Text to search for within entity names, types, and observations
@@ -280,7 +281,7 @@ async def search(query: str, limit: int = 10) -> Dict[str, Any]:
             query_texts=[q],
             n_results=lim,
             include=["documents", "metadatas", "distances"],
-            where=where_filter
+            where=cast(Any, where_filter)
         )
         
         formatted = []
@@ -312,7 +313,7 @@ async def search(query: str, limit: int = 10) -> Dict[str, Any]:
 
     # 2. Fallback to SQL ILIKE search if Chroma is down
     from sqlalchemy import select, or_
-    from brain.db.schema import KGNode
+    from src.brain.db.schema import KGNode
     
     await db_manager.initialize()
     session = await db_manager.get_session()
@@ -344,7 +345,7 @@ async def search(query: str, limit: int = 10) -> Dict[str, Any]:
 
 
 @server.tool()
-async def create_relation(source: str, target: str, relation: str) -> Dict[str, Any]:
+async def create_relation(source: str, target: str, relation: str, namespace: Optional[str] = None) -> Dict[str, Any]:
     """
     Create a relationship between two entities in the knowledge graph.
 
@@ -362,7 +363,7 @@ async def create_relation(source: str, target: str, relation: str) -> Dict[str, 
         source_id=source_id,
         target_id=target_id,
         relation=relation,
-        namespace=namespace
+        namespace=str(namespace) if namespace else "global"
     )
     
     if not success:
@@ -372,13 +373,13 @@ async def create_relation(source: str, target: str, relation: str) -> Dict[str, 
 
 
 @server.tool()
-async def search_nodes(query: str, limit: int = 10) -> Dict[str, Any]:
+async def search_nodes(query: str, limit: int = 10, namespace: Optional[str] = None) -> Dict[str, Any]:
     """Alias for search function to maintain compatibility"""
-    return await search(query, limit)
+    return await search(query, limit, namespace)
 
 
 @server.tool()
-async def delete_entity(name: str) -> Dict[str, Any]:
+async def delete_entity(name: str, namespace: Optional[str] = None) -> Dict[str, Any]:
     """
     Delete an entity from the knowledge graph (SQLite + ChromaDB).
     """
@@ -389,7 +390,7 @@ async def delete_entity(name: str) -> Dict[str, Any]:
     await db_manager.initialize()
     node_id = _get_id(name)
 
-    from brain.db.schema import KGNode
+    from src.brain.db.schema import KGNode
     from sqlalchemy import delete
     
     session = await db_manager.get_session()
@@ -410,8 +411,6 @@ async def delete_entity(name: str) -> Dict[str, Any]:
 
     return {"success": True, "deleted": True}
 
-
-    return {"success": success, "node_id": node_id, "target": target_namespace, "agent": agent_name}
 
 
 @server.tool()

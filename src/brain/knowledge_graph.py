@@ -5,8 +5,9 @@ Bridges Structured Data (SQL/SQLite) and Semantic Data (ChromaDB)
 
 import json
 import logging
+import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -67,7 +68,11 @@ class KnowledgeGraph:
                     if existing:
                         existing.type = node_type
                         existing.namespace = namespace
-                        existing.task_id = task_id
+                        if namespace == "global":
+                            existing.task_id = None
+                        elif task_id:
+                            existing.task_id = uuid.UUID(task_id) if isinstance(task_id, str) else cast(Any, task_id)
+                        
                         existing.attributes = attributes
                         existing.last_updated = datetime.now()
                         session.add(existing)
@@ -182,11 +187,11 @@ class KnowledgeGraph:
                     # Fallback to individual add for mixed state
                     for row in rows:
                         await self.add_node(
-                            node_type=row["type"],
-                            node_id=row["id"],
-                            attributes=row["attributes"],
-                            namespace=row["namespace"],
-                            task_id=row["task_id"],
+                            node_type=str(row["type"]),
+                            node_id=str(row["id"]),
+                            attributes=cast(Dict[str, Any], row["attributes"]),
+                            namespace=str(row["namespace"]),
+                            task_id=cast(Optional[str], row["task_id"]),
                             sync_to_vector=True # Batch vectorization is harder
                         )
 
@@ -244,10 +249,10 @@ class KnowledgeGraph:
                 try:
                     long_term_memory.knowledge.update(
                         ids=[node_id],
-                        metadatas=[{
+                        metadatas=cast(Any, [{
                             "namespace": target_namespace,
                             "task_id": "" if target_namespace == "global" else existing.task_id or ""
-                        }]
+                        }])
                     )
                 except Exception as ve:
                     logger.warning(f"[GRAPH] Vector metadata update failed during promotion: {ve}")

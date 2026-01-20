@@ -1,6 +1,7 @@
 import os
 
 import httpx
+from typing import Optional
 from mcp.server import FastMCP
 
 from src.brain.config_loader import config
@@ -49,7 +50,7 @@ async def _transcribe_via_brain(audio_path: str):
 
 
 @server.tool()
-async def transcribe_audio(audio_path: str, language: str = None) -> str:
+async def transcribe_audio(audio_path: str, language: Optional[str] = None) -> str:
     """Transcribe an audio file to text. Uses Brain server if available to save VRAM."""
     # 1. Try Brain API first (Shared Memory / No duplication)
     text = await _transcribe_via_brain(audio_path)
@@ -64,7 +65,7 @@ async def transcribe_audio(audio_path: str, language: str = None) -> str:
 
 
 @server.tool()
-async def record_and_transcribe(duration: float = 5.0, language: str = None) -> str:
+async def record_and_transcribe(duration: float = 5.0, language: Optional[str] = None) -> str:
     """Record audio from microphone and transcribe it."""
     # Recording usually happens locally on the client side
     stt = await get_local_stt()

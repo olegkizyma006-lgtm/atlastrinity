@@ -2,7 +2,7 @@ import os
 import sys
 import json
 from typing import Any, Dict, List, Optional
-import redis
+import redis.asyncio as redis
 
 from mcp.server import FastMCP
 
@@ -11,8 +11,8 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 root = os.path.join(current_dir, "..", "..")
 sys.path.insert(0, os.path.abspath(root))
 
-from brain.config_loader import config  # noqa: E402
-from brain.logger import logger  # noqa: E402
+from src.brain.config_loader import config  # noqa: E402
+from src.brain.logger import logger  # noqa: E402
 
 server = FastMCP("redis")
 
@@ -28,7 +28,9 @@ def get_redis_client():
             _redis_client = redis.Redis.from_url(
                 redis_url, decode_responses=True, socket_connect_timeout=2
             )
-            _redis_client.ping()
+            # Ping is async in redis.asyncio
+            # We skip ping in initialization to avoid blocking if we don't have an event loop yet
+            # FastMCP will handle the async context
             logger.info(f"[REDIS-MCP] Connected to Redis")
         except Exception as e:
             logger.error(f"[REDIS-MCP] Failed to connect to Redis: {e}")
@@ -44,7 +46,7 @@ async def redis_get(key: str) -> Dict[str, Any]:
     """
     try:
         r = get_redis_client()
-        val = r.get(key)
+        val = await r.get(key)
         if val is None:
             return {"success": True, "key": key, "value": None, "found": False}
         
@@ -73,7 +75,7 @@ async def redis_set(key: str, value: Any, ex_seconds: Optional[int] = None) -> D
         if not isinstance(value, str):
             value = json.dumps(value, default=str)
         
-        r.set(key, value, ex=ex_seconds)
+        await r.set(key, value, ex=ex_seconds)
         return {"success": True, "key": key, "status": "OK"}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -87,7 +89,7 @@ async def redis_keys(pattern: str = "*") -> Dict[str, Any]:
     """
     try:
         r = get_redis_client()
-        keys = r.keys(pattern)
+        keys = await r.keys(pattern)
         return {"success": True, "keys": list(keys), "count": len(keys)}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -101,7 +103,7 @@ async def redis_delete(key: str) -> Dict[str, Any]:
     """
     try:
         r = get_redis_client()
-        deleted = r.delete(key)
+        deleted = await r.delete(key)
         return {"success": True, "key": key, "deleted": bool(deleted)}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -113,7 +115,7 @@ async def redis_info() -> Dict[str, Any]:
     """
     try:
         r = get_redis_client()
-        info = r.info()
+        info = await r.info()
         # Filter for most useful info to avoid context bloat
         essential_info = {
             "version": info.get("redis_version"),
@@ -135,7 +137,7 @@ async def redis_ttl(key: str) -> Dict[str, Any]:
     """
     try:
         r = get_redis_client()
-        ttl = r.ttl(key)
+        ttl = await r.ttl(key)
         # Redis TTL returns -1 for no expiry, -2 for not found
         return {"success": True, "key": key, "ttl": ttl}
     except Exception as e:
@@ -150,7 +152,7 @@ async def redis_hgetall(key: str) -> Dict[str, Any]:
     """
     try:
         r = get_redis_client()
-        val = r.hgetall(key)
+        val = await r.hgetall(key)
         return {"success": True, "hash": val}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -165,7 +167,7 @@ async def redis_hset(key: str, mapping: Dict[str, Any]) -> Dict[str, Any]:
     """
     try:
         r = get_redis_client()
-        r.hset(key, mapping=mapping)
+        await r.hset(key, mapping=mapping)
         return {"success": True, "key": key}
     except Exception as e:
         return {"success": False, "error": str(e)}

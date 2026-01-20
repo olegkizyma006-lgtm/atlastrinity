@@ -18,27 +18,27 @@ try:
 except ImportError:
     from langgraph.graph.message import add_messages
 
-from .agents import Atlas, Grisha, Tetyana
-from .agents.tetyana import StepResult
-from .config import IS_MACOS, PLATFORM_NAME, PROJECT_ROOT
-from .config_loader import config
-from .consolidation import consolidation_module
-from .context import shared_context
-from .db.manager import db_manager
-from .db.schema import LogEntry as DBLog
-from .db.schema import Session as DBSession
-from .db.schema import Task as DBTask
-from .db.schema import TaskStep as DBStep
-from .db.schema import ToolExecution as DBToolExecution
-from .knowledge_graph import knowledge_graph
-from .logger import logger
-from .mcp_manager import mcp_manager
-from .memory import long_term_memory
-from .message_bus import AgentMsg, MessageType, message_bus  # noqa: E402
-from .metrics import metrics_collector  # noqa: E402
-from .notifications import notifications
-from .state_manager import state_manager
-from .voice.tts import VoiceManager
+from src.brain.agents import Atlas, Grisha, Tetyana
+from src.brain.agents.tetyana import StepResult
+from src.brain.config import IS_MACOS, PLATFORM_NAME, PROJECT_ROOT
+from src.brain.config_loader import config
+from src.brain.consolidation import consolidation_module
+from src.brain.context import shared_context
+from src.brain.db.manager import db_manager
+from src.brain.db.schema import LogEntry as DBLog
+from src.brain.db.schema import Session as DBSession
+from src.brain.db.schema import Task as DBTask
+from src.brain.db.schema import TaskStep as DBStep
+from src.brain.db.schema import ToolExecution as DBToolExecution
+from src.brain.knowledge_graph import knowledge_graph
+from src.brain.logger import logger
+from src.brain.mcp_manager import mcp_manager
+from src.brain.memory import long_term_memory
+from src.brain.message_bus import AgentMsg, MessageType, message_bus  # noqa: E402
+from src.brain.metrics import metrics_collector  # noqa: E402
+from src.brain.notifications import notifications
+from src.brain.state_manager import state_manager
+from src.brain.voice.tts import VoiceManager
 import uuid
 from functools import partial
 
@@ -117,7 +117,12 @@ class Trinity:
                     original_request = ""
                     for m in messages:
                          if "HumanMessage" in str(type(m)) or (isinstance(m, dict) and m.get("type") == "human"):
-                              original_request = m.content if hasattr(m, "content") else m.get("content", "")
+                              if hasattr(m, "content"):
+                                  original_request = str(m.content)
+                              elif isinstance(m, dict):
+                                  original_request = str(m.get("content", ""))
+                              else:
+                                  original_request = str(m)
                               break
                     
                     if original_request:
@@ -335,7 +340,7 @@ class Trinity:
             data = state_manager.redis.get(restart_key)
             
             if data:
-                restart_info = json.loads(data)
+                restart_info = json.loads(cast(str, data))
                 reason = restart_info.get("reason", "Unknown reason")
                 session_id = restart_info.get("session_id", "current_session")
                 
@@ -635,7 +640,7 @@ class Trinity:
             plan_obj = self.state["current_plan"]
             # Cast plan if it's a dict (from Redis restoration)
             if isinstance(plan_obj, dict):
-                 from .agents.atlas import TaskPlan
+                 from src.brain.agents.atlas import TaskPlan
                  # Clean steps if they are already success: True
                  plan = TaskPlan(
                      id=plan_obj.get("id", "resumed"),
@@ -883,7 +888,7 @@ class Trinity:
             # B. Store in Structured DB (SQLite)
             if db_manager.available:
                 async with await db_manager.get_session() as db_sess:
-                    from .db.schema import ConversationSummary as DBConvSummary
+                    from src.brain.db.schema import ConversationSummary as DBConvSummary
                     
                     new_summary = DBConvSummary(
                         session_id=session_id,
@@ -1107,7 +1112,7 @@ class Trinity:
                 if db_manager.available and db_step_id:
                     try:
                         async with await db_manager.get_session() as db_sess:
-                            from .db.schema import RecoveryAttempt
+                            from src.brain.db.schema import RecoveryAttempt
                             rec_attempt = RecoveryAttempt(
                                 step_id=db_step_id,
                                 depth=depth,
@@ -1304,7 +1309,7 @@ class Trinity:
                         try:
                             async with await db_manager.get_session() as db_sess:
                                 from sqlalchemy import update
-                                from .db.schema import RecoveryAttempt
+                                from src.brain.db.schema import RecoveryAttempt
                                 
                                 is_success = bool(vibe_text and len(vibe_text) > 50)
                                 
@@ -1497,7 +1502,8 @@ class Trinity:
                 if getattr(result, "is_deviation", False) or result.error == "strategy_deviation":
                     try:
                         proposal_text = result.deviation_info.get("analysis") if getattr(result, "deviation_info", None) else result.result
-                        logger.warning(f"[ORCHESTRATOR] Tetyana proposed a deviation: {proposal_text[:200]}...")
+                        p_text = str(proposal_text)
+                        logger.warning(f"[ORCHESTRATOR] Tetyana proposed a deviation: {p_text[:200]}...")
                         
                         # Consult Atlas
                         evaluation = await self.atlas.evaluate_deviation(
@@ -1522,11 +1528,12 @@ class Trinity:
                             
                             # PERSISTENCE: Remember this approved deviation immediately
                             try:
-                                from ..memory import long_term_memory
+                                from src.brain.memory import long_term_memory
                                 if long_term_memory.available:
+                                    reason_text = str(evaluation.get('reason', 'Unknown'))
                                     long_term_memory.remember_behavioral_change(
                                         original_instruction=step.get("action", ""),
-                                        behavioral_change=f"DEVIATION APPROVED: {evaluation.get('reason')}. Context: {proposal_text[:300]}",
+                                        behavioral_change=f"DEVIATION APPROVED: {reason_text}. Context: {p_text[:300]}",
                                         decision_factors={"original_step": step, "analysis": proposal_text}
                                     )
                                     logger.info("[ORCHESTRATOR] Learned and memorized new behavioral deviation strategy.")

@@ -72,6 +72,9 @@ brew services list | grep -E "redis|postgresql"
 
 # Перевірка MCP серверів
 cat ~/.config/atlastrinity/mcp/config.json | jq '.mcpServers | keys'
+
+# Перевірка цілісності коду (Strict Mode)
+.venv/bin/python -m pyrefly check src/brain src/mcp_server
 ```
 
 ## Доступні MCP Сервери
@@ -83,8 +86,9 @@ cat ~/.config/atlastrinity/mcp/config.json | jq '.mcpServers | keys'
 
 ### Tier 2 (Високий Пріоритет - Ввімкнені)
 - **vibe** - AI Coding & Self-healing (**10 інструментів**)
-- **memory** - Граф знань (Atlas, Tetyana, Grisha)
+- **memory** - Граф знань (Atlas, Tetyana, Grisha) + Namespace Filtering
 - **graph** - Візуалізація зв'язків
+- **redis** - Asyncio Persistence (Fast State management)
 - **puppeteer** - Браузерна автоматизація
 - **chrome-devtools** - Debugging
 

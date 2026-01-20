@@ -1132,7 +1132,7 @@ async def vibe_check_db(ctx: Context, query: str) -> Dict[str, Any]:
         Query results as list of dictionaries
     """
     from sqlalchemy import text
-    from brain.db.manager import db_manager
+    from src.brain.db.manager import db_manager
 
     # Prevent destructive operations
     forbidden = ["DROP", "DELETE", "UPDATE", "INSERT", "TRUNCATE", "ALTER"]
@@ -1172,7 +1172,7 @@ async def vibe_get_system_context(ctx: Context) -> Dict[str, Any]:
         Current session, recent tasks, and errors
     """
     from sqlalchemy import text
-    from brain.db.manager import db_manager
+    from src.brain.db.manager import db_manager
 
     try:
         await db_manager.initialize()

@@ -25,6 +25,7 @@ from ..config_loader import config
 
 # Lazy import to avoid loading heavy dependencies at startup
 TTS_AVAILABLE = None
+TTS = None
 
 def _check_tts_available():
     global TTS_AVAILABLE
@@ -112,7 +113,7 @@ class AgentVoice:
         voice.speak("Hello, I am Atlas")
     """
 
-    def __init__(self, agent_name: str, device: str = None):
+    def __init__(self, agent_name: str, device: Optional[str] = None):
         """
         Initialize voice for an agent
 
@@ -142,7 +143,10 @@ class AgentVoice:
                 from ukrainian_tts.tts import Voices
 
                 self._voice_enum = getattr(Voices, self.config.voice_id, Voices.Dmytro)
-                self._voice = self._voice_enum.value
+                if self._voice_enum:
+                    self._voice = self._voice_enum.value
+                else:
+                    self._voice = "Dmytro"
             except Exception as e:
                 print(f"[TTS] Failed to import Voices: {e}")
                 # Set default voice
@@ -224,9 +228,10 @@ class AgentVoice:
                 # Import Stress and Voices only here
                 from ukrainian_tts.tts import Stress, Voices
 
-                _, accented_text = self.tts.tts(
-                    text, self._voice, Stress.Dictionary.value, f  # Use cached value
-                )
+                if self.tts:
+                    _, accented_text = self.tts.tts(
+                        text, self._voice, Stress.Dictionary.value, f  # Use cached value
+                    )
 
             print(f"[TTS] [{self.config.name}]: {text}")
             return output_file
@@ -408,8 +413,9 @@ class VoiceManager:
                     c_file = os.path.join(tempfile.gettempdir(), f"tts_{c_id}.wav")
                     
                     def _do_gen():
-                        with open(c_file, mode="wb") as f:
-                            self.engine.tts(c_text, voice_enum, Stress.Dictionary.value, f)
+                        if self.engine:
+                            with open(c_file, mode="wb") as f:
+                                self.engine.tts(c_text, voice_enum, Stress.Dictionary.value, f)
                     
                     await asyncio.to_thread(_do_gen)
                     return c_file
