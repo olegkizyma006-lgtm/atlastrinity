@@ -550,19 +550,39 @@ def download_models():
     print_step("Завантаження моделей (може тривати довго)...")
     venv_python = str(VENV_PATH / "bin" / "python")
 
-    # Faster-Whisper
+    # 1. Faster-Whisper: Detect model from config or template
+    model_name = "large-v3-turbo"  # Default fallback
     try:
-        print_info("Завантаження Faster-Whisper large-v3-turbo...")
+        import yaml
+
+        config_path = CONFIG_ROOT / "config.yaml"
+        template_path = PROJECT_ROOT / "config" / "config.yaml.template"
+        target_path = config_path if config_path.exists() else template_path
+
+        if target_path.exists():
+            with open(target_path, encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+                # Try voice.stt.model or fallback to whisper_stt.model
+                model_name = (
+                    cfg.get("voice", {}).get("stt", {}).get("model")
+                    or cfg.get("mcp", {}).get("whisper_stt", {}).get("model")
+                    or model_name
+                )
+    except Exception:
+        pass
+
+    try:
+        print_info(f"Завантаження Faster-Whisper {model_name}...")
         cmd = [
             venv_python,
             "-c",
             "from faster_whisper import WhisperModel; "
-            f"WhisperModel('large-v3-turbo', device='cpu', compute_type='int8', download_root='{DIRS['stt_models']}'); "
+            f"WhisperModel('{model_name}', device='cpu', compute_type='int8', download_root='{DIRS['stt_models']}'); "
             "print('STT OK')",
         ]
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=900)  # Increased timeout for large models
         if res.returncode == 0:
-            print_success("STT модель готова")
+            print_success(f"STT модель {model_name} готова")
         else:
             print_warning(f"Помилка завантаження STT: {res.stderr}")
     except Exception as e:

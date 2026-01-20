@@ -48,6 +48,7 @@ const CommandLine: React.FC<CommandLineProps> = ({
   const streamRef = useRef<MediaStream | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const maxVolumeRef = useRef<number>(0); // Для простого VAD
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   // Auto-expand logic
   useEffect(() => {
@@ -242,8 +243,10 @@ const CommandLine: React.FC<CommandLineProps> = ({
         streamRef.current = stream;
         // console.log('✅ Microphone access granted, stream active:', stream.active);
 
+
         // Перевіряємо гучність
         const audioContext = new AudioContext();
+        audioContextRef.current = audioContext;
         const source = audioContext.createMediaStreamSource(stream);
         const analyser = audioContext.createAnalyser();
         analyser.fftSize = 256;
@@ -389,6 +392,12 @@ const CommandLine: React.FC<CommandLineProps> = ({
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
+    }
+
+    // Закриваємо AudioContext
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(console.error);
+      audioContextRef.current = null;
     }
   };
 

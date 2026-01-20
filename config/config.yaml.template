@@ -2,7 +2,7 @@
 
 voice:
   stt:
-    model: large-v3-turbo
+    model: large-v3
     device: cpu
     language: uk
   tts:
@@ -86,7 +86,7 @@ mcp:
 
   whisper_stt:
     enabled: true
-    model: large-v3-turbo
+    model: large-v3
     language: uk
 
   devtools:
