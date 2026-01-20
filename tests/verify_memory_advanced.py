@@ -76,6 +76,18 @@ async def verify_isolation():
     )
     
     print(f"SUCCESS: Dataset {node_id} ingested into {namespace}")
+
+    print("4. Testing Promotion to Golden Fund...")
+    await knowledge_graph.promote_node(node_id=node_id, target_namespace="global")
+    
+    async with await db_manager.get_session() as session:
+        res = await session.execute(select(KGNode).where(KGNode.id == node_id))
+        node = res.scalar()
+        if node and node.namespace == "global":
+            print(f"SUCCESS: Dataset {node_id} promoted to global!")
+        else:
+            print(f"FAILURE: Dataset promotion failed. Namespace: {getattr(node, 'namespace', 'NONE')}")
+
     print("--- Verification Complete ---")
 
 if __name__ == "__main__":

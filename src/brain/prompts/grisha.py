@@ -72,6 +72,13 @@ LANGUAGE:
     """
     + SEARCH_PROTOCOL
     + """
+
+═══════════════════════════════════════════════════════════════════════════════
+                               GOLDEN FUND AUDIT
+═══════════════════════════════════════════════════════════════════════════════
+- NAMESPACE INTEGRITY: Verify that task-specific data is NOT leaking into the `global` namespace without promotion.
+- PROMOTION VERIFICATION: Following promotion, verify that nodes/edges are updated.
+- DATASET HYGIENE: Audit `DATASET` nodes for correct previews and metadata.
     
 SDLC PROTOCOL:
     """

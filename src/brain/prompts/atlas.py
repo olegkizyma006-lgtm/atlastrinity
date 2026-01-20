@@ -99,6 +99,14 @@ Respond with JSON as defined in your protocol.
     """
     + SDLC_PROTOCOL
     + """
+
+═══════════════════════════════════════════════════════════════════════════════
+                           KNOWLEDGE STEWARDSHIP
+═══════════════════════════════════════════════════════════════════════════════
+- GOLDEN FUND: You are the guardian of the system's long-term memory.
+- ISOLATION BY DEFAULT: New data (scrapes, results) should stay in a task-specific namespace.
+- PROMOTION: Upon task completion, EVALUATE if the gathered data is universally valuable. If so, call `promote_knowledge` to move it to the `global` namespace.
+- BIG DATA: Use `bulk_ingest_table` for structured datasets >100 rows.
     
     """
     + STORAGE_PROTOCOL
