@@ -324,6 +324,7 @@ class Atlas(BaseAgent):
             response = await llm_instance.ainvoke(messages)
             
             if not getattr(response, "tool_calls", None):
+                await self._memorize_chat_interaction(user_request, response.content)
                 return response.content
             
             # Process Tool Calls (Same logic as before but using cached info)
@@ -352,7 +353,27 @@ class Atlas(BaseAgent):
             
             current_turn += 1
 
-        return "Я виконав кілька кроків пошуку, але мені потрібно більше часу для повного аналізу. Що саме вас цікавить найбільше?"
+        fallback_msg = "Я виконав кілька кроків пошуку, але мені потрібно більше часу для повного аналізу. Що саме вас цікавить найбільше?"
+        await self._memorize_chat_interaction(user_request, fallback_msg)
+        return fallback_msg
+
+    async def _memorize_chat_interaction(self, query: str, response: str):
+        """Active memory consolidation for chat turns."""
+        if not long_term_memory.available:
+            return
+            
+        try:
+            # Only memorize significant turns
+            if len(query) > 5 or len(response) > 10:
+                summary = f"User: {query}\nAtlas: {response[:300]}..."
+                long_term_memory.remember_conversation(
+                    session_id="chat_stream_global",
+                    summary=summary,
+                    metadata={"query_preview": query[:50], "timestamp": datetime.now().isoformat()}
+                )
+                logger.info("[ATLAS] Memorized chat interaction.")
+        except Exception as e:
+            logger.warning(f"[ATLAS] Memory write failed: {e}")
 
     async def create_plan(self, enriched_request: Dict[str, Any]) -> TaskPlan:
         """
