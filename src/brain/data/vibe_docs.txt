@@ -1,72 +1,176 @@
-VIBE MCP SERVER - AI-POWERED DEBUGGING & SELF-HEALING
+VIBE MCP SERVER - AI-POWERED CODING ASSISTANT (v3.0 Hyper-Refactored)
 
-The 'vibe' server provides access to Mistral AI for advanced debugging, code analysis, and self-healing.
-All Vibe operations run in PROGRAMMATIC CLI mode (not interactive TUI) - output is fully visible in logs.
+The 'vibe' server provides access to Mistral AI for advanced coding, debugging, code review, and self-healing.
+All Vibe operations run in PROGRAMMATIC CLI mode - output is fully visible in logs.
 
-AVAILABLE VIBE TOOLS:
+FEATURES:
+- Full provider/model/agent configuration support
+- Dynamic model and mode switching
+- Session resume capability
+- Tool enable/disable patterns (glob/regex)
+
+=== CORE TOOLS (6) ===
 
 1. **vibe_prompt** (PRIMARY TOOL)
    Purpose: Send any prompt to Vibe AI for analysis or action
    Args:
      - prompt: The message/query (required)
      - cwd: Working directory (optional)
-     - timeout_s: Timeout in seconds (default 3600)
-     - output_format: 'json', 'text', or 'streaming' (default 'json')
-     - auto_approve: Auto-approve tool calls (default True)
+     - timeout_s: Timeout in seconds (default from config)
+     - model: Model alias to use (overrides active_model)
+     - agent: Agent profile name
+     - mode: Operational mode (plan/auto-approve/accept-edits)
+     - session_id: Session ID to resume
      - max_turns: Max conversation turns (default 10)
-   Example: vibe_prompt(prompt="Why is this code failing?", cwd="/path/to/project")
+     - max_price: Cost limit in dollars
+   Example: vibe_prompt(prompt="Refactor this function", model="gpt-4o", mode="auto-approve")
 
 2. **vibe_analyze_error** (SELF-HEALING)
    Purpose: Deep error analysis with optional auto-fix
    Args:
      - error_message: The error/stack trace (required)
-     - log_context: Recent logs for context (optional)
      - file_path: Path to problematic file (optional)
+     - log_context: Recent logs for context (optional)
+     - recovery_history: Past recovery attempts (optional)
      - auto_fix: Whether to apply fixes (default True)
-   Example: vibe_analyze_error(error_message="TypeError: x is undefined", log_context="...", auto_fix=True)
+   Example: vibe_analyze_error(error_message="TypeError: x is undefined", auto_fix=True)
 
-3. **vibe_code_review**
+3. **vibe_implement_feature**
+   Purpose: Implement complex features with planning and verification
+   Args:
+     - goal: High-level objective (required)
+     - context_files: Relevant file paths (optional)
+     - constraints: Technical constraints (optional)
+     - timeout_s: Extended timeout (default 1200s)
+   Example: vibe_implement_feature(goal="Add OAuth2 authentication")
+
+4. **vibe_code_review**
    Purpose: Request AI code review for a file
    Args:
      - file_path: Path to review (required)
-     - focus_areas: Areas to focus on, e.g., "security", "performance" (optional)
-   Example: vibe_code_review(file_path="/src/main.py", focus_areas="security")
+     - focus_areas: Areas to focus on ("security", "performance") (optional)
+   Example: vibe_code_review(file_path="/src/auth.py", focus_areas="security")
 
-4. **vibe_smart_plan**
+5. **vibe_smart_plan**
    Purpose: Generate execution plan for complex objectives
    Args:
      - objective: The goal to plan for (required)
      - context: Additional context (optional)
-   Example: vibe_smart_plan(objective="Implement OAuth2 authentication")
+   Example: vibe_smart_plan(objective="Migrate database to PostgreSQL")
 
-5. **vibe_ask** (READ-ONLY)
-   Purpose: Ask a quick question without file modifications
-   Args:
-     - question: The question (required)
-   Example: vibe_ask(question="What's the best way to handle async errors in Python?")
-
-6. **vibe_execute_subcommand**
-   Purpose: Execute a specific Vibe CLI subcommand (non-AI utility)
-   Args:
-     - subcommand: 'list-editors', 'run', 'enable', 'disable', 'install', etc. (required)
-     - args: List of string arguments (optional)
-     - cwd: Working directory (optional)
-   Example: vibe_execute_subcommand(subcommand="list-editors")
-
-7. **vibe_which**
-   Purpose: Check Vibe CLI installation path and version
+6. **vibe_which**
+   Purpose: Check Vibe CLI installation, version, and current configuration
+   Returns: binary path, version, active_model, mode, available_models
    Example: vibe_which()
 
-TRINITY NATIVE SYSTEM TOOLS (Any Agent):
-- `restart_mcp_server(server_name)`: Force restart an MCP server.
-- `query_db(query, params)`: Query the internal system database.
+=== CONFIGURATION TOOLS (5) ===
 
-WHEN TO USE VIBE:
-- When Tetyana/Grisha fail after multiple attempts
+7. **vibe_get_config**
+   Purpose: Get current configuration state
+   Returns: active_model, mode, providers, models, available_models
+   Example: vibe_get_config()
+
+8. **vibe_configure_model**
+   Purpose: Switch active model dynamically
+   Args:
+     - model_alias: Alias of the model to use (required)
+     - persist: Save to config file (default False)
+   Example: vibe_configure_model(model_alias="gpt-4o")
+
+9. **vibe_set_mode**
+   Purpose: Change operational mode
+   Args:
+     - mode: "default" | "plan" | "accept-edits" | "auto-approve"
+   Example: vibe_set_mode(mode="plan")
+
+10. **vibe_configure_provider**
+    Purpose: Add or update a provider configuration (runtime only)
+    Args:
+      - name: Provider identifier (required)
+      - api_base: Base URL (required)
+      - api_key_env_var: Env var for API key (required)
+      - api_style: "mistral" | "openai" | "anthropic"
+      - backend: "mistral" | "generic" | "anthropic"
+    Example: vibe_configure_provider(name="openrouter", api_base="https://openrouter.ai/api/v1", api_key_env_var="OPENROUTER_API_KEY")
+
+11. **vibe_reload_config**
+    Purpose: Reload configuration from disk
+    Example: vibe_reload_config()
+
+=== SESSION TOOLS (3) ===
+
+12. **vibe_session_resume**
+    Purpose: Resume a previous Vibe session
+    Args:
+      - session_id: Session ID to resume (partial match supported)
+      - prompt: New prompt to continue with (optional)
+    Example: vibe_session_resume(session_id="abc123")
+
+13. **vibe_list_sessions**
+    Purpose: List recent Vibe session logs with metrics
+    Args:
+      - limit: Number of sessions to return (default 10)
+    Example: vibe_list_sessions(limit=5)
+
+14. **vibe_session_details**
+    Purpose: Get full details of a specific session
+    Args:
+      - session_id_or_file: Session ID or filename
+    Example: vibe_session_details(session_id_or_file="abc123")
+
+=== UTILITY TOOLS (3) ===
+
+15. **vibe_ask** (READ-ONLY)
+    Purpose: Ask a quick question without file modifications
+    Args:
+      - question: The question (required)
+    Example: vibe_ask(question="What's the best way to handle async errors?")
+
+16. **vibe_execute_subcommand**
+    Purpose: Execute a Vibe CLI subcommand (non-AI utility)
+    Allowed: list-editors, list-modules, run, enable, disable, install, etc.
+    Example: vibe_execute_subcommand(subcommand="list-editors")
+
+=== DATABASE TOOLS (2) ===
+
+17. **vibe_check_db**
+    Purpose: Execute read-only SQL queries on AtlasTrinity database
+    Example: vibe_check_db(query="SELECT * FROM tasks ORDER BY created_at DESC LIMIT 5")
+
+18. **vibe_get_system_context**
+    Purpose: Get current operational context (session, tasks, errors)
+    Example: vibe_get_system_context()
+
+=== CONFIGURATION ===
+
+Configuration is loaded from (in order):
+1. ./.vibe/config.toml (project-local)
+2. ~/.config/atlastrinity/vibe_config.toml
+3. ~/.vibe/config.toml (default Vibe location)
+
+Key configuration options:
+- active_model: Default model alias
+- default_mode: Operational mode (auto-approve, plan, etc.)
+- enabled_tools / disabled_tools: Glob/regex patterns
+- providers: LLM provider definitions
+- models: Model definitions with pricing
+
+See templates/vibe_config.toml.template for full configuration example.
+
+=== MODES ===
+
+- **default**: Requires confirmation for tool executions
+- **plan**: Read-only mode for exploration (no file modifications)
+- **accept-edits**: Auto-approves file edit tools only
+- **auto-approve**: Auto-approves all tool executions
+
+=== WHEN TO USE VIBE ===
+
+- When other agents fail after multiple attempts
 - Complex debugging requiring AI reasoning
 - Code review before committing
 - Planning multi-step implementations
 - Understanding unfamiliar code patterns
-- System diagnostics
+- System diagnostics and self-healing
 
 IMPORTANT: All Vibe output is logged and visible in the Electron app logs!

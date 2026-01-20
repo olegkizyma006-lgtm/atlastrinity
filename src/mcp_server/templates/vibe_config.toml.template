@@ -1,0 +1,217 @@
+# =============================================================================
+# Vibe MCP Configuration Template
+# =============================================================================
+#
+# Copy this file to ~/.config/atlastrinity/vibe_config.toml and customize.
+# This configuration controls the Vibe MCP server integration with AtlasTrinity.
+#
+# Based on official Mistral Vibe documentation:
+# https://docs.mistral.ai/vibe/configuration/
+#
+# Author: AtlasTrinity Team
+# Date: 2026-01-20
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# CORE SETTINGS
+# -----------------------------------------------------------------------------
+
+# Active model alias (from models list below)
+# This is the default model used when no explicit model is specified
+active_model = "devstral-2"
+
+# System prompt ID (loads from ~/.vibe/prompts/{id}.md)
+# Set to a custom ID to override the default Vibe system prompt
+system_prompt_id = "default"
+
+# Default operational mode for AI interactions
+# Options: "default" | "plan" | "accept-edits" | "auto-approve"
+#   - default: Requires confirmation for tool executions
+#   - plan: Read-only mode for exploration (enabled_tools: ["grep", "read_file", "todo"])
+#   - accept-edits: Auto-approves file edit tools only
+#   - auto-approve: Auto-approves all tool executions
+default_mode = "auto-approve"
+
+# Execution limits
+max_turns = 10          # Maximum conversation turns (1-100)
+max_price = 1.0         # Maximum cost per conversation in USD (optional)
+timeout_s = 600.0       # Default timeout in seconds
+
+# -----------------------------------------------------------------------------
+# TOOL PATTERNS (Glob / Regex)
+# -----------------------------------------------------------------------------
+# Control which tools are available using patterns.
+# Patterns support:
+#   - Glob: "serena_*", "mcp_*"
+#   - Regex (prefix with re:): "re:^db_.*$"
+#   - Literal: "grep", "bash"
+
+# Enable only specific tools (empty = all enabled by default)
+# Example: enabled_tools = ["serena_*", "read_file", "grep"]
+enabled_tools = []
+
+# Disable specific tools (takes precedence over enabled)
+# Example: disabled_tools = ["mcp_*", "grep"]
+disabled_tools = []
+
+# -----------------------------------------------------------------------------
+# UI SETTINGS (for CLI mode)
+# -----------------------------------------------------------------------------
+
+# Disable the welcome banner animation (recommended for programmatic use)
+disable_welcome_banner_animation = true
+
+# Use vim keybindings in TUI
+vim_keybindings = false
+
+# Textual theme name (optional)
+# textual_theme = "custom_theme"
+
+# -----------------------------------------------------------------------------
+# PROVIDERS
+# -----------------------------------------------------------------------------
+# Define custom LLM providers for Vibe.
+# Each provider needs: name, api_base, api_key_env_var, api_style, backend
+
+[[providers]]
+name = "mistral"
+api_base = "https://api.mistral.ai/v1"
+api_key_env_var = "MISTRAL_API_KEY"
+api_style = "mistral"
+backend = "mistral"
+
+[[providers]]
+name = "openrouter"
+api_base = "https://openrouter.ai/api/v1"
+api_key_env_var = "OPENROUTER_API_KEY"
+api_style = "openai"
+backend = "generic"
+
+# Example: Custom OpenAI-compatible endpoint
+# [[providers]]
+# name = "custom_openai"
+# api_base = "https://my-custom-llm.company.com/v1"
+# api_key_env_var = "CUSTOM_OPENAI_KEY"
+# api_style = "openai"
+# backend = "generic"
+
+# Example: Anthropic
+# [[providers]]
+# name = "anthropic"
+# api_base = "https://api.anthropic.com/v1"
+# api_key_env_var = "ANTHROPIC_API_KEY"
+# api_style = "anthropic"
+# backend = "anthropic"
+
+# -----------------------------------------------------------------------------
+# MODELS
+# -----------------------------------------------------------------------------
+# Define available models with pricing and settings.
+# Each model needs: name (API ID), provider, alias, temperature
+
+[[models]]
+name = "devstral-2"
+provider = "mistral"
+alias = "devstral-2"
+temperature = 0.2
+input_price = 0.0   # Price per million input tokens (USD)
+output_price = 0.0  # Price per million output tokens (USD)
+
+[[models]]
+name = "mistralai/devstral-2512:free"
+provider = "openrouter"
+alias = "devstral-openrouter"
+temperature = 0.2
+input_price = 0.0
+output_price = 0.0
+
+# Example: GPT-4 via OpenRouter
+# [[models]]
+# name = "openai/gpt-4o"
+# provider = "openrouter"
+# alias = "gpt-4o"
+# temperature = 0.3
+# input_price = 2.5
+# output_price = 10.0
+
+# Example: Claude via OpenRouter
+# [[models]]
+# name = "anthropic/claude-3.5-sonnet"
+# provider = "openrouter"
+# alias = "claude-sonnet"
+# temperature = 0.3
+# input_price = 3.0
+# output_price = 15.0
+
+# -----------------------------------------------------------------------------
+# TOOL PERMISSION OVERRIDES
+# -----------------------------------------------------------------------------
+# Override default permissions for specific tools.
+# Options: "always" | "ask" | "never"
+
+[tools.bash]
+permission = "ask"
+
+[tools.write_file]
+permission = "ask"
+
+[tools.read_file]
+permission = "always"
+
+[tools.grep]
+permission = "always"
+
+[tools.search_replace]
+permission = "ask"
+
+# MCP tool permissions (named as {server_name}_{tool_name})
+# Example for fetch server:
+# [tools.fetch_server_get]
+# permission = "always"
+
+# -----------------------------------------------------------------------------
+# MCP SERVER INTEGRATIONS
+# -----------------------------------------------------------------------------
+# Extend Vibe's capabilities with MCP servers.
+# Supported transports: "http" | "streamable-http" | "stdio"
+
+# Example: HTTP server
+# [[mcp_servers]]
+# name = "my_http_server"
+# transport = "http"
+# url = "http://localhost:8000"
+# headers = { "Authorization" = "Bearer my_token" }
+# api_key_env = "MY_API_KEY_ENV_VAR"
+# api_key_header = "Authorization"
+# api_key_format = "Bearer {token}"
+
+# Example: Streamable HTTP server
+# [[mcp_servers]]
+# name = "my_streamable_server"
+# transport = "streamable-http"
+# url = "http://localhost:8001"
+# headers = { "X-API-Key" = "my_api_key" }
+
+# Example: Stdio server (local process)
+# [[mcp_servers]]
+# name = "fetch_server"
+# transport = "stdio"
+# command = "uvx"
+# args = ["mcp-server-fetch"]
+
+# -----------------------------------------------------------------------------
+# PATHS (Optional)
+# -----------------------------------------------------------------------------
+# Override default paths. Use ${HOME}, ${CONFIG_ROOT}, ${PROJECT_ROOT} placeholders.
+
+# Custom VIBE_HOME directory (default: ~/.vibe)
+# vibe_home = "/path/to/custom/vibe/home"
+
+# Custom workspace directory for Vibe operations
+# workspace = "${CONFIG_ROOT}/vibe_workspace"
+
+# Custom agents directory (default: ~/.vibe/agents)
+# agents_dir = "${CONFIG_ROOT}/vibe/agents"
+
+# Custom prompts directory (default: ~/.vibe/prompts)
+# prompts_dir = "${CONFIG_ROOT}/vibe/prompts"
