@@ -280,17 +280,11 @@ class CopilotLLM(BaseChatModel):
         
         # Model mapping for specific custom names from the official list
         model_map = {
-            "gpt-4o": "gpt-4.1", 
-            "gpt-4.1": "gpt-4.1",
             "gpt-4": "gpt-4.1",
             "gpt-3.5": "gpt-4.1",
             "gpt-3.5-turbo": "gpt-4.1",
-            "gpt-5-mini": "gpt-4.1",
-            "grok-code-fast-1": "gpt-4.1",
-            "grok": "gpt-4.1",
-            "grok-code-fast-1": "gpt-4.1",
-            "raptor-mini": "gpt-4.1",
-            "raptor": "gpt-4.1",
+            "grok": "grok-code-fast-1",
+            "raptor": "raptor-mini",
         }
         
         # Clean up input string (lowercase, hyphenate common spaces)

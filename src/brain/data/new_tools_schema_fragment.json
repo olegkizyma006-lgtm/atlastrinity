@@ -1,0 +1,77 @@
+    "vibe_get_config": {
+        "server": "vibe",
+        "required": [],
+        "optional": [],
+        "types": {},
+        "description": "Get the current Vibe configuration state (active model, mode, providers)"
+    },
+    "vibe_configure_model": {
+        "server": "vibe",
+        "required": [
+            "model_alias"
+        ],
+        "optional": [
+            "persist"
+        ],
+        "types": {
+            "model_alias": "str",
+            "persist": "bool"
+        },
+        "description": "Switch the active model for Vibe operations"
+    },
+    "vibe_set_mode": {
+        "server": "vibe",
+        "required": [
+            "mode"
+        ],
+        "optional": [],
+        "types": {
+            "mode": "str"
+        },
+        "description": "Change operational mode (default, plan, accept-edits, auto-approve)"
+    },
+    "vibe_configure_provider": {
+        "server": "vibe",
+        "required": [
+            "name",
+            "api_base",
+            "api_key_env_var"
+        ],
+        "optional": [
+            "api_style",
+            "backend"
+        ],
+        "types": {
+            "name": "str",
+            "api_base": "str",
+            "api_key_env_var": "str",
+            "api_style": "str",
+            "backend": "str"
+        },
+        "description": "Add or update a provider configuration at runtime"
+    },
+    "vibe_session_resume": {
+        "server": "vibe",
+        "required": [
+            "session_id"
+        ],
+        "optional": [
+            "prompt",
+            "cwd",
+            "timeout_s"
+        ],
+        "types": {
+            "session_id": "str",
+            "prompt": "str",
+            "cwd": "str",
+            "timeout_s": "float"
+        },
+        "description": "Resume a previous Vibe session"
+    },
+    "vibe_reload_config": {
+        "server": "vibe",
+        "required": [],
+        "optional": [],
+        "types": {},
+        "description": "Reload the Vibe configuration from disk"
+    },
