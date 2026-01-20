@@ -431,8 +431,12 @@ class ToolDispatcher:
              return server, resolved_tool, args
 
         # Priority 3: Web Search Routing
-        if tool_name in ["duckduckgo-search", "duckduckgo_search", "web_search", "search_web", "ddg"]:
-            return "duckduckgo-search", "duckduckgo_search", args
+        if any(kw in tool_lower for kw in ["duckduckgo", "web_search", "search_web", "ddg"]):
+             # Check for business registry intent before generic search
+             if any(kw in str(args).lower() for kw in ["єдрпоу", "company", "registry", "youcontrol", "opendatabot", "бізнес", "підприємство"]):
+                  logger.info(f"[DISPATCHER] Intelligent routing: search -> business_registry_search")
+                  return "duckduckgo-search", "business_registry_search", {"company_name": args.get("query", args.get("company_name", ""))}
+             return "duckduckgo-search", "duckduckgo_search", args
              
         # Priority 4: Knowledge Graph semantic search
         if tool_name == "search":

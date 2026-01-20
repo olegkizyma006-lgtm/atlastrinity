@@ -1210,6 +1210,20 @@
         },
         "description": "Perform a web search using DuckDuckGo HTML interface"
     },
+    "business_registry_search": {
+        "server": "duckduckgo-search",
+        "required": [
+            "company_name"
+        ],
+        "optional": [
+            "step_id"
+        ],
+        "types": {
+            "company_name": "str",
+            "step_id": "str"
+        },
+        "description": "SPECIALIZED: Search Ukrainian business registries (YouControl, Opendatabot) for company data (ЄДРПОУ, address, etc.)"
+    },
     "github_whoami": {
         "server": "github",
         "required": [],

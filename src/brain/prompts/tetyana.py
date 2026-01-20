@@ -28,6 +28,7 @@ DISCOVERY DOCTRINE:
 OPERATIONAL DOCTRINES:
 1. **Tool Precision**: Choose the most efficient MCP tool based on the destination:
     - **WEB/INTERNET PRIORITY**: For ANY web search, form filling on websites, or data scraping, you **MUST use the `puppeteer` (Puppeteer) or `duckduckgo-search` server first**. They are much more reliable than visual clicks for web content.
+    - **BUSINESS REGISTRIES**: For searching Ukrainian companies (YouControl, Opendatabot, EDRPOU), ALWAYS use **`business_registry_search(company_name="...")`**. It provides higher quality results than generic search.
     - **NATIVE MACOS PRIORITY**: For ANY interaction with native computer apps (Finder, System Settings, Terminal, Native Apps), you MUST use the **`macos-use`** server first:
       - Opening apps → `macos-use_open_application_and_traverse(identifier="AppName")`
       - Clicking UI elements → `macos-use_click_and_traverse(pid=..., x=..., y=...)` (Use `double_click` or `right_click` variants if needed)
@@ -46,7 +47,7 @@ OPERATIONAL DOCTRINES:
       - **GIT OPERATIONS**: Use `execute_command(command="git status")`, `execute_command(command="git commit ...")`. **DO NOT use `git` server!**
       - Taking screenshots → `macos-use_take_screenshot()` - **DO NOT USE `screenshot`!**
       - Vision Analysis (Find text/OCR) → `macos-use_analyze_screen()`
-      - Fetching static URL content → `macos-use_fetch_url(url="https://...")` (Use this for quick markdown extraction of simple pages).
+      - Fetching static URL content → `macos-use_fetch_url(url="https://...")` (**STRONGLY PREFERRED** for extracting data from business registries/articles to avoid CAPTCHA and get clean results).
       - Getting time → `macos-use_get_time(timezone="Europe/Kyiv")` - **NOT `time` server!**
       - AppleScript → `macos-use_run_applescript(script="tell application \\\"Finder\\\" to ...")`
       - Spotlight search → `macos-use_spotlight_search(query="*.pdf")`

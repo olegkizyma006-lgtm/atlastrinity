@@ -525,13 +525,27 @@ IMPORTANT:
             elif vision_result.get("notes"):
                 # Check for CAPTCHA or other blockers
                 notes = vision_result.get("notes", "").lower()
-                if "captcha" in notes or "verification" in notes or "robot" in notes:
+                notes_lower = notes.lower()
+                # Smarter check to avoid false positives like "No CAPTCHA detected"
+                is_blocker = (
+                    ("captcha" in notes_lower and "no captcha" not in notes_lower) or
+                    ("verification" in notes_lower and "no verification" not in notes_lower) or
+                    ("robot" in notes_lower and "not a robot" not in notes_lower) or
+                    ("blocked" in notes_lower)
+                )
+                
+                if is_blocker:
                     logger.warning(f"[TETYANA] Vision detected blocker: {vision_result.get('notes')}")
+                    
+                    # Use actual notes for localization if possible, otherwise generic
+                    blocker_desc = vision_result.get('notes', "Виявлено перешкоду")
+                    voice_msg = f"Я бачу перешкоду на екрані: {blocker_desc}. Мені потрібна ваша допомога."
+                    
                     return StepResult(
                         step_id=step.get("id", self.current_step),
                         success=False,
-                        result="Vision detected CAPTCHA or verification challenge",
-                        voice_message="Виявлено CAPTCHA або перевірку. Потрібна допомога користувача.",
+                        result=f"Vision detected blocker: {vision_result.get('notes')}",
+                        voice_message=voice_msg,
                         error=f"Blocker detected: {vision_result.get('notes')}",
                         screenshot_path=vision_result.get("screenshot_path"),
                     )
@@ -703,6 +717,15 @@ IMPORTANT:
                                 logger.info(f"[TETYANA] Vision override: {key}={suggested['args'][key]}")
                         # If Vision suggests a specific tool, consider using it
                         if suggested.get("tool") and "click" in suggested["tool"].lower():
+                            # Remove arguments that might belong to the previous planned tool (e.g. Puppeteer)
+                            # but are incompatible with the new macos-use tool.
+                            incompatible_keys = ["url", "launchOptions", "allowDangerous", "wait_for"]
+                            if isinstance(tool_call.get("args"), dict):
+                                for ik in incompatible_keys:
+                                    if ik in tool_call["args"]:
+                                        del tool_call["args"][ik]
+                                        logger.info(f"[TETYANA] Vision override: removed incompatible arg '{ik}'")
+                            
                             tool_call["name"] = suggested["tool"]
                             tool_call["server"] = "macos-use"
                             logger.info(f"[TETYANA] Vision override: tool={suggested['tool']}")
