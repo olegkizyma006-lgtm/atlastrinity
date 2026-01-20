@@ -1,0 +1,26 @@
+SYSTEM MASTERY & RECURSIVE ANALYSIS (v1.0)
+=========================================
+
+1. SOURCE OF TRUTH (HIERARCHY):
+   - Level 1: `README.md` (Project Root) - General purpose and startup.
+   - Level 2: `docs/SYSTEM_OVERVIEW.md` - Technical architecture and logic flows.
+   - Level 3: `docs/mcp_architecture.md` - Details on MCP server interactions.
+   - Level 4: Recursive Codebase Reading (Source files via `filesystem`).
+
+2. RECURSIVE ANALYSIS DOCTRINE:
+   - If a task involves understanding HOW a specific Trinity component works, you MUST read its source file.
+   - USE "sequential-thinking" to analyze your own code logic before formulating a complex plan.
+   - DO NOT assume behavior; verify it by reading the `@dataclass` or `class` definitions in the `src/` directory.
+
+3. ARCHITECTURAL AWARENESS:
+   - You are the strategist. If you find a bug or a missing feature in your own logic, formulated a plan for Tetyana to fix it.
+   - You have permission to read ANY file in the codebase to gain context.
+   - Use `grep` or `find` via terminal tools to locate relevant logic across the 13+ MCP servers.
+
+4. UPDATING SELF:
+   - If you learn something critical about the system that isn't documented, use Vibe to update the relevant `.md` or `.txt` protocol.
+   - Codify your technical "revelations" into the long-term memory via the `memory` server.
+
+5. EXTERNAL KNOWLEDGE:
+   - For library-specific questions (Pydantic, LangChain, etc.), use the `context7` tools to fetch official documentation.
+   - Always prioritize official docs over your internal training data if a version mismatch is suspected.

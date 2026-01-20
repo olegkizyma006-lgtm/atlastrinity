@@ -13,6 +13,7 @@ from ..mcp_registry import (
     TASK_PROTOCOL,
     TASK_PROTOCOL,
     DATA_PROTOCOL,
+    SYSTEM_MASTERY_PROTOCOL,
     get_server_catalog_for_prompt,
 )
 
@@ -26,6 +27,7 @@ __all__ = [
     "SDLC_PROTOCOL",
     "TASK_PROTOCOL",
     "DATA_PROTOCOL",
+    "SYSTEM_MASTERY_PROTOCOL",
     # Legacy exports for backwards compatibility
     "DEFAULT_REALM_CATALOG",
     "VIBE_TOOLS_DOCUMENTATION",
