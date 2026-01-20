@@ -440,12 +440,16 @@ async def run_vibe_subprocess(
 
         # Read both streams concurrently
         try:
+            from collections.abc import Awaitable
+            tasks: list[Awaitable[Any]] = []
+            if process.stdout:
+                tasks.append(read_stream_with_logging(process.stdout, stdout_chunks, "OUT"))
+            if process.stderr:
+                tasks.append(read_stream_with_logging(process.stderr, stderr_chunks, "ERR"))
+            tasks.append(process.wait())
+            
             await asyncio.wait_for(
-                asyncio.gather(
-                    read_stream_with_logging(process.stdout, stdout_chunks, "OUT"),
-                    read_stream_with_logging(process.stderr, stderr_chunks, "ERR"),
-                    process.wait(),
-                ),
+                asyncio.gather(*tasks),  # pyrefly: ignore[bad-argument-type]
                 timeout=timeout_s + 20,  # Add buffer for graceful shutdown
             )
             # Повідомлення про успіх

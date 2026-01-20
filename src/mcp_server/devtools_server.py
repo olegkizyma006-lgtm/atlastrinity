@@ -1,11 +1,12 @@
 import json
+import os
+import shutil
 import subprocess
 import sys
-import shutil
-import os
-from typing import Any
-from mcp.server import FastMCP
 from pathlib import Path
+from typing import Any
+
+from mcp.server import FastMCP
 
 # Initialize FastMCP server
 server = FastMCP("devtools-server")
@@ -58,7 +59,7 @@ def devtools_launch_inspector(server_name: str) -> dict[str, Any]:
          return {"error": "Config template not found"}
          
     try:
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             config = json.load(f)
             
         server_config = config.get("mcpServers", {}).get(server_name)
@@ -71,7 +72,7 @@ def devtools_launch_inspector(server_name: str) -> dict[str, Any]:
         
         # Construct inspector command
         # npx @modelcontextprotocol/inspector <command> <args>
-        inspector_cmd = ["npx", "@modelcontextprotocol/inspector", command] + args
+        inspector_cmd = ["npx", "@modelcontextprotocol/inspector", command, *args]
         
         # Prepare environment
         env = os.environ.copy()
@@ -143,7 +144,7 @@ def devtools_validate_config() -> dict[str, Any]:
         return {"error": "Config file not found", "path": str(config_path)}
         
     try:
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             data = json.load(f)
             
         mcp_servers = data.get("mcpServers", {})

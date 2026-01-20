@@ -260,9 +260,9 @@ class VibeConfig(BaseModel):
         self._disabled_patterns = self._compile_patterns(self.disabled_tools)
 
     @staticmethod
-    def _compile_patterns(patterns: list[str]) -> list[Pattern | str]:
+    def _compile_patterns(patterns: list[str]) -> list[Pattern[str] | str]:
         """Compile glob/regex patterns for tool matching."""
-        compiled = []
+        compiled: list[Pattern[str] | str] = []
         for pattern in patterns:
             if pattern.startswith("re:"):
                 # Explicit regex
