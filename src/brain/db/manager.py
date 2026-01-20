@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from .schema import Base
 from ..config import CONFIG_ROOT
 from ..config_loader import config
+from typing import Optional, Any, cast
 
 class DatabaseManager:
     def __init__(self):
@@ -85,7 +86,10 @@ class DatabaseManager:
         def _sync_verify(connection):
             from sqlalchemy import inspect, text
             inspector = inspect(connection)
-            
+            if not inspector:
+                print("[DB] Critical Error: SQLAlchemy inspector is None")
+                return
+
             # 1. Get existing tables
             existing_tables = inspector.get_table_names()
             
@@ -247,7 +251,6 @@ class DatabaseManager:
             return False
 
         from sqlalchemy import Table, Column, String, Integer, Float, DateTime, Boolean, MetaData, Text
-        import pandas as pd
 
         # 1. Map pandas dtypes to SQLAlchemy types
         def map_dtype(col):
@@ -271,7 +274,10 @@ class DatabaseManager:
             # If the CSV has an 'id' or 'row_id' column, we rename the existing one to avoid collision
             if safe_col in ["row_id"]:
                 safe_col = f"original_{safe_col}"
-            columns.append(Column(safe_col, map_dtype(col_name)))
+            
+            # Explicitly cast to Any to satisfy strict linters regarding the positional type argument
+            col_type = map_dtype(col_name)
+            columns.append(Column(safe_col, cast(Any, col_type)))
 
         # 3. Create the table sync-style via engine.run_sync
         def sync_create(connection):
@@ -279,6 +285,10 @@ class DatabaseManager:
             metadata.create_all(connection)
 
         try:
+            if not self._engine:
+                print("[DB] Error: Cannot create table, engine not initialized.")
+                return False
+
             async with self._engine.begin() as conn:
                 await conn.run_sync(sync_create)
             

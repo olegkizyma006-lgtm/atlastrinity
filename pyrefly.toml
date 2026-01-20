@@ -2,6 +2,7 @@
 # To prevent language server crashes (stack overflow)
 
 python-version = "3.12"
+import-roots = ["."]
 project-includes = ["src/**/*.py", "scripts/**/*.py", "tests/**/*.py"]
 project-excludes = [
     "**/node_modules/**",

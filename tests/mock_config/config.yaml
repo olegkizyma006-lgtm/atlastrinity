@@ -1,0 +1,103 @@
+agents:
+  atlas:
+    max_tokens: 2000
+    model: gpt-4.1
+    temperature: 0.7
+  grisha:
+    max_tokens: 1500
+    strategy_model: raptor-mini
+    temperature: 0.3
+    vision_model: gpt-4o
+  tetyana:
+    max_tokens: 2000
+    model: gpt-4o
+    reasoning_model: gpt-4o
+    reflexion_model: gpt-4o
+    temperature: 0.5
+api:
+  retry_count: 3
+  timeout: 60
+database:
+  url: sqlite+aiosqlite:///${CONFIG_ROOT}/atlastrinity.db
+logging:
+  backup_count: 5
+  level: INFO
+  max_log_size: 10485760
+mcp:
+  chrome_devtools:
+    enabled: true
+  duckduckgo_search:
+    enabled: true
+  filesystem:
+    allowed_paths:
+    - ${HOME}
+    - /tmp
+    deny_write_paths: []
+    deny_write_repo: true
+    enabled: true
+    model: gpt-4o
+    repo_write_allowed_subdir: .atlastrinity_runtime
+  github:
+    enabled: true
+  graph:
+    enabled: true
+  macos_use:
+    enabled: true
+    permissions:
+      accessibility: true
+      screen_recording: true
+  memory:
+    chroma_path: ${CONFIG_ROOT}/memory/chroma
+    collection_name: atlastrinity_memory
+    enabled: true
+  puppeteer:
+    enabled: true
+    headless: true
+  sequential_thinking:
+    enabled: true
+    max_history_size: 1000
+    model: raptor-mini
+  terminal:
+    enabled: true
+  vibe:
+    binary: vibe
+    disallow_interactive: true
+    enabled: true
+    max_output_chars: 500000
+    timeout_s: 3600
+    workspace: ${CONFIG_ROOT}/vibe_workspace
+  whisper_stt:
+    enabled: true
+    language: uk
+    model: large-v3-turbo
+mcp_enhanced:
+  connection_timeout: 3600
+  retry_attempts: 3
+orchestrator:
+  max_recursion_depth: 5
+  recovery_voice_agent: atlas
+  subtask_timeout: 120
+  task_timeout: 3600
+  user_input_timeout: 20
+  validate_failed_steps_with_grisha: false
+security:
+  dangerous_commands:
+  - rm -rf
+  - mkfs
+  - dd if=
+  - ':(){ :|:& };:'
+  require_confirmation: true
+state:
+  redis_url: ${REDIS_URL}
+system:
+  repository_path: ${PROJECT_ROOT}
+  workspace_path: ${CONFIG_ROOT}/workspace
+voice:
+  stt:
+    device: cpu
+    language: uk
+    model: large-v3-turbo
+  tts:
+    device: cpu
+    enabled: true
+    engine: ukrainian-tts
