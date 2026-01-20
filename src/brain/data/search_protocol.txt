@@ -20,7 +20,11 @@ SEARCH PROTOCOL (v1.1)
 4. RECURSIVE SEARCH DOCTRINE:
    - After finding initial data, ALWAYS analyze if more precise terms (IDs, names) can be used for a second, deeper search.
 
-5. MACHINE-READABLE CONFIGURATION (JSON):
+5. OFFICIAL SOURCE DIRECTIVE:
+   - Whenever possible, PRIORITIZE official instructions, manuals, or API documentation for the systems you are searching.
+   - USE these official sources to refine your search queries and data extraction logic (e.g. finding hidden API endpoints or specific URL patterns).
+
+6. MACHINE-READABLE CONFIGURATION (JSON):
 {
   "search_rules": {
     "business": {
