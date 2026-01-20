@@ -107,7 +107,7 @@ const CommandLine: React.FC<CommandLineProps> = ({
 
         if (textareaRef.current) textareaRef.current.style.height = 'auto';
       }
-    }, 3000); // 3 секунди мовчання перед відправкою, як домовлено з користувачем
+    }, 6000); // 6 секунд мовчання перед відправкою, як домовлено з користувачем
   }, [onCommand]);
 
   // Обробка відповіді від Smart STT

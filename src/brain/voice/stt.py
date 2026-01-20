@@ -145,7 +145,7 @@ class WhisperSTT:
 
         # Stateful tracking for Smart STT
         self.last_speech_time = 0.0
-        self.silence_threshold = 3.5  # Seconds of silence before sending phrase (slightly more than UI 3s)
+        self.silence_threshold = 6.5  # Seconds of silence before sending phrase (slightly more than UI 6s)
 
     def _filter_text(self, text: str) -> str:
         """Filter out common hallucinations and noise patterns"""
@@ -228,7 +228,7 @@ class WhisperSTT:
                     audio_path,
                     language=language,
                     beam_size=2,
-                    initial_prompt="Це професійна розмова з AI-асистентом на ім'я Атлас. Використовуй правильну українську пунктуацію, розділові знаки, великі літери на початку речень. Не додавай тексту, якого немає в аудіо.",
+                    initial_prompt="Це професійна розмова з AI-асистентом Атласом. Пиши чистою українською мовою з правильними розділовими знаками. Наприклад: 'Слава Україні! Як твої справи? Потрібно виконати це завдання.' Використовуй коми, крапки, знаки питання та оклику відповідно до інтонації.",
                     vad_filter=True,  # Enable VAD to avoid hallucinations during silence
                     vad_parameters=dict(min_silence_duration_ms=1000),
                 )
