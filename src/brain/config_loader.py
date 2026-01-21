@@ -89,7 +89,7 @@ class SystemConfig:
         base_defaults = {
             "agents": {
                 "atlas": {
-                    "model": os.getenv("COPILOT_MODEL", "raptor-mini"),
+                    "model": os.getenv("COPILOT_MODEL", "gpt-4.1"),
                     "temperature": 0.7,
                     "max_tokens": 2000,
                 },
@@ -123,7 +123,7 @@ class SystemConfig:
                 "macos_use": {"enabled": True},
                 "sequential_thinking": {
                     "enabled": True,
-                    "model": os.getenv("SEQUENTIAL_THINKING_MODEL", "raptor-mini"),
+                    "model": os.getenv("SEQUENTIAL_THINKING_MODEL", "gpt-4.1"),
                 },
                 "vibe": {"enabled": True, "workspace": str(CONFIG_ROOT / "vibe_workspace")},
             },
