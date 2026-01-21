@@ -173,7 +173,7 @@ class AdaptiveBehaviorEngine:
         """
         # Create cache key from task type and relevant context
         context_key_parts = sorted(
-            [f"{k}={v}" for k, v in context.items() if isinstance(v, (str, bool, int))]
+            [f"{k}={v}" for k, v in context.items() if isinstance(v, str | bool | int)]
         )
         cache_key = f"{task_type}:{':'.join(context_key_parts[:5])}"
 

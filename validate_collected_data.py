@@ -10,25 +10,25 @@ import json
 import logging
 import os
 import sqlite3
+import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+
+# Add src to path before other project imports
+sys.path.insert(0, 'src')
+
+from typing import Any, Optional
 
 import pandas as pd
 from sqlalchemy import inspect
-
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
-logger = logging.getLogger("data_validator")
-
-# Import project modules
-import sys
-
-sys.path.insert(0, 'src')
 
 from brain.config import CONFIG_ROOT, PROJECT_ROOT
 from brain.config_validator import ConfigValidator, ValidationResult
 from brain.data_guard import DataQualityGuard
 from brain.db.schema import Base
+
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
+logger = logging.getLogger("data_validator")
 
 
 class DataValidator:
