@@ -9,5 +9,6 @@
     "cloudinary",
     "stripe",
     "tailwindcss"
-  ]
+  ],
+  "ignoreBinaries": ["python", "python3", "pytest", "unset"]
 }

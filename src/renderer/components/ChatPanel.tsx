@@ -35,7 +35,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
     const container = scrollContainerRef.current;
     if (!container) return true;
     const { scrollTop, scrollHeight, clientHeight } = container;
-    return scrollHeight - scrollTop - clientHeight < 20;
+    // Using a more robust threshold and Math.ceil for fractional values
+    return Math.ceil(scrollHeight - scrollTop - clientHeight) <= 50;
   }, []);
 
   // Handle scroll events to detect user scrolling
@@ -55,7 +56,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
         setUserScrolledUp(true);
       }
       
-      // If user specifically scrolls to bottom, resume
+      // Resumes auto-scroll if user scrolls down and IS near bottom
       if (e.deltaY > 0 && isNearBottom()) {
         setUserScrolledUp(false);
       }
@@ -75,9 +76,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
     const hasNewMessages = filteredMessages.length > lastMessageCountRef.current;
     lastMessageCountRef.current = filteredMessages.length;
 
-    // Auto-scroll if: near bottom, OR new message arrived and user hasn't scrolled up, OR first messages
+    // Auto-scroll logic:
+    // 1. If we are already near bottom
+    // 2. If it's the very first message(s)
+    // 3. If new messages arrived AND user hasn't explicitly scrolled up
     if (isNearBottom() || (hasNewMessages && !userScrolledUp) || filteredMessages.length <= 1) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      // Use a small timeout to ensure DOM has rendered
+      const timer = setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+        }
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [filteredMessages, userScrolledUp, isNearBottom]);
 
@@ -114,7 +124,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
             Waiting for neural link...
           </div>
         ) : (
-          <div className="flex flex-col gap-2 py-1">
+          <div className="flex flex-col gap-2 py-1 pb-24">
             {filteredMessages.map((msg) => (
               <div key={msg.id} className="animate-fade-in group mb-3">
                 <div className="flex items-center mb-1.5">

@@ -38,7 +38,8 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
     const container = scrollContainerRef.current;
     if (!container) return true;
     const { scrollTop, scrollHeight, clientHeight } = container;
-    return scrollHeight - scrollTop - clientHeight < 20;
+    // Using a more robust threshold and Math.ceil for fractional values
+    return Math.ceil(scrollHeight - scrollTop - clientHeight) <= 50;
   }, []);
 
   // Handle scroll events to detect user scrolling
@@ -58,7 +59,7 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
         setUserScrolledUp(true);
       }
       
-      // If user specifically scrolls to bottom, resume
+      // Resumes auto-scroll if user scrolls down and IS near bottom
       if (e.deltaY > 0 && isNearBottom()) {
         setUserScrolledUp(false);
       }
@@ -78,13 +79,22 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
     const hasNewLogs = filteredLogs.length > lastLogCountRef.current;
     lastLogCountRef.current = filteredLogs.length;
 
-    // Auto-scroll if: near bottom, OR new log arrived and user hasn't scrolled up, OR first logs
-    if (isNearBottom() || (hasNewLogs && !userScrolledUp) || filteredLogs.length <= 1) {
-      logsEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    // Auto-scroll logic:
+    // 1. If we are already near bottom
+    // 2. If it's the very first log(s)
+    // 3. If new logs arrived AND user hasn't explicitly scrolled up
+    if (isNearBottom() || filteredLogs.length <= 1 || (hasNewLogs && !userScrolledUp)) {
+      // Use a small timeout to ensure DOM has rendered
+      const timer = setTimeout(() => {
+        if (logsEndRef.current) {
+          logsEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+        }
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [filteredLogs, userScrolledUp, isNearBottom]);
 
-  const formatTime = (ts: any) => {
+  const formatTime = (ts: Date | number | string) => {
     const d = ts instanceof Date ? ts : new Date(Number(ts) * 1000);
     return d.toLocaleTimeString([], {
       hour: '2-digit',
@@ -114,7 +124,7 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
       <div style={{ height: '32px' }} /> {/* Spacer for title bar area */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto p-1 scrollbar-thin min-h-0"
+        className="flex-1 overflow-y-auto p-1 scrollbar-thin min-h-0 pb-24"
       >
         {filteredLogs.map((log) => (
           <div

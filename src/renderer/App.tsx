@@ -113,9 +113,9 @@ const App: React.FC = () => {
 
           if (data.logs) {
             setLogs(
-              data.logs.map((l: any) => ({
+              data.logs.map((l: LogEntry) => ({
                 ...l,
-                timestamp: new Date(l.timestamp * 1000),
+                timestamp: new Date((l.timestamp as unknown as number) * 1000),
               }))
             );
           }

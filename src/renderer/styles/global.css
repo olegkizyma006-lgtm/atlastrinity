@@ -409,6 +409,7 @@ body {
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
+  scroll-behavior: smooth;
 }
 
 ::-webkit-scrollbar-track {
@@ -454,6 +455,7 @@ body {
   min-height: 0;
   position: relative;
   z-index: 20;
+  pointer-events: auto; /* Ensure panels always receive events */
 }
 
 .panel-header {
@@ -543,6 +545,7 @@ body {
 
 .scrollbar-thin {
   overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
 }
 
 .status-bar {
