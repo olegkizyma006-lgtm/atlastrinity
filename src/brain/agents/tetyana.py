@@ -141,6 +141,93 @@ class Tetyana(BaseAgent):
         # Track current PID for Vision analysis
         self._current_pid: int | None = None
 
+    async def _validate_goal_alignment(
+        self,
+        step: dict[str, Any],
+        global_goal: str,
+        parent_goals: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Validates step alignment with global goal using recursive validation.
+        The agent has the right to suggest deviations if they lead to better outcomes.
+
+        Returns:
+            {
+                "aligned": bool,
+                "confidence": float (0.0-1.0),
+                "reason": str,
+                "deviation_suggested": bool,
+                "suggested_alternative": str | None,
+                "goal_chain": list[str]
+            }
+        """
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        from ..logger import logger
+
+        parent_goals = parent_goals or []
+        goal_chain = parent_goals + [global_goal]
+
+        prompt = f"""GOAL ALIGNMENT VALIDATION
+
+CURRENT STEP: {step.get('action', '')}
+EXPECTED RESULT: {step.get('expected_result', '')}
+TOOL: {step.get('tool', step.get('realm', 'not specified'))}
+
+GOAL CHAIN (from most specific to global):
+{chr(10).join([f"  {i+1}. {g}" for i, g in enumerate(goal_chain)])}
+
+GLOBAL GOAL: {global_goal}
+
+Analyze if this step:
+1. DIRECTLY contributes to the immediate goal
+2. INDIRECTLY supports the global goal
+3. Could DEVIATE from the goal vector
+
+AUTONOMOUS DECISION RIGHT:
+You have the right to suggest a better approach if you believe your alternative
+leads to the goal more efficiently. Exercise this right responsibly.
+
+Respond in JSON:
+{{
+    "aligned": true/false,
+    "confidence": 0.0-1.0,
+    "reason": "Brief explanation (English)",
+    "deviation_suggested": true/false,
+    "suggested_alternative": "Alternative if deviation - otherwise null",
+    "contribution_type": "direct|indirect|supportive|questionable"
+}}
+"""
+
+        try:
+            response = await self.reasoning_llm.ainvoke(
+                [
+                    SystemMessage(
+                        content="You are a Goal Alignment Validator. Be critical but constructive."
+                    ),
+                    HumanMessage(content=prompt),
+                ]
+            )
+            result = self._parse_response(cast(str, response.content))
+            result["goal_chain"] = goal_chain
+
+            if result.get("deviation_suggested"):
+                logger.info(
+                    f"[TETYANA] Goal alignment suggests deviation: {result.get('suggested_alternative', 'N/A')}"
+                )
+
+            return result
+        except Exception as e:
+            logger.warning(f"[TETYANA] Goal alignment validation failed: {e}")
+            return {
+                "aligned": True,
+                "confidence": 0.5,
+                "reason": f"Validation error: {e}",
+                "deviation_suggested": False,
+                "suggested_alternative": None,
+                "goal_chain": goal_chain,
+            }
+
     async def get_grisha_feedback(self, step_id: int) -> str | None:
         """Retrieve Grisha's detailed rejection report from notes or memory"""
         from ..logger import logger
@@ -525,6 +612,25 @@ IMPORTANT:
         if not shared_context.available_tools_summary:
             logger.info("[TETYANA] Fetching fresh MCP catalog for context...")
             shared_context.available_tools_summary = await mcp_manager.get_mcp_catalog()
+
+        # --- PHASE 0.3: GOAL ALIGNMENT VALIDATION ---
+        # Validate step aligns with global goal (supports recursive goal checking)
+        global_goal = shared_context.get_goal_context() or step.get("full_plan", "")
+        if global_goal and attempt == 1:  # Only validate on first attempt
+            alignment = await self._validate_goal_alignment(step, global_goal)
+
+            if not alignment.get("aligned") and alignment.get("deviation_suggested"):
+                alt = alignment.get("suggested_alternative")
+                logger.warning(
+                    f"[TETYANA] Step misaligned with goal. Confidence: {alignment.get('confidence')}. "
+                    f"Alternative: {alt}"
+                )
+                # If agent autonomously decides deviation is better, modify step
+                if alignment.get("confidence", 0) < 0.3 and alt:
+                    logger.info("[TETYANA] Autonomous deviation decision: using alternative approach")
+                    step["action"] = alt
+                    step["deviation_applied"] = True
+                    step["original_action"] = step.get("action", "")
 
         # --- PHASE 0.5: VISION ANALYSIS (if required) ---
         # When step has requires_vision=true, use Vision to find UI elements

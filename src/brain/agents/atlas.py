@@ -83,6 +83,55 @@ class Atlas(BaseAgent):
         self.current_plan: TaskPlan | None = None
         self.history: list[dict[str, Any]] = []
 
+    async def _get_mcp_capabilities_context(self) -> dict[str, Any]:
+        """
+        Analyzes available MCP servers and their capabilities.
+        Returns structured data for intelligent step planning.
+        """
+        from ..mcp_manager import mcp_manager
+        from ..mcp_registry import SERVER_CATALOG, get_tool_names_for_server
+
+        mcp_config = mcp_manager.config.get("mcpServers", {})
+        status = mcp_manager.get_status()
+        connected = set(status.get("connected_servers", []))
+
+        capabilities: dict[str, Any] = {
+            "active_servers": [],
+            "server_capabilities": {},
+            "tool_availability": {},
+            "recommendations": [],
+        }
+
+        for server_name, cfg in mcp_config.items():
+            if cfg and cfg.get("disabled"):
+                continue
+
+            server_info = SERVER_CATALOG.get(server_name, {})
+            is_connected = server_name in connected
+
+            capabilities["active_servers"].append(
+                {
+                    "name": server_name,
+                    "tier": server_info.get("tier", 4),
+                    "category": server_info.get("category", "unknown"),
+                    "description": server_info.get("description", ""),
+                    "connected": is_connected,
+                    "key_tools": server_info.get("key_tools", [])[:5],
+                    "when_to_use": server_info.get("when_to_use", ""),
+                }
+            )
+
+            if is_connected:
+                capabilities["tool_availability"][server_name] = get_tool_names_for_server(
+                    server_name
+                )[:10]
+
+        capabilities["active_servers"].sort(key=lambda x: x["tier"])
+        logger.info(
+            f"[ATLAS] MCP Infrastructure: {len(capabilities['active_servers'])} servers available"
+        )
+        return capabilities
+
     async def analyze_request(
         self,
         user_request: str,
@@ -494,6 +543,24 @@ class Atlas(BaseAgent):
             "{{CONTEXT_SPECIFIC_DOCTRINE}}", doctrine
         )
 
+        # 2.5 MCP INFRASTRUCTURE CONTEXT (For adaptive step assignment)
+        mcp_context = await self._get_mcp_capabilities_context()
+        active_servers = mcp_context.get("active_servers", [])
+        mcp_context_str = f"""
+AVAILABLE MCP INFRASTRUCTURE (DYNAMICALLY DETERMINED):
+Active Servers: {', '.join([s['name'] for s in active_servers])}
+
+Server Details (sorted by priority):
+{chr(10).join([f"- {s['name']} (Tier {s['tier']}): {s['description']} | Connected: {s['connected']}" for s in active_servers[:8]])}
+
+CRITICAL PLANNING RULES:
+1. ONLY assign steps to servers that are ACTIVE (listed above)
+2. Prefer Tier 1 servers (macos-use, filesystem) for core operations
+3. Use server's 'when_to_use' guidance when choosing tools
+4. For web tasks: prefer puppeteer/duckduckgo-search over macos-use browser
+5. Each step MUST specify 'realm' (server name) for Tetyana
+"""
+
         prompt = AgentPrompts.atlas_plan_creation_prompt(
             task_text,
             simulation_result,
@@ -505,6 +572,9 @@ class Atlas(BaseAgent):
             "",  # vibe_directive handled via SDLC_PROTOCOL inside doctrine
             str(shared_context.to_dict()),
         )
+
+        # Append MCP infrastructure context for adaptive planning
+        prompt += f"\n\n{mcp_context_str}"
 
         messages = [
             SystemMessage(content=dynamic_system_prompt),

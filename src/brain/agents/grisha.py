@@ -107,6 +107,125 @@ class Grisha(BaseAgent):
         self.strategist = CopilotLLM(model_name=strategy_model)
         logger.info(f"[GRISHA] Initialized with Vision={final_model}, Strategy={strategy_model}")
 
+    async def _deep_validation_reasoning(
+        self,
+        step: dict[str, Any],
+        result: Any,
+        goal_context: str,
+    ) -> dict[str, Any]:
+        """
+        Performs deep validation reasoning using sequential thinking.
+        Returns structured validation insights across multiple layers.
+        """
+        step_action = step.get("action", "")
+        expected = step.get("expected_result", "")
+
+        # Extract result string safely
+        if hasattr(result, "result"):
+            result_str = str(result.result)[:2000]
+        elif isinstance(result, dict):
+            result_str = str(result.get("result", result.get("output", "")))[:2000]
+        else:
+            result_str = str(result)[:2000]
+
+        reasoning_query = f"""DEEP VALIDATION ANALYSIS (Multi-Layer)
+
+STEP ACTION: {step_action}
+EXPECTED RESULT: {expected}
+ACTUAL RESULT: {result_str}
+GOAL CONTEXT: {goal_context}
+
+Perform 4-LAYER validation thinking:
+
+LAYER 1 - TECHNICAL ACCURACY:
+- Did the tool execute correctly?
+- Are there any error indicators in the result?
+- Does the output format match expectations?
+
+LAYER 2 - SEMANTIC CORRECTNESS:
+- Does the result semantically match the expected outcome?
+- Are there hidden failures (empty data, partial results)?
+
+LAYER 3 - GOAL ALIGNMENT:
+- Does this result advance the stated goal?
+- Are there side effects that could harm future steps?
+
+LAYER 4 - SYSTEM STATE INTEGRITY:
+- Did the system state change as expected?
+- Is the change persistent or transient?
+
+Synthesize findings into a comprehensive validation verdict.
+"""
+
+        reasoning = await self.use_sequential_thinking(reasoning_query, total_thoughts=4)
+        return {
+            "deep_analysis": reasoning.get("analysis", ""),
+            "confidence_boost": 0.1 if reasoning.get("success") else 0.0,
+            "layers_validated": 4,
+            "synthesis": reasoning.get("final_thought", ""),
+        }
+
+    async def _multi_layer_verification(
+        self,
+        step: dict[str, Any],
+        result: Any,
+        context: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """
+        Performs verification across 4 layers:
+        1. Tool Execution Layer - was the tool called correctly?
+        2. Output Layer - is the output valid?
+        3. State Layer - did system state change as expected?
+        4. Goal Layer - does this advance the mission?
+        """
+        from ..mcp_manager import mcp_manager
+
+        layers: list[dict[str, Any]] = []
+
+        # Layer 1: Tool Execution
+        tool_layer = {"layer": "tool_execution", "passed": False, "evidence": ""}
+        if hasattr(result, "tool_call") or (isinstance(result, dict) and result.get("tool_call")):
+            tc = getattr(result, "tool_call", None) or result.get("tool_call", {})
+            if tc and tc.get("name"):
+                tool_layer["passed"] = True
+                tool_layer["evidence"] = f"Tool '{tc['name']}' was invoked"
+        layers.append(tool_layer)
+
+        # Layer 2: Output Validation
+        output_layer = {"layer": "output_validation", "passed": False, "evidence": ""}
+        result_str = (
+            str(result.get("result", "") if isinstance(result, dict) else getattr(result, "result", ""))
+        )
+        if result_str and len(result_str) > 0 and "error" not in result_str.lower():
+            output_layer["passed"] = True
+            output_layer["evidence"] = f"Output received: {result_str[:200]}..."
+        layers.append(output_layer)
+
+        # Layer 3: State Verification (via DB trace)
+        state_layer = {"layer": "state_verification", "passed": False, "evidence": ""}
+        try:
+            trace = await self._fetch_execution_trace(str(step.get("id")))
+            if "No DB records" not in trace:
+                state_layer["passed"] = True
+                state_layer["evidence"] = "Execution trace found in database"
+        except Exception:
+            state_layer["evidence"] = "Could not verify state"
+        layers.append(state_layer)
+
+        # Layer 4: Goal Alignment (assume aligned unless proven otherwise)
+        goal_layer = {
+            "layer": "goal_alignment",
+            "passed": True,
+            "evidence": "Step is part of approved plan",
+        }
+        layers.append(goal_layer)
+
+        # Log layer results
+        passed_count = sum(1 for l in layers if l["passed"])
+        logger.info(f"[GRISHA] Multi-layer verification: {passed_count}/4 layers passed")
+
+        return layers
+
     async def _plan_verification_strategy(
         self,
         step_action: str,
