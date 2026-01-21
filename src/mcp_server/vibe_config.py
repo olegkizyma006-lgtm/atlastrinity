@@ -456,7 +456,9 @@ class VibeConfig(BaseModel):
         # Model override - only if CLI supports it (handled via config heuristic)
         if model and model != "default":
             # Optimization: Some CLI versions might not support --model if using global config
-            args.extend(["--model", model])
+            # Removing because current CLI version does not recognize --model
+            # args.extend(["--model", model])
+            pass
 
 
         # Mode
