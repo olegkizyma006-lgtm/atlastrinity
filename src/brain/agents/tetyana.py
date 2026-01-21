@@ -109,21 +109,25 @@ class Tetyana(BaseAgent):
     COLOR = AgentPrompts.TETYANA["COLOR"]
     SYSTEM_PROMPT = AgentPrompts.TETYANA["SYSTEM_PROMPT"]
 
-    def __init__(self, model_name: str = "grok-code-fast-1"):
+    def __init__(self, model_name: str = "gpt-4o"):
         # Get model config (config.yaml > parameter > env variables)
         agent_config = config.get_agent_config("tetyana")
         final_model = model_name
-        if model_name == "grok-code-fast-1":  # default parameter
-            final_model = agent_config.get("model") or os.getenv("COPILOT_MODEL", "gpt-4.1")
+        
+        config_model = agent_config.get("model")
+        if config_model:
+             final_model = config_model
+        elif model_name == "gpt-4o":
+             final_model = os.getenv("COPILOT_MODEL", "gpt-4o")
 
         self.llm = CopilotLLM(model_name=final_model)
 
         # Specialized models for Reasoning and Reflexion
         reasoning_model = agent_config.get("reasoning_model") or os.getenv(
-            "REASONING_MODEL", "raptor-mini"
+            "REASONING_MODEL", "gpt-4o"
         )
         reflexion_model = agent_config.get("reflexion_model") or os.getenv(
-            "REFLEXION_MODEL", "gpt-5-mini"
+            "REFLEXION_MODEL", "gpt-4o"
         )
 
         self.reasoning_llm = CopilotLLM(model_name=reasoning_model)

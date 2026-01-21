@@ -100,9 +100,9 @@ class Grisha(BaseAgent):
         self._strategy_cache = {}
 
         # Reasoner Model (Raptor-Mini) for Strategy Planning
-        # Default to raptor-mini, or use from config/env
+        # Default to gpt-4o, or use from config/env
         strategy_model = agent_config.get("strategy_model") or os.getenv(
-            "STRATEGY_MODEL", "raptor-mini"
+            "STRATEGY_MODEL", "gpt-4o"
         )
         self.strategist = CopilotLLM(model_name=strategy_model)
         logger.info(f"[GRISHA] Initialized with Vision={final_model}, Strategy={strategy_model}")

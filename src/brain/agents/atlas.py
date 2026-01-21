@@ -66,12 +66,18 @@ class Atlas(BaseAgent):
     COLOR = AgentPrompts.ATLAS["COLOR"]
     SYSTEM_PROMPT = AgentPrompts.ATLAS["SYSTEM_PROMPT"]
 
-    def __init__(self, model_name: str = "raptor-mini"):
+    def __init__(self, model_name: str = "gpt-4o"):
         # Get model config (config.yaml > parameter > env variables)
         agent_config = config.get_agent_config("atlas")
         final_model = model_name
-        if model_name == "raptor-mini":  # default parameter
-            final_model = agent_config.get("model") or os.getenv("COPILOT_MODEL", "raptor-mini")
+        
+        # If default is passed but config has something else, prefer config
+        config_model = agent_config.get("model")
+        if config_model:
+            final_model = config_model
+        elif model_name == "gpt-4o": # matching default arg
+             # Try env
+             final_model = os.getenv("COPILOT_MODEL", "gpt-4o")
 
         self.llm = CopilotLLM(model_name=final_model)
 

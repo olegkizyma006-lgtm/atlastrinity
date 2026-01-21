@@ -6,7 +6,7 @@
 # This configuration controls the Vibe MCP server integration with AtlasTrinity.
 #
 # Based on official Mistral Vibe documentation:
-# https://docs.mistral.ai/vibe/configuration/
+# https://docs.mistral.ai/mistral-vibe/introduction/configuration
 #
 # Author: AtlasTrinity Team
 # Date: 2026-01-20
@@ -143,9 +143,9 @@ input_price = 5.0
 output_price = 15.0
 
 [[models]]
-name = "gpt-4.1"
+name = "gpt-4o"
 provider = "copilot"
-alias = "gpt-4.1"
+alias = "gpt-4.1" # Legacy alias fallback
 temperature = 0.3
 input_price = 5.0
 output_price = 15.0

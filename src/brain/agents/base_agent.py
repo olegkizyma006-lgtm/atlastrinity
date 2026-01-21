@@ -78,7 +78,7 @@ class BaseAgent:
 
         # 1. Get model from config (defaulting to raptor-mini as requested)
         seq_config = config.get("mcp.sequential_thinking", {})
-        model_name = seq_config.get("model", "raptor-mini")
+        model_name = seq_config.get("model", "gpt-4o")
 
         # 2. Initialize dedicated thinker
         # We need to ensure providers is in path, usually it's there via agent init overrides

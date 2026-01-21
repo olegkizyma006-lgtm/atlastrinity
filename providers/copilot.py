@@ -33,9 +33,13 @@ class CopilotLLM(BaseChatModel):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        self.model_name = model_name or os.getenv("COPILOT_MODEL", "gpt-4.1")
-        vm = vision_model_name or os.getenv("COPILOT_VISION_MODEL", "gpt-4.1")
-        self.vision_model_name = vm
+        # STRICT CONFIGURATION: No hardcoded defaults
+        self.model_name = model_name or os.getenv("COPILOT_MODEL")
+        if not self.model_name:
+             raise ValueError("CopilotLLM: 'model_name' must be provided via argument or COPILOT_MODEL env var.")
+             
+        vm = vision_model_name or os.getenv("COPILOT_VISION_MODEL")
+        self.vision_model_name = vm or self.model_name # Fallback to main model if vision not distinct
         
         # Use COPILOT_API_KEY for regular models, VISION_API_KEY for vision models
         # IMPORTANT: GITHUB_TOKEN is ONLY for GitHub MCP server, NOT for agents!

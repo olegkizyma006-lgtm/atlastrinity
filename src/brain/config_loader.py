@@ -89,21 +89,20 @@ class SystemConfig:
         base_defaults = {
             "agents": {
                 "atlas": {
-                    "model": os.getenv("COPILOT_MODEL", "gpt-4.1"),
+                    "model": os.getenv("COPILOT_MODEL"),
                     "temperature": 0.7,
                     "max_tokens": 2000,
                 },
                 "tetyana": {
-                    "model": os.getenv("COPILOT_MODEL", "gpt-4.1"),  # Execution (Main)
-                    "reasoning_model": os.getenv(
-                        "COPILOT_MODEL", "gpt-4.1"
-                    ),  # Tool Selection (Reasoning)
-                    "reflexion_model": os.getenv("COPILOT_MODEL", "gpt-4.1"),  # Self-Correction
+                    "model": os.getenv("COPILOT_MODEL"),  # Execution (Main)
+                    "reasoning_model": os.getenv("REASONING_MODEL"),  # Tool Selection (Reasoning)
+                    "reflexion_model": os.getenv("REFLEXION_MODEL"),  # Self-Correction
                     "temperature": 0.5,
                     "max_tokens": 2000,
                 },
                 "grisha": {
-                    "vision_model": os.getenv("VISION_MODEL", "gpt-4o"),
+                    "vision_model": os.getenv("VISION_MODEL"),
+                    "strategy_model": os.getenv("STRATEGY_MODEL"),
                     "temperature": 0.3,
                     "max_tokens": 1500,
                 },
@@ -123,7 +122,7 @@ class SystemConfig:
                 "macos_use": {"enabled": True},
                 "sequential_thinking": {
                     "enabled": True,
-                    "model": os.getenv("SEQUENTIAL_THINKING_MODEL", "gpt-4.1"),
+                    "model": os.getenv("SEQUENTIAL_THINKING_MODEL"),
                 },
                 "vibe": {"enabled": True, "workspace": str(CONFIG_ROOT / "vibe_workspace")},
             },

@@ -19,11 +19,11 @@ logging:
 agents:
   grisha:
     vision_model: gpt-4o
-    strategy_model: raptor-mini
+    strategy_model: gpt-4o
     max_tokens: 1500
     temperature: 0.3
   atlas:
-    model: gpt-4.1
+    model: gpt-4o
     max_tokens: 2000
     temperature: 0.7
   tetyana:
