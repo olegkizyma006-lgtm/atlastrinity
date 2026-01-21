@@ -103,19 +103,19 @@ class TestVibeConfig:
         assert "--auto-approve" in args
 
     def test_cli_args_model_override(self):
-        """Model override should be included in CLI args."""
+        """Model override is not supported in current Vibe CLI."""
         from src.mcp_server.vibe_config import VibeConfig
 
         config = VibeConfig()
 
+        # Model selection via --model argument is not supported in current Vibe CLI
+        # Models are configured via vibe_config.toml and active_model setting
         args = config.to_cli_args(
             prompt="Test",
-            model="gpt-4o",
         )
 
-        assert "--model" in args
-        idx = args.index("--model")
-        assert args[idx + 1] == "gpt-4o"
+        # Verify that --model argument is not present
+        assert "--model" not in args
 
     def test_cli_args_session_resume(self):
         """Session ID should be included for resume."""

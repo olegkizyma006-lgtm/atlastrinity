@@ -292,23 +292,9 @@ class CopilotLLM(BaseChatModel):
         # Prepend system message
         final_messages = [{"role": "system", "content": system_content}, *formatted_messages]
 
+        # Use the configured model directly without mapping
+        # The model name from config (e.g., raptor-mini, gpt-4.1, gpt-4o) is used as-is
         chosen_model = self.vision_model_name if self._has_image(messages) else self.model_name
-
-        # Model mapping for specific custom names from the official list
-        model_map = {
-            "gpt-4": "gpt-4.1",
-            "gpt-3.5": "gpt-4.1",
-            "gpt-3.5-turbo": "gpt-4.1",
-            "grok": "grok-code-fast-1",
-            "raptor": "raptor-mini",
-            "raptor-mini": "raptor-mini",  # Re-route to same if supported, or change to gpt-4.1 if not
-            "gpt-5": "gpt-5-mini",
-            "gpt-5-mini": "gpt-5-mini",
-        }
-
-        # Clean up input string (lowercase, hyphenate common spaces)
-        lookup = chosen_model.lower().replace(" ", "-")
-        chosen_model = model_map.get(lookup, chosen_model)
 
         return {
             "model": chosen_model,
