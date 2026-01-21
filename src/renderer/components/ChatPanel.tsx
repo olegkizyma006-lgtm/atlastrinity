@@ -3,7 +3,7 @@
  */
 
 import * as React from 'react';
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useState, useEffect, useCallback } from 'react';
 
 type AgentName = 'ATLAS' | 'TETYANA' | 'GRISHA' | 'SYSTEM' | 'USER';
 
@@ -25,20 +25,63 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Track if user has scrolled away from bottom (to pause auto-scroll)
+  const [userScrolledUp, setUserScrolledUp] = useState(false);
+  const lastMessageCountRef = useRef(filteredMessages.length);
 
-  // Reliable auto-scroll logic
+  // Check if user is near bottom
+  const isNearBottom = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return true;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    return scrollHeight - scrollTop - clientHeight < 100;
+  }, []);
+
+  // Handle scroll events to detect user scrolling
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      if (isNearBottom()) {
+        setUserScrolledUp(false);
+      }
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      // User scrolling up = pause auto-scroll
+      if (e.deltaY < 0 && !isNearBottom()) {
+        setUserScrolledUp(true);
+      }
+      // User scrolling down and near bottom = resume
+      if (e.deltaY > 0 && isNearBottom()) {
+        setUserScrolledUp(false);
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    container.addEventListener('wheel', handleWheel, { passive: true });
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, [isNearBottom]);
+
+  // Auto-scroll logic - only scroll if user hasn't scrolled up
   useLayoutEffect(() => {
     const container = scrollContainerRef.current;
-    if (container) {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      // If we are within 100px of the bottom or it's the first render with messages, auto-scroll
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    if (!container) return;
 
-      if (isNearBottom || filteredMessages.length <= 1) {
-        container.scrollTop = container.scrollHeight;
-      }
+    const hasNewMessages = filteredMessages.length > lastMessageCountRef.current;
+    lastMessageCountRef.current = filteredMessages.length;
+
+    // Auto-scroll if: near bottom, OR new message arrived and user hasn't scrolled up, OR first messages
+    if (isNearBottom() || (hasNewMessages && !userScrolledUp) || filteredMessages.length <= 1) {
+      container.scrollTop = container.scrollHeight;
     }
-  }, [filteredMessages]);
+  }, [filteredMessages, userScrolledUp, isNearBottom]);
 
   const getHeaderColor = (agent: string) => {
     const a = agent.toUpperCase().trim();

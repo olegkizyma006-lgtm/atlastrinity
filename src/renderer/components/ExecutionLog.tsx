@@ -4,7 +4,7 @@
  */
 
 import * as React from 'react';
-import { useRef, useLayoutEffect } from 'react';
+import { useRef, useLayoutEffect, useState, useEffect, useCallback } from 'react';
 
 type AgentName = 'ATLAS' | 'TETYANA' | 'GRISHA' | 'SYSTEM' | 'USER';
 
@@ -29,20 +29,62 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
   const logsEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Reliable auto-scroll logic
+  // Track if user has scrolled away from bottom (to pause auto-scroll)
+  const [userScrolledUp, setUserScrolledUp] = useState(false);
+  const lastLogCountRef = useRef(filteredLogs.length);
+
+  // Check if user is near bottom
+  const isNearBottom = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return true;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    return scrollHeight - scrollTop - clientHeight < 100;
+  }, []);
+
+  // Handle scroll events to detect user scrolling
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      if (isNearBottom()) {
+        setUserScrolledUp(false);
+      }
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      // User scrolling up = pause auto-scroll
+      if (e.deltaY < 0 && !isNearBottom()) {
+        setUserScrolledUp(true);
+      }
+      // User scrolling down and near bottom = resume
+      if (e.deltaY > 0 && isNearBottom()) {
+        setUserScrolledUp(false);
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    container.addEventListener('wheel', handleWheel, { passive: true });
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, [isNearBottom]);
+
+  // Auto-scroll logic - only scroll if user hasn't scrolled up
   useLayoutEffect(() => {
     const container = scrollContainerRef.current;
-    if (container) {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      // If we are within 100px of the bottom or it's the first render with messages, auto-scroll
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    if (!container) return;
 
-      if (isNearBottom || filteredLogs.length <= 1) {
-        // Direct manipulation is more robust than scrollIntoView for frequent updates
-        container.scrollTop = container.scrollHeight;
-      }
+    const hasNewLogs = filteredLogs.length > lastLogCountRef.current;
+    lastLogCountRef.current = filteredLogs.length;
+
+    // Auto-scroll if: near bottom, OR new log arrived and user hasn't scrolled up, OR first logs
+    if (isNearBottom() || (hasNewLogs && !userScrolledUp) || filteredLogs.length <= 1) {
+      container.scrollTop = container.scrollHeight;
     }
-  }, [filteredLogs]);
+  }, [filteredLogs, userScrolledUp, isNearBottom]);
 
   const formatTime = (ts: number) => {
     return new Date(ts * 1000).toLocaleTimeString([], {
