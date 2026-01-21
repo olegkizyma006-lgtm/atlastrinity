@@ -679,6 +679,25 @@ class Trinity:
 
                 analysis = await self.atlas.analyze_request(user_request, history=history)
 
+                # Handle informational requests (recall, status) - NO EXECUTION
+                intent = analysis.get("intent")
+                if intent in ["recall", "status"]:
+                    response = analysis.get("initial_response") or await self.atlas.chat(
+                        user_request,
+                        history=history,
+                        use_deep_persona=False,
+                    )
+                    await self._speak("atlas", response)
+                    try:
+                        from src.brain.state_manager import state_manager
+
+                        if state_manager and getattr(state_manager, "available", False):
+                            await state_manager.save_session(session_id, self.state)
+                    except (ImportError, NameError):
+                        pass
+                    self.state["system_state"] = SystemState.IDLE.value
+                    return {"status": "completed", "result": response, "type": "info"}
+
                 if analysis.get("intent") == "chat":
                     response = analysis.get("initial_response") or await self.atlas.chat(
                         user_request,
