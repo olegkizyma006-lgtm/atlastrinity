@@ -717,6 +717,22 @@ Synthesize findings into a comprehensive validation verdict.
                     }
                 )
                 continue
+            elif data.get("action") in ["audit", "thought", "plan"] or (
+                not data.get("action") and "voice_message" in data and "verified" not in data
+            ):
+                # Intermediate response/announcement: Log to history and continue the loop
+                logger.info(
+                    f"[GRISHA] Intermediate Step: {data.get('action', 'thought')} - {data.get('voice_message', 'Thinking...')}"
+                )
+                verification_history.append(
+                    {
+                        "type": "intermediate",
+                        "action": data.get("action"),
+                        "voice_message": data.get("voice_message"),
+                        "thought": data.get("thought"),
+                    }
+                )
+                continue
             else:
                 # OPTIMIZATION: Early exit on high confidence
                 confidence = data.get("confidence", 0.5)
