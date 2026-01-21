@@ -251,8 +251,8 @@ const App: React.FC = () => {
   };
 
   // Derived messages for ChatPanel
-  const chatMessages = chatHistory.map((m) => ({
-    id: `chat-${m.timestamp.getTime()}-${Math.random()}`,
+  const chatMessages = chatHistory.map((m, idx) => ({
+    id: `chat-${m.timestamp.getTime()}-${idx}`,
     agent: m.agent,
     text: m.text,
     timestamp: m.timestamp,

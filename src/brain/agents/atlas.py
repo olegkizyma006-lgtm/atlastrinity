@@ -174,6 +174,11 @@ class Atlas(BaseAgent):
             if not analysis.get("enriched_request"):
                 analysis["enriched_request"] = user_request
 
+            # Mapping for orchestrator: if intent is chat, map voice_response to initial_response
+            # so the orchestrator can use the LLM's tailored greeting immediately.
+            if analysis.get("intent") == "chat" and analysis.get("voice_response"):
+                analysis["initial_response"] = analysis.get("voice_response")
+
             return analysis
         except Exception as e:
             logger.error(f"Intent detection LLM failed: {e}")
@@ -269,26 +274,22 @@ class Atlas(BaseAgent):
                 "прочитай",
             ]
         )
+        # Improved is_simple_chat: catch variations like "як твої справи"
         is_simple_chat = (
-            len(user_request.split()) < 5
+            len(user_request.split()) < 6
             and any(
                 g in request_lower
                 for g in [
-                    "привіт",
-                    "хай",
-                    "hello",
-                    "hi",
-                    "атлас",
-                    "atlas",
-                    "як справи",
-                    "що ти",
-                    "дякую",
-                    "окей",
-                    "ок",
+                    "привіт", "хай", "hello", "hi", "атлас", "atlas", "дякую", "окей", "ок"
                 ]
             )
-            and not is_info_query
+        ) or (
+            "як" in request_lower and "справи" in request_lower and len(user_request.split()) < 7
         )
+        
+        # Explicit check to NOT be a simple chat if it's an info query
+        if is_info_query:
+            is_simple_chat = False
 
         graph_context = ""
         vector_context = ""

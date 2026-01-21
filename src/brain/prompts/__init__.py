@@ -304,7 +304,7 @@ Respond STRICTLY in JSON:
 {{
     "intent": "chat" or "solo_task" or "recall" or "status" or "task" or "development",
     "reason": "Technical explanation of the choice in English (Internal only)",
-    "voice_response": "Ukrainian message for the user. ZERO English words. Be NATURAL as a companion. DO NOT explain your logic (e.g., 'Yes, I can do that' or 'I understand the task' in Ukrainian). NEVER mention server names, tool names (like 'vibe', 'mcp'), or technical intents (like 'development').",
+    "voice_response": "Ukrainian message for the user. BE EXTRAORDINARY. Avoid repetitive templates. If it's a greeting, reply with wit and warmth. If it's a question, answer DIRECTLY. ZERO English words.",
     "enriched_request": "Detailed description of the request (English)",
     "complexity": "low/medium/high",
     "use_vibe": true/false,

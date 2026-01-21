@@ -35,7 +35,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
     const container = scrollContainerRef.current;
     if (!container) return true;
     const { scrollTop, scrollHeight, clientHeight } = container;
-    return scrollHeight - scrollTop - clientHeight < 100;
+    return scrollHeight - scrollTop - clientHeight < 20;
   }, []);
 
   // Handle scroll events to detect user scrolling
@@ -50,11 +50,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
     };
 
     const handleWheel = (e: WheelEvent) => {
-      // User scrolling up = pause auto-scroll
-      if (e.deltaY < 0 && !isNearBottom()) {
+      // Any scroll action by user should pause auto-scroll if it moves away from bottom
+      if (e.deltaY < 0) {
         setUserScrolledUp(true);
       }
-      // User scrolling down and near bottom = resume
+      
+      // If user specifically scrolls to bottom, resume
       if (e.deltaY > 0 && isNearBottom()) {
         setUserScrolledUp(false);
       }
@@ -106,7 +107,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages }) => {
       {/* Main Chat Stream */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto pr-1 scrollbar-thin h-full min-h-0"
+        className="flex-1 overflow-y-auto pr-1 scrollbar-thin min-h-0"
       >
         {filteredMessages.length === 0 ? (
           <div className="h-full flex items-center justify-center opacity-10 italic text-[9px] tracking-[0.5em] uppercase">
