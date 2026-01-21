@@ -70,18 +70,15 @@ class Atlas(BaseAgent):
     COLOR = AgentPrompts.ATLAS["COLOR"]
     SYSTEM_PROMPT = AgentPrompts.ATLAS["SYSTEM_PROMPT"]
 
-    def __init__(self, model_name: str = "gpt-4o"):
-        # Get model config (config.yaml > parameter > env variables)
+    def __init__(self, model_name: str | None = None):
+        # Get model config (config.yaml > parameter)
         agent_config = config.get_agent_config("atlas")
-        final_model = model_name
+        
+        # Priority: 1. Constructor arg, 2. Config file, 3. Default in config_loader
+        final_model = model_name or agent_config.get("model")
 
-        # If default is passed but config has something else, prefer config
-        config_model = agent_config.get("model")
-        if config_model:
-            final_model = config_model
-        elif model_name == "gpt-4o":  # matching default arg
-            # Try env
-            final_model = os.getenv("COPILOT_MODEL", "gpt-4o")
+        if not final_model:
+            raise ValueError("[ATLAS] Model not specified in config.yaml or constructor")
 
         self.llm = CopilotLLM(model_name=final_model)
 

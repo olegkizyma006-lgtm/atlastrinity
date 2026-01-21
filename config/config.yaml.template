@@ -23,12 +23,14 @@ agents:
     max_tokens: 1500
     temperature: 0.3
   atlas:
-    model: gpt-4.1
+    model: gpt-4o
     max_tokens: 2000
     temperature: 0.7
   tetyana:
-    reasoning_model: gpt-4o
     model: gpt-4o
+    reasoning_model: gpt-4o
+    reflexion_model: gpt-4o
+    vision_model: gpt-4o
     max_tokens: 2000
     temperature: 0.5
     reflexion_model: gpt-4o
@@ -45,14 +47,14 @@ mcp:
     model: gpt-4o
     repo_write_allowed_subdir: .atlastrinity_runtime
     allowed_paths:
-    - ${HOME}
-    - /tmp
+      - ${HOME}
+      - /tmp
     enabled: true
     deny_write_repo: true
 
   sequential_thinking:
     enabled: true
-    model: raptor-mini
+    model: gpt-4o
     max_history_size: 1000
 
   # === TIER 2: HIGH (Рекомендовані) ===
@@ -63,7 +65,7 @@ mcp:
     timeout_s: 3600
     max_output_chars: 500000
     disallow_interactive: true
-  
+
   memory:
     enabled: true
     chroma_path: ${CONFIG_ROOT}/memory/chroma
@@ -71,7 +73,7 @@ mcp:
 
   graph:
     enabled: true
-  
+
   redis:
     enabled: true
     url: redis://localhost:6379/0
@@ -116,13 +118,13 @@ orchestrator:
   subtask_timeout: 120
   user_input_timeout: 20
   validate_failed_steps_with_grisha: false # set to true to enable Auditor verification on fail
-  recovery_voice_agent: "atlas"            # which agent explains the recovery strategy
+  recovery_voice_agent: "atlas" # which agent explains the recovery strategy
 security:
   dangerous_commands:
-  - rm -rf
-  - mkfs
-  - dd if=
-  - ':(){ :|:& };:'
+    - rm -rf
+    - mkfs
+    - dd if=
+    - ":(){ :|:& };:"
   require_confirmation: true
 
 system:

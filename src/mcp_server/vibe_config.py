@@ -5,7 +5,7 @@ Pydantic models for type-safe configuration of Mistral Vibe CLI integration.
 Supports providers, models, agents, tool permissions, and MCP integration.
 
 Based on official Mistral Vibe documentation:
-https://docs.mistral.ai/vibe/configuration/
+https://docs.mistral.ai/mistral-vibe/introduction/configuration
 
 Author: AtlasTrinity Team
 Date: 2026-01-20
@@ -212,7 +212,7 @@ class VibeConfig(BaseModel):
     """
 
     # Core settings
-    active_model: str = Field("devstral-2", description="Default model alias")
+    active_model: str = Field("", description="Default model alias (Must be set in vibe_config.toml)")
     system_prompt_id: str = Field("default", description="System prompt ID")
     default_mode: AgentMode = Field(AgentMode.AUTO_APPROVE, description="Default operational mode")
 

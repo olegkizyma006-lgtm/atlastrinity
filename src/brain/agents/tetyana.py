@@ -109,32 +109,33 @@ class Tetyana(BaseAgent):
     COLOR = AgentPrompts.TETYANA["COLOR"]
     SYSTEM_PROMPT = AgentPrompts.TETYANA["SYSTEM_PROMPT"]
 
-    def __init__(self, model_name: str = "gpt-4o"):
-        # Get model config (config.yaml > parameter > env variables)
+    def __init__(self, model_name: str | None = None):
+        # Get model config (config.yaml > parameter)
         agent_config = config.get_agent_config("tetyana")
-        final_model = model_name
-
-        config_model = agent_config.get("model")
-        if config_model:
-            final_model = config_model
-        elif model_name == "gpt-4o":
-            final_model = os.getenv("COPILOT_MODEL", "gpt-4o")
-
+        
+        # Main execution model
+        final_model = model_name or agent_config.get("model")
+        if not final_model:
+            raise ValueError("[TETYANA] Main model not specified in config.yaml or constructor")
+            
         self.llm = CopilotLLM(model_name=final_model)
 
         # Specialized models for Reasoning and Reflexion
-        reasoning_model = agent_config.get("reasoning_model") or os.getenv(
-            "REASONING_MODEL", "gpt-4o"
-        )
-        reflexion_model = agent_config.get("reflexion_model") or os.getenv(
-            "REFLEXION_MODEL", "gpt-4o"
-        )
+        reasoning_model = agent_config.get("reasoning_model")
+        reflexion_model = agent_config.get("reflexion_model")
+
+        if not reasoning_model or not reflexion_model:
+            raise ValueError("[TETYANA] Reasoning/Reflexion models not specified in config.yaml")
 
         self.reasoning_llm = CopilotLLM(model_name=reasoning_model)
         self.reflexion_llm = CopilotLLM(model_name=reflexion_model)
 
         # NEW: Vision model for complex GUI tasks (screenshot analysis)
-        vision_model = agent_config.get("vision_model") or os.getenv("VISION_MODEL", "gpt-4o")
+        vision_model = agent_config.get("vision_model")
+        if not vision_model:
+            # Fallback to main model if vision not explicitly set, but Main must exist
+            vision_model = final_model
+            
         self.vision_llm = CopilotLLM(model_name=vision_model, vision_model_name=vision_model)
 
         self.temperature = agent_config.get("temperature", 0.5)

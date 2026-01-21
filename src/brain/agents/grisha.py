@@ -80,14 +80,15 @@ class Grisha(BaseAgent):
         "mv / /dev/null",
     ]
 
-    def __init__(self, vision_model: str = "gpt-4o"):
-        # Get model config (config.yaml > parameter > env variables)
+    def __init__(self, vision_model: str | None = None):
+        # Get model config (config.yaml > parameter)
         agent_config = config.get_agent_config("grisha")
         security_config = config.get_security_config()
 
-        final_model = vision_model
-        if vision_model == "gpt-4o":  # default parameter
-            final_model = agent_config.get("vision_model") or os.getenv("VISION_MODEL", "gpt-4o")
+        # Primary vision model
+        final_model = vision_model or agent_config.get("vision_model")
+        if not final_model:
+            raise ValueError("[GRISHA] Vision model not specified in config.yaml or constructor")
 
         self.llm = CopilotLLM(model_name=final_model, vision_model_name=final_model)
         self.temperature = agent_config.get("temperature", 0.3)
@@ -99,9 +100,11 @@ class Grisha(BaseAgent):
         # OPTIMIZATION: Strategy cache to avoid redundant LLM calls
         self._strategy_cache = {}
 
-        # Reasoner Model (Raptor-Mini) for Strategy Planning
-        # Default to gpt-4o, or use from config/env
-        strategy_model = agent_config.get("strategy_model") or os.getenv("STRATEGY_MODEL", "gpt-4o")
+        # Reasoner Model for Strategy Planning
+        strategy_model = agent_config.get("strategy_model")
+        if not strategy_model:
+            raise ValueError("[GRISHA] Strategy model not specified in config.yaml")
+
         self.strategist = CopilotLLM(model_name=strategy_model)
         logger.info(f"[GRISHA] Initialized with Vision={final_model}, Strategy={strategy_model}")
 

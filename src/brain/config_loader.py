@@ -89,20 +89,20 @@ class SystemConfig:
         base_defaults = {
             "agents": {
                 "atlas": {
-                    "model": os.getenv("COPILOT_MODEL"),
+                    "model": "",  # Must be set in config.yaml
                     "temperature": 0.7,
                     "max_tokens": 2000,
                 },
                 "tetyana": {
-                    "model": os.getenv("COPILOT_MODEL"),  # Execution (Main)
-                    "reasoning_model": os.getenv("REASONING_MODEL"),  # Tool Selection (Reasoning)
-                    "reflexion_model": os.getenv("REFLEXION_MODEL"),  # Self-Correction
+                    "model": "",  # Execution (Main)
+                    "reasoning_model": "",  # Tool Selection (Reasoning)
+                    "reflexion_model": "",  # Self-Correction
                     "temperature": 0.5,
                     "max_tokens": 2000,
                 },
                 "grisha": {
-                    "vision_model": os.getenv("VISION_MODEL"),
-                    "strategy_model": os.getenv("STRATEGY_MODEL"),
+                    "vision_model": "",
+                    "strategy_model": "",
                     "temperature": 0.3,
                     "max_tokens": 1500,
                 },
@@ -122,7 +122,7 @@ class SystemConfig:
                 "macos_use": {"enabled": True},
                 "sequential_thinking": {
                     "enabled": True,
-                    "model": os.getenv("SEQUENTIAL_THINKING_MODEL"),
+                    "model": "",  # Must be set in config.yaml
                 },
                 "vibe": {"enabled": True, "workspace": str(CONFIG_ROOT / "vibe_workspace")},
             },

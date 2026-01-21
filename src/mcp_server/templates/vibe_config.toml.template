@@ -73,19 +73,7 @@ vim_keybindings = false
 # Define custom LLM providers for Vibe.
 # Each provider needs: name, api_base, api_key_env_var, api_style, backend
 
-[[providers]]
-name = "mistral"
-api_base = "https://api.mistral.ai/v1"
-api_key_env_var = "MISTRAL_API_KEY"
-api_style = "mistral"
-backend = "mistral"
 
-[[providers]]
-name = "openrouter"
-api_base = "https://openrouter.ai/api/v1"
-api_key_env_var = "OPENROUTER_API_KEY"
-api_style = "openai"
-backend = "generic"
 
 # Example: Custom OpenAI-compatible endpoint
 # [[providers]]
@@ -117,13 +105,7 @@ backend = "generic"
 # Each model needs: name (API ID), provider, alias, temperature
 
 
-[[models]]
-name = "mistralai/devstral-2512:free"
-provider = "openrouter"
-alias = "devstral-openrouter"
-temperature = 0.2
-input_price = 0.0
-output_price = 0.0
+
 
 [[models]]
 name = "devstral-2"
@@ -133,7 +115,7 @@ temperature = 0.2
 input_price = 0.0   # Price per million input tokens (USD)
 output_price = 0.0  # Price per million output tokens (USD)
 
-# Copilot Models (GPT-4o, 4.1, 5-mini, Raptor, Grok)
+# Copilot Models (GPT-4o)
 [[models]]
 name = "gpt-4o"
 provider = "copilot"
@@ -142,37 +124,9 @@ temperature = 0.3
 input_price = 5.0
 output_price = 15.0
 
-[[models]]
-name = "gpt-4o"
-provider = "copilot"
-alias = "gpt-4.1" # Legacy alias fallback
-temperature = 0.3
-input_price = 5.0
-output_price = 15.0
 
-[[models]]
-name = "gpt-5-mini"
-provider = "copilot"
-alias = "gpt-5-mini"
-temperature = 0.3
-input_price = 0.15
-output_price = 0.6
 
-[[models]]
-name = "gpt-4o" # Mapped from raptor-mini for API compatibility
-provider = "copilot"
-alias = "raptor-mini"
-temperature = 0.1
-input_price = 0.0
-output_price = 0.0
 
-[[models]]
-name = "gpt-4o" # Mapped from grok-code-fast-1 for API compatibility
-provider = "copilot"
-alias = "grok-code-fast-1"
-temperature = 0.5
-input_price = 5.0
-output_price = 15.0
 
 # Example: GPT-4 via OpenRouter
 # [[models]]
