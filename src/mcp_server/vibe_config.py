@@ -427,6 +427,7 @@ class VibeConfig(BaseModel):
         prompt: str,
         mode: AgentMode | None = None,
         agent: str | None = None,
+        model: str | None = None,
         session_id: str | None = None,
         max_turns: int | None = None,
         max_price: float | None = None,
@@ -451,6 +452,10 @@ class VibeConfig(BaseModel):
         # Agent profile
         if agent:
             args.extend(["--agent", agent])
+
+        # Model override
+        if model:
+            args.extend(["--model", model])
 
         # Mode
         effective_mode = mode or self.default_mode

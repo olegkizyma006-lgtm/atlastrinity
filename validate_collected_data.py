@@ -22,12 +22,13 @@ logger = logging.getLogger("data_validator")
 
 # Import project modules
 import sys
+
 sys.path.insert(0, 'src')
 
-from brain.data_guard import DataQualityGuard
-from brain.config_validator import ConfigValidator, ValidationResult
-from brain.db.schema import Base
 from brain.config import CONFIG_ROOT, PROJECT_ROOT
+from brain.config_validator import ConfigValidator, ValidationResult
+from brain.data_guard import DataQualityGuard
+from brain.db.schema import Base
 
 
 class DataValidator:
@@ -38,14 +39,14 @@ class DataValidator:
         self.config_validator = ConfigValidator()
         self.validation_results = []
     
-    def validate_config_files(self) -> List[ValidationResult]:
+    def validate_config_files(self) -> list[ValidationResult]:
         """Validate all configuration files using the built-in validator."""
         logger.info("Validating configuration files...")
         results = self.config_validator.validate_all()
         self.validation_results.extend(results)
         return results
     
-    def validate_database_schema(self, db_path: Path) -> Dict[str, Any]:
+    def validate_database_schema(self, db_path: Path) -> dict[str, Any]:
         """Validate database schema against expected structure."""
         if not db_path.exists():
             return {
@@ -99,7 +100,7 @@ class DataValidator:
                 "valid": False
             }
     
-    def validate_tool_schemas(self) -> Dict[str, Any]:
+    def validate_tool_schemas(self) -> dict[str, Any]:
         """Validate tool schemas file."""
         schemas_path = Path("src/brain/data/tool_schemas.json")
         
@@ -111,7 +112,7 @@ class DataValidator:
             }
         
         try:
-            with open(schemas_path, 'r', encoding='utf-8') as f:
+            with open(schemas_path, encoding='utf-8') as f:
                 schemas = json.load(f)
             
             result = {
@@ -143,7 +144,7 @@ class DataValidator:
             if result["valid"]:
                 logger.info(f"✓ Tool schemas validation passed ({result['tool_count']} tools)")
             else:
-                logger.error(f"✗ Tool schemas validation failed")
+                logger.error("✗ Tool schemas validation failed")
                 
             return result
             
@@ -155,7 +156,7 @@ class DataValidator:
                 "valid": False
             }
     
-    def validate_mcp_catalog(self) -> Dict[str, Any]:
+    def validate_mcp_catalog(self) -> dict[str, Any]:
         """Validate MCP catalog file."""
         catalog_path = Path("src/brain/data/mcp_catalog.json")
         
@@ -167,7 +168,7 @@ class DataValidator:
             }
         
         try:
-            with open(catalog_path, 'r', encoding='utf-8') as f:
+            with open(catalog_path, encoding='utf-8') as f:
                 catalog = json.load(f)
             
             result = {
@@ -189,7 +190,7 @@ class DataValidator:
             if result["valid"]:
                 logger.info(f"✓ MCP catalog validation passed ({result['server_count']} servers)")
             else:
-                logger.error(f"✗ MCP catalog validation failed")
+                logger.error("✗ MCP catalog validation failed")
                 
             return result
             
@@ -201,7 +202,7 @@ class DataValidator:
                 "valid": False
             }
     
-    def validate_data_completeness(self) -> Dict[str, Any]:
+    def validate_data_completeness(self) -> dict[str, Any]:
         """Validate data completeness across the system."""
         result = {
             "checks": [],
@@ -242,7 +243,7 @@ class DataValidator:
         from sqlalchemy import create_engine
         return create_engine(f"sqlite:///{db_path}")
     
-    def generate_validation_report(self) -> Dict[str, Any]:
+    def generate_validation_report(self) -> dict[str, Any]:
         """Generate comprehensive validation report."""
         report = {
             "validation_timestamp": pd.Timestamp.now().isoformat(),
@@ -333,7 +334,7 @@ class DataValidator:
         
         return report
     
-    def save_validation_report(self, report: Dict[str, Any], output_path: Path = Path("validation_report.json")):
+    def save_validation_report(self, report: dict[str, Any], output_path: Path = Path("validation_report.json")):
         """Save validation report to file."""
         try:
             with open(output_path, 'w', encoding='utf-8') as f:
@@ -344,7 +345,7 @@ class DataValidator:
             logger.error(f"Failed to save validation report: {e}")
             return False
     
-    def flag_data_as_validated(self, report: Dict[str, Any]) -> Dict[str, Any]:
+    def flag_data_as_validated(self, report: dict[str, Any]) -> dict[str, Any]:
         """Flag all validated data as complete, accurate, and relevant."""
         flagged_report = report.copy()
         

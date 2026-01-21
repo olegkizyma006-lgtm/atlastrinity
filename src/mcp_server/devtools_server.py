@@ -55,10 +55,14 @@ def devtools_launch_inspector(server_name: str) -> dict[str, Any]:
 
     Note: The inspector process continues running in the background.
     """
-    # Load MCP config to find command
-    config_path = PROJECT_ROOT / "src" / "mcp_server" / "config.json.template"
+    # Load active MCP config to find command
+    config_path = Path.home() / ".config" / "atlastrinity" / "mcp" / "config.json"
     if not config_path.exists():
-        return {"error": "Config template not found"}
+        # Fallback to template if active not found (unlikely in prod but helpful for dev)
+        config_path = PROJECT_ROOT / "src" / "mcp_server" / "config.json.template"
+        
+    if not config_path.exists():
+        return {"error": "MCP Configuration not found"}
 
     try:
         with open(config_path, encoding="utf-8") as f:
@@ -225,16 +229,18 @@ def devtools_lint_js(file_path: str = ".") -> dict[str, Any]:
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
         output = result.stdout.strip()
-
         if not output:
-            # OXLint might print to stderr or just exit 0
             return {"success": True, "violations": []}
 
         try:
-            # Oxlint JSON format is typically { "filename": "...", "messages": [...] } or similar array
-            # We treat it as generic JSON
             data = json.loads(output)
-            return {"success": True, "data": data}
+            # Oxlint JSON format is typically an array of objects
+            violations = data if isinstance(data, list) else data.get("messages", [])
+            return {
+                "success": len(violations) == 0,
+                "violation_count": len(violations),
+                "violations": violations
+            }
         except json.JSONDecodeError:
             return {"error": "Failed to parse oxlint JSON output", "raw_output": output}
 
@@ -288,14 +294,25 @@ def devtools_check_integrity(path: str = "src/") -> dict[str, Any]:
         return {"error": "pyrefly is not installed."}
 
     try:
-        # pyrefly check <path> --format json (hypothetical, or we parse text)
-        # Assuming pyrefly has a way to output machine readable or we just capture text for now.
-        # If pyrefly currently only outputs text, we will wrap it.
-
+        # Run pyrefly check
         cmd = ["pyrefly", "check", path]
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
-        return {"success": result.returncode == 0, "stdout": result.stdout, "stderr": result.stderr}
+        stdout = result.stdout.strip()
+        stderr = result.stderr.strip()
+
+        # Simple heuristic to extract violation count if possible
+        # Pyrefly usually prints something like "Found X errors"
+        import re
+        error_match = re.search(r"Found (\d+) error", stdout + stderr, re.IGNORECASE)
+        error_count = int(error_match.group(1)) if error_match else (0 if result.returncode == 0 else -1)
+
+        return {
+            "success": result.returncode == 0,
+            "error_count": error_count,
+            "stdout": stdout,
+            "stderr": stderr
+        }
     except Exception as e:
         return {"error": str(e)}
 
