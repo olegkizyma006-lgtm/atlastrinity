@@ -287,6 +287,11 @@ class Atlas(BaseAgent):
             "як" in request_lower and "справи" in request_lower and len(user_request.split()) < 7
         )
         
+        resolved_query = user_request
+        if history and not is_simple_chat:
+            resolved_query = await self._resolve_query_context(user_request, history)
+            logger.info(f"[ATLAS CHAT] Resolved '{user_request}' -> '{resolved_query}'")
+
         # Explicit check to NOT be a simple chat if it's an info query
         if is_info_query:
             is_simple_chat = False
@@ -299,13 +304,13 @@ class Atlas(BaseAgent):
         # 2. Parallel Data Fetching: Graph, Vector, and Tools
         if not is_simple_chat or intent == "solo_task":
             logger.info(
-                f"[ATLAS CHAT] Fetching context in parallel for ({intent}): {user_request[:30]}..."
+                f"[ATLAS CHAT] Fetching context in parallel for ({intent}): {resolved_query[:30]}..."
             )
 
             async def get_graph():
                 try:
                     res = await mcp_manager.call_tool(
-                        "memory", "search_nodes", {"query": user_request}
+                        "memory", "search_nodes", {"query": resolved_query}
                     )
                     if isinstance(res, dict) and "results" in res:
                         return "\n".join(
@@ -324,12 +329,12 @@ class Atlas(BaseAgent):
                     if long_term_memory.available:
                         # Vector recall in thread to avoid blocking event loop
                         tasks_res = await asyncio.to_thread(
-                            long_term_memory.recall_similar_tasks, user_request, n_results=1
+                            long_term_memory.recall_similar_tasks, resolved_query, n_results=1
                         )
                         if tasks_res:
                             v_ctx += "\nPast Strategy: " + tasks_res[0]["document"][:200]
                         conv_res = await asyncio.to_thread(
-                            long_term_memory.recall_similar_conversations, user_request, n_results=2
+                            long_term_memory.recall_similar_conversations, resolved_query, n_results=2
                         )
                         if conv_res:
                             c_texts = [
@@ -491,7 +496,7 @@ class Atlas(BaseAgent):
 
         messages: list[BaseMessage] = [SystemMessage(content=system_prompt_text)]
         if history:
-            messages.extend(history[-10:])
+            messages.extend(history[-20:])
         messages.append(HumanMessage(content=user_request))
 
         # 3. Tool Binding (Only if tools available)
@@ -541,6 +546,47 @@ class Atlas(BaseAgent):
         fallback_msg = "Я виконав кілька кроків пошуку, але мені потрібно більше часу для повного аналізу. Що саме вас цікавить найбільше?"
         await self._memorize_chat_interaction(user_request, fallback_msg)
         return fallback_msg
+
+    async def _resolve_query_context(self, query: str, history: list[Any]) -> str:
+        """
+        Resolves ambiguous references in the query using conversation history.
+        E.g., "а ближче?" -> "Епіцентр ближче до Зимної Води"
+        """
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        if not history or len(query.split()) > 10:
+            return query
+
+        last_messages = []
+        for msg in history[-5:]:
+            role = "User" if isinstance(msg, HumanMessage) else "Atlas"
+            content = msg.content if hasattr(msg, "content") else str(msg)
+            last_messages.append(f"{role}: {content[:200]}")
+
+        history_str = "\n".join(last_messages)
+        
+        prompt = f"""Conversation History:
+{history_str}
+
+Current Query: {query}
+
+Task: If the current query is ambiguous or refers to previous topics (like "it", "they", "near there", "the one mentioned"), rewrite it to be a standalone search query that preserves the intended context. 
+If it is already standalone, return the original query.
+Response should be only the query text, preferably in the original language of the query.
+
+Standalone Query:"""
+
+        try:
+            # Use a slightly higher temperature for query variety but keep it focused
+            response = await self.llm.ainvoke([
+                SystemMessage(content="You are a context resolution engine. Optimize queries for memory retrieval."),
+                HumanMessage(content=prompt)
+            ])
+            resolved = str(response.content).strip().strip('"')
+            return resolved if resolved else query
+        except Exception as e:
+            logger.warning(f"[ATLAS] Query resolution failed: {e}")
+            return query
 
     async def _memorize_chat_interaction(self, query: str, response: str):
         """Active memory consolidation for chat turns."""
