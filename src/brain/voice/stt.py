@@ -150,7 +150,7 @@ class WhisperSTT:
         # Stateful tracking for Smart STT
         self.last_speech_time = 0.0
         self.silence_threshold = (
-            6.5  # Seconds of silence before sending phrase (slightly more than UI 6s)
+            8.0  # Seconds of silence before sending phrase (slightly more than UI 6s)
         )
 
     def _filter_text(self, text: str) -> str:
@@ -221,7 +221,7 @@ class WhisperSTT:
             return self._model
 
     async def transcribe_file(
-        self, audio_path: str, language: str | None = None
+        self, audio_path: str, language: str | None = None, initial_prompt: str | None = None
     ) -> TranscriptionResult:
         language = language or self.language
 
@@ -238,7 +238,7 @@ class WhisperSTT:
                     language=language,
                     beam_size=5,  # Better accuracy for large-v3
                     temperature=0.0,  # Deterministic output
-                    initial_prompt="Це професійна розмова з AI-асистентом Атласом. Пиши чистою українською мовою з правильними розділовими знаками. Наприклад: 'Слава Україні! Як твої справи? Потрібно виконати це завдання.' Використовуй коми, крапки, знаки питання та оклику відповідно до інтонації.",
+                    initial_prompt=initial_prompt or "Це професійна розмова з AI-асистентом Атласом. Пиши чистою українською мовою з правильними розділовими знаками.",
                     vad_filter=True,
                     vad_parameters=dict(min_silence_duration_ms=1000),
                 )
@@ -279,8 +279,9 @@ class WhisperSTT:
         import time
 
         now = time.time()
-
-        result = await self.transcribe_file(audio_path, language)
+        
+        # Use previous_text as initial_prompt to help Whisper continue the phrase
+        result = await self.transcribe_file(audio_path, language, initial_prompt=previous_text)
         speech_type = self._analyze_speech_type(result, previous_text)
 
         # Phrase continuation: if same user or new phrase (meaningful)

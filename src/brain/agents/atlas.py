@@ -297,7 +297,7 @@ class Atlas(BaseAgent):
                     status = mcp_manager.get_status()
                     # Subset of servers that Atlas can use independently for chat/research
                     configured_servers = set(mcp_manager.config.get("mcpServers", {}).keys())
-                    discovery_servers = {"macos-use", "filesystem", "duckduckgo-search", "memory", "github"}
+                    discovery_servers = {"macos-use", "filesystem", "duckduckgo-search", "memory", "github", "weather", "search"}
                     
                     # Be proactive: try all discovery servers that are in the config, not just "connected" ones
                     active_servers = (configured_servers | {"filesystem", "memory"}) & discovery_servers

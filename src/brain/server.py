@@ -459,9 +459,8 @@ async def smart_speech_to_text(
             and is_stop_command
             and result.confidence > 0.70  # Higher threshold for stop commands
         ):
-            logger.info(f"[STT] 🛑 BARGE-IN DETECTED: '{result.text}' -> Stopping TTS.")
-            if trinity_voice:
-                trinity_voice.stop()  # Stop current speech immediately
+            logger.info(f"[STT] 🛑 BARGE-IN DETECTED: '{result.text}' -> Stopping System.")
+            trinity.stop()  # Stop core process and voice
 
         # Standard logging
         if result.text:

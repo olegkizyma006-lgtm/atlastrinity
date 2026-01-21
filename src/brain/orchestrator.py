@@ -83,6 +83,7 @@ class Trinity:
         self.current_session_id = "current_session"  # Default alias for the last active session
         self._resumption_pending = False
         self._user_node_created = False
+        self.active_task = None  # Track current run task for cancellation
 
     async def initialize(self):
         """Async initialization of system components"""
@@ -269,6 +270,15 @@ class Trinity:
             if isinstance(stderr, str) and stderr.strip():
                 return stderr.strip()
         return t
+
+    def stop(self):
+        """Immediately stop voice and cancel current orchestration task"""
+        logger.info("[TRINITY] 🛑 STOP SIGNAL RECEIVED.")
+        self.voice.stop()
+        if self.active_task and not self.active_task.done():
+            logger.info("[TRINITY] Cancelling active orchestration task.")
+            self.active_task.cancel()
+        self.state["system_state"] = SystemState.IDLE.value
 
     async def _speak(self, agent_id: str, text: str):
         """Voice wrapper with smarter sanitization"""
@@ -532,8 +542,10 @@ class Trinity:
         """
         Main orchestration loop with advanced persistence and memory
         """
-        self.voice.stop()  # Stop any current speech when a new request arrives
-        start_time = asyncio.get_event_loop().time()
+        self.stop()  # Stop any current speech and task when a new request arrives
+        self.active_task = asyncio.current_task()
+        try:
+            start_time = asyncio.get_event_loop().time()
         session_id = self.current_session_id
 
         # 0. Platform Insurance Check
@@ -702,6 +714,7 @@ class Trinity:
                         pass
                         
                     self.state["system_state"] = SystemState.IDLE.value
+                    self.active_task = None
                     return {"status": "completed", "result": response, "type": intent}
 
 
