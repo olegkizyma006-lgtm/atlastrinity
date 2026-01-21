@@ -475,9 +475,19 @@ class LongTermMemory:
 
                 async def _sync_to_sql():
                     async with await db_manager.get_session() as session:
+                        # Validate step_id is a valid UUID
+                        step_uuid = context.get("step_id")
+                        try:
+                            if step_uuid:
+                                import uuid
+                                uuid.UUID(str(step_uuid))
+                        except (ValueError, TypeError):
+                            logger.warning(f"[MEMORY] Invalid step_id UUID: {step_uuid}. Logging as None.")
+                            step_uuid = None
+
                         deviation_entry = BehavioralDeviation(
                             session_id=context.get("db_session_id") or context.get("session_id"),
-                            step_id=context.get("step_id"),
+                            step_id=step_uuid,
                             original_intent=original_intent,
                             deviation=deviation,
                             reason=reason,

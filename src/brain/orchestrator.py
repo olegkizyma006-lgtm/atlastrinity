@@ -1553,7 +1553,7 @@ class Trinity:
                                         deviation=p_text[:300],
                                         reason=reason_text,
                                         result="Deviated plan approved",
-                                        context={"step_id": str(step_id)},
+                                        context={"step_id": str(self.state.get("db_step_id") or ""), "sequence_id": str(step_id)},
                                         decision_factors={
                                             "original_step": step,
                                             "analysis": proposal_text,
