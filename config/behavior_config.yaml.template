@@ -640,3 +640,226 @@ engine:
   # Logging
   log_decisions: true
   log_level: INFO
+
+# =============================================================================
+# ADVANCED ORCHESTRATOR SETTINGS
+# =============================================================================
+# Deep customization of system behavior and decision-making logic
+
+advanced:
+  # ---------------------------------------------------------------------------
+  # RECURSION AND DEPTH CONTROL
+  # ---------------------------------------------------------------------------
+  recursion:
+    max_depth: 5                      # Maximum sub-task nesting levels
+    max_iterations_per_level: 3       # Max retry attempts at each level
+    depth_warning_threshold: 3        # Warn user when depth exceeds this
+    
+    # Auto-flatten: Prevent deep nesting by converting to sequential steps
+    auto_flatten_enabled: true
+    auto_flatten_depth: 4
+  
+  # ---------------------------------------------------------------------------
+  # DEVIATION TOLERANCE
+  # ---------------------------------------------------------------------------
+  # Control how strictly system follows the planned strategy
+  
+  deviation:
+    # Tolerance levels
+    strict_mode: false                # If true, no deviation from plan allowed
+    tolerance_level: moderate         # loose | moderate | strict
+    
+    # Deviation triggers
+    allow_deviation_on:
+      repeated_failures: true         # Allow after N failures
+      failure_threshold: 2            # N failures before deviation
+      
+      low_confidence: true            # Allow when confidence < threshold
+      confidence_threshold: 0.4
+      
+      explicit_user_request: true     # Always allow on user command
+      
+      stuck_detection: true           # Auto-deviate when stuck
+      stuck_threshold_seconds: 120
+    
+    # Deviation strategies
+    deviation_strategies:
+      - name: adaptive_replanning      # Replan with Atlas
+        priority: high
+        trigger_on: [repeated_failures, stuck_detection]
+        
+      - name: vibe_escalation          # Escalate to Vibe for debugging
+        priority: medium
+        trigger_on: [repeated_failures, low_confidence]
+        
+      - name: simpler_approach         # Try simpler alternative
+        priority: low
+        trigger_on: [stuck_detection]
+  
+  # ---------------------------------------------------------------------------
+  # VIBE ESCALATION POLICY
+  # ---------------------------------------------------------------------------
+  # When and how to escalate to Vibe for help
+  
+  vibe_escalation:
+    enabled: true
+    
+    # Automatic escalation triggers
+    auto_escalate_after_tetyana_failures: 3  # Escalate after N Tetyana failures
+    auto_escalate_on_critical_error: true    # Immediate escalation on critical errors
+    
+    # Escalation types
+    escalation_types:
+      debugging:
+        enabled: true
+        trigger: error_analysis_needed
+        vibe_tool: vibe_analyze_error
+        
+      code_review:
+        enabled: true
+        trigger: code_quality_concern
+        vibe_tool: vibe_code_review
+        
+      architecture_help:
+        enabled: true
+        trigger: architectural_decision
+        vibe_tool: vibe_smart_plan
+    
+    # Cooldown to prevent spam
+    cooldown_seconds: 30
+    max_escalations_per_session: 5
+  
+  # ---------------------------------------------------------------------------
+  # RETRY AND RECOVERY POLICIES
+  # ---------------------------------------------------------------------------
+  
+  retry:
+    # Global retry settings
+    max_retries_per_step: 3
+    exponential_backoff: true
+    backoff_multiplier: 2.0
+    max_backoff_seconds: 60
+    
+    # Retry strategies by error type
+    strategies:
+      network_error:
+        max_retries: 5
+        backoff_seconds: 5
+        
+      permission_error:
+        max_retries: 2
+        escalate_to_sudo: true
+        require_user_confirmation: true
+        
+      resource_unavailable:
+        max_retries: 3
+        wait_for_resource: true
+        timeout_seconds: 30
+        
+      llm_rate_limit:
+        max_retries: 10
+        exponential_backoff: true
+        backoff_base: 10
+  
+  # ---------------------------------------------------------------------------
+  # TECHNICAL HELPERS
+  # ---------------------------------------------------------------------------
+  # Enhanced inference and fallback logic
+  
+  helpers:
+    # Tool inference from arguments
+    tool_inference:
+      enabled: true
+      confidence_threshold: 0.7
+      
+      # Inference rules (helper для _infer_tool_from_args)
+      inference_patterns:
+        vibe_keywords: [vibe, debug, analyze, review]
+        gui_keywords: [click, type, press, screenshot, scroll]
+        filesystem_keywords: [read, write, list, save, delete, file, path]
+        browser_keywords: [browser, puppeteer, navigate, google, search, web]
+        terminal_keywords: [command, cmd, execute, run, shell]
+    
+    # Intent fallback classification
+    intent_fallback:
+      enabled: true
+      fallback_to_chat_on_uncertainty: true
+      uncertainty_threshold: 0.5
+      
+    # Model selection helpers
+    model_selection:
+      auto_select_vision_model: true    # Auto-switch to vision model when image present
+      auto_select_code_model: true      # Use code_analysis model for code tasks
+      prefer_fast_models_for_simple: true # Use fallback for simple tasks
+  
+  # ---------------------------------------------------------------------------
+  # STRATEGY SEQUENCE SETTINGS
+  # ---------------------------------------------------------------------------
+  # Advanced control over multi-agent strategy execution
+  
+  strategy:
+    # Planning phase
+    planning:
+      require_atlas_approval: false   # Require user approval of plan
+      min_plan_quality_score: 0.6     # Minimum quality to proceed
+      replan_on_low_quality: true     # Auto-replan if quality low
+      
+    # Execution phase
+    execution:
+      parallel_execution: false       # Execute steps in parallel (experimental)
+      max_parallel_steps: 2
+      
+      # Step timeout management
+      step_timeout_strategy: adaptive # fixed | adaptive
+      base_step_timeout: 120          # Base timeout in seconds
+      timeout_multiplier_on_retry: 1.5
+      
+    # Verification phase
+    verification:
+      require_grisha_audit: false     # Require Grisha verification
+      audit_frequency: on_failure     # always | on_failure | never
+      quality_threshold: 0.7          # Minimum quality to pass
+  
+  # ---------------------------------------------------------------------------
+  # MEMORY AND LEARNING
+  # ---------------------------------------------------------------------------
+  
+  learning:
+    # Automatic pattern learning
+    auto_learn_patterns: true
+    min_pattern_occurrences: 3        # Learn pattern after N occurrences
+    pattern_confidence_boost: 0.1     # Confidence increase per success
+    
+    # Memory persistence
+    remember_successful_strategies: true
+    remember_failed_strategies: true
+    consolidation_frequency: nightly  # nightly | weekly | disabled
+    
+    # Context retention
+    max_conversation_context: 25      # Messages to keep in context
+    compress_old_context: true        # Compress context after N messages
+    compression_threshold: 50
+
+# =============================================================================
+# MODEL-SPECIFIC OVERRIDES
+# =============================================================================
+# Fine-tune model behavior for specific scenarios
+
+model_overrides:
+  # Use different models for specific task types
+  task_specific:
+    vision_tasks:
+      preferred_model: vision        # From models.vision in config.yaml
+      fallback_model: default
+      
+    code_tasks:
+      preferred_model: code_analysis
+      fallback_model: vibe_default   # Route to Vibe binary
+      
+    deep_reasoning:
+      preferred_model: reasoning
+      enable_sequential_thinking: true
+      
+    simple_chat:
+      preferred_model: fallback      # Use faster model for chat
+      skip_planning: true

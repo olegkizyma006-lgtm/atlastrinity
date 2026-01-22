@@ -52,10 +52,13 @@ class ConsolidationModule:
 
             # 2. LLM Analysis (Batch or individual)
             # We'll use the provided LLM or a default Atlas instance
-            if not llm:
-                from .agents import Atlas
-
-                atlas = Atlas(model_name="raptor-mini")
+            if llm:
+                atlas = Atlas(model_name=llm)
+            else:
+                # Use consolidation model from config (fallback to default)
+                from .config import config
+                consolidation_model = config.get("models", {}).get("consolidation") or config.get("models", {}).get("default", "gpt-4o")
+                atlas = Atlas(model_name=consolidation_model)
                 llm = atlas.llm
 
             # Extract Lessons from failures

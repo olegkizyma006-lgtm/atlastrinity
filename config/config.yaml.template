@@ -1,45 +1,77 @@
-# Синхронізовано: 2026-01-21 23:58:00 (v4.5 - Config-Driven Architecture)
+# Синхронізовано: 2026-01-22 00:26:00 (v4.6 - Full Model Centralization + Advanced Settings)
 
-# Behavior Engine (New config-driven architecture)
+# =============================================================================
+# GLOBAL MODEL CONFIGURATION
+# =============================================================================
+# Single source of truth for all models used across the system
+# Change defaults here to switch models globally
+
+models:
+  # Default models for different purposes
+  default: gpt-4o                    # Default LLM для всіх agents
+  vision: gpt-4o                     # Vision/multimodal tasks
+  reasoning: gpt-4o                  # Deep reasoning (sequential-thinking)
+  code_analysis: gpt-4o              # Code review and analysis
+  consolidation: gpt-4o              # Memory consolidation (nightly)
+  
+  # Vibe binary defaults (external CLI tool)
+  vibe_default: devstral-2           # Recommended: devstral-2 for code tasks
+  
+  # Fallbacks (used when primary unavailable)
+  fallback: gpt-4o-mini
+
+# ============================================================================
+# BEHAVIOR ENGINE
+# =============================================================================
+
 behavior:
   config_file: behavior_config.yaml
   hot_reload_enabled: true
   cache_ttl_seconds: 1800
 
+# =============================================================================
+# VOICE CONFIGURATION
+# =============================================================================
+
 voice:
   stt:
     model: large-v3
-    device: cpu
+    device: cpp
     language: uk
   tts:
     engine: ukrainian-tts
     device: cpu
     enabled: true
+
+# =============================================================================
+# AGENT CONFIGURATION
+# =============================================================================
+# Agents inherit from models.default unless overridden
+
+agents:
+  atlas:
+    # model: inherited from models.default
+    temperature: 0.7
+    max_tokens: 2000
+
+  tetyana:
+    # model, reasoning_model, vision_model: inherited from defaults
+    temperature: 0.5
+    max_tokens: 2000
+
+  grisha:
+    # vision_model, strategy_model: inherited from defaults
+    temperature: 0.3
+    max_tokens: 1500
+
+# =============================================================================
+# MCP SERVER CONFIGURATION
+# =============================================================================
+
 mcp_enhanced:
   retry_attempts: 3
   connection_timeout: 3600
-logging:
-  max_log_size: 10485760
-  level: INFO
-  backup_count: 5
-agents:
-  grisha:
-    vision_model: gpt-4o
-    strategy_model: gpt-4o
-    max_tokens: 1500
-    temperature: 0.3
-  atlas:
-    model: gpt-4o
-    max_tokens: 2000
-    temperature: 0.7
-  tetyana:
-    model: gpt-4o
-    reasoning_model: gpt-4o
-    reflexion_model: gpt-4o
-    vision_model: gpt-4o
-    max_tokens: 2000
-    temperature: 0.5
-    reflexion_model: gpt-4o
+
 mcp:
   # === TIER 1: MUST-HAVE (Ядро системи) ===
   macos_use:
@@ -49,24 +81,24 @@ mcp:
       screen_recording: true
 
   filesystem:
-    deny_write_paths: []
-    model: gpt-4o
+    enabled: true
+    deny_write_repo: true
     repo_write_allowed_subdir: .atlastrinity_runtime
+    deny_write_paths: []
     allowed_paths:
       - ${HOME}
       - /tmp
-    enabled: true
-    deny_write_repo: true
 
   sequential_thinking:
     enabled: true
-    model: gpt-4o
+    # model: inherited from models.reasoning
     max_history_size: 1000
 
-  # === TIER 2: HIGH (Рекомендовані) ===
+  # === TIER 2: HIGH PRIORITY (Рекомендовані) ===
   vibe:
     enabled: true
     binary: vibe
+    # Default model defined in vibe_config.toml (devstral-2)
     workspace: ${CONFIG_ROOT}/vibe_workspace
     timeout_s: 3600
     max_output_chars: 500000
@@ -89,8 +121,8 @@ mcp:
 
   github:
     enabled: true
-    # Advanced GitHub API: Pull Requests, Issues, Search, Repository Management.
-    # Requires GITHUB_TOKEN in your .env file.
+    # Advanced GitHub API: Pull Requests, Issues, Search, Repository Management
+    # Requires GITHUB_TOKEN in your .env file
 
   whisper_stt:
     enabled: true
@@ -99,6 +131,7 @@ mcp:
 
   devtools:
     enabled: true
+    # All tools enabled by default
     ruff_enabled: true
     oxlint_enabled: true
     knip_enabled: true
@@ -118,13 +151,27 @@ mcp:
   context7:
     enabled: false # External documentation server
 
+# =============================================================================
+# ORCHESTRATOR CONFIGURATION
+# =============================================================================
+
 orchestrator:
+  # Timeouts
   task_timeout: 3600
-  max_recursion_depth: 5
   subtask_timeout: 120
   user_input_timeout: 20
-  validate_failed_steps_with_grisha: false # set to true to enable Auditor verification on fail
-  recovery_voice_agent: "atlas" # which agent explains the recovery strategy
+  
+  # Recursion control
+  max_recursion_depth: 5
+  
+  # Verification
+  validate_failed_steps_with_grisha: false  # Set to true to enable Auditor verification on fail
+  recovery_voice_agent: atlas  # Which agent explains the recovery strategy
+
+# =============================================================================
+# SECURITY CONFIGURATION
+# =============================================================================
+
 security:
   dangerous_commands:
     - rm -rf
@@ -133,16 +180,41 @@ security:
     - ":(){ :|:& };:"
   require_confirmation: true
 
+# =============================================================================
+# SYSTEM PATHS
+# =============================================================================
+
 system:
   workspace_path: ${CONFIG_ROOT}/workspace
   repository_path: ${PROJECT_ROOT}
+
+# =============================================================================
+# API CONFIGURATION
+# =============================================================================
+
 api:
   timeout: 60
   retry_count: 3
 
+# =============================================================================
+# DATABASE CONFIGURATION
+# =============================================================================
+
 database:
   url: sqlite+aiosqlite:///${CONFIG_ROOT}/atlastrinity.db
 
-state:
-  redis_url: ${REDIS_URL} # usually redis://localhost:6379/0
+# =============================================================================
+# STATE MANAGEMENT
+# =============================================================================
 
+state:
+  redis_url: ${REDIS_URL}  # usually redis://localhost:6379/0
+
+# =============================================================================
+# LOGGING CONFIGURATION
+# =============================================================================
+
+logging:
+  level: INFO
+  max_log_size: 10485760
+  backup_count: 5
