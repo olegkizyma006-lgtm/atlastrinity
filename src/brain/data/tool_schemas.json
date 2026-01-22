@@ -14,6 +14,31 @@
     },
     "description": "Run a general AI coding or analysis task with full TUI capabilities"
   },
+  "c7_search": {
+    "server": "context7",
+    "required": ["query"],
+    "optional": ["library"],
+    "types": {
+      "query": "str",
+      "library": "str"
+    },
+    "description": "Search for documentation and examples in supported libraries"
+  },
+  "c7_get_context": {
+    "server": "context7",
+    "required": ["query"],
+    "optional": [],
+    "types": {
+      "query": "str"
+    },
+    "description": "Get deep context and API references for a specific topic"
+  },
+  "c7_list_libraries": {
+    "server": "context7",
+    "required": [],
+    "optional": [],
+    "description": "List all libraries supported by Context7"
+  },
   "vibe_analyze_error": {
     "server": "vibe",
     "required": ["error_message"],

@@ -178,6 +178,17 @@ class ToolDispatcher:
         "pyrefly",
     ]
 
+    CONTEXT7_SYNONYMS = [
+        "context7",
+        "c7",
+        "docs",
+        "documentation",
+        "library",
+        "library_search",
+        "api_docs",
+        "lookup",
+    ]
+
     GITHUB_SYNONYMS = [
         "github",
         "repo",
@@ -670,6 +681,13 @@ class ToolDispatcher:
                 return "devtools", "devtools_check_mcp_health", args
 
             return "devtools", tool_name, args
+
+        # --- CONTEXT7 ROUTING ---
+        if tool_name in self.CONTEXT7_SYNONYMS or explicit_server == "context7":
+            # Map generic "docs" or "search" to c7_search
+            if tool_name in ["docs", "documentation", "lookup", "library"]:
+                return "context7", "c7_search", args
+            return "context7", tool_name, args
 
         # --- GIT LEGACY ROUTING ---
         if tool_name.startswith("git_") or explicit_server == "git":
