@@ -218,3 +218,178 @@ logging:
   level: INFO
   max_log_size: 10485760
   backup_count: 5
+
+# =============================================================================
+# DATABASE MANAGEMENT CONFIGURATION
+# =============================================================================
+
+database_management:
+  # SQLite configuration
+  sqlite:
+    url: sqlite+aiosqlite:///${CONFIG_ROOT}/atlastrinity.db
+    
+    # Connection settings
+    connection:
+      pool_size: 5
+      pool_recycle: 3600
+      echo: false                    # SQL query logging
+      
+    # Table management
+    tables:
+      sessions:
+        enabled: true
+        retention_days: 90           # Auto-delete sessions older than 90 days
+        auto_archive: true
+        
+      tasks:
+        enabled: true
+        retention_days: 60
+        auto_archive: true
+        index_golden_path: true      # Index successful strategies
+        
+      logs:
+        enabled: true
+        retention_days: 30
+        max_size_mb: 500             # Max total log size
+        auto_cleanup: true
+        
+      conversation_summaries:
+        enabled: true
+        retention_days: 180
+        compress_old: true
+        
+      agents:
+        enabled: true
+        track_performance: true
+        
+    # Access control
+    access_control:
+      read_only_mode: false
+      allow_delete: true
+      require_backup_before_delete: true
+      
+    # Backup settings
+    backup:
+      enabled: true
+      auto_backup_on_shutdown: true
+      auto_backup_frequency: daily   # daily | weekly | never
+      backup_location: ${PROJECT_ROOT}/backups/databases
+      max_backups: 7                 # Keep last 7 backups
+      
+  # ChromaDB (vector database) configuration
+  chromadb:
+    path: ${CONFIG_ROOT}/memory/chroma
+    
+    # Collection settings
+    collections:
+      atlastrinity_memory:
+        enabled: true
+        max_vectors: 100000
+        distance_metric: cosine      # cosine | euclidean | l2
+        
+      conversations:
+        enabled: true
+        max_vectors: 50000
+        retention_days: 180
+        
+      strategies:
+        enabled: true
+        max_vectors: 10000
+        index_golden_path_only: true
+        
+    # Performance settings
+    performance:
+      batch_size: 100
+      index_rebuild_threshold: 10000 # Rebuild index after N inserts
+      cache_size_mb: 256
+      
+    # Access control
+    access_control:
+      read_only_mode: false
+      allow_delete: true
+      require_confirmation_on_clear: true
+      
+    # Backup settings
+    backup:
+      enabled: true
+      auto_backup_frequency: weekly
+      backup_location: ${PROJECT_ROOT}/backups/databases/memory
+      max_backups: 4
+      
+  # Redis (state management) configuration
+  redis:
+    url: ${REDIS_URL}                # redis://localhost:6379/0
+    
+    # Connection settings
+    connection:
+      db: 0
+      max_connections: 10
+      socket_timeout: 5
+      socket_connect_timeout: 5
+      retry_on_timeout: true
+      
+    # Key namespaces and TTL
+    namespaces:
+      sessions:
+        prefix: "session:"
+        ttl_seconds: 86400           # 24 hours
+        
+      state:
+        prefix: "state:"
+        ttl_seconds: 7200            # 2 hours
+        
+      cache:
+        prefix: "cache:"
+        ttl_seconds: 3600            # 1 hour
+        
+      locks:
+        prefix: "lock:"
+        ttl_seconds: 300             # 5 minutes
+        
+    # Cleanup policy
+    cleanup:
+      enabled: true
+      auto_cleanup_frequency: hourly # hourly | daily | never
+      cleanup_expired_keys: true
+      
+    # Access control
+    access_control:
+      read_only_mode: false
+      allow_flushdb: false           # Prevent accidental flush
+      require_confirmation_on_clear: true
+      
+  # Global database settings
+  global:
+    # Data retention
+    retention:
+      enforce_global_retention: true
+      min_retention_days: 7          # Minimum retention for any data
+      max_retention_days: 365        # Maximum retention
+      
+    # Integrity checks
+    integrity:
+      auto_check_on_startup: true
+      check_frequency: daily         # daily | weekly | never
+      auto_repair: false             # Manual repair only
+      
+    # Migration settings
+    migrations:
+      auto_migrate: true             # Auto-apply schema migrations
+      backup_before_migration: true
+      rollback_on_failure: true
+      
+    # Monitoring
+    monitoring:
+      track_query_performance: true
+      slow_query_threshold_ms: 1000
+      log_slow_queries: true
+      
+      # Size limits
+      max_db_size_gb: 10
+      warn_at_size_gb: 8
+      
+    # Privacy and security
+    security:
+      encrypt_sensitive_fields: false # Encrypt API keys, tokens
+      hash_passwords: true
+      sanitize_logs: true            # Remove sensitive data from logs
