@@ -6,12 +6,13 @@ Replaces hardcoded conditionals with dynamic pattern matching.
 
 Previously scattered across:
 - adaptive_behavior.py: Behavior patterns and strategy selection
-- atlas.py: Intent classification and greeting detection  
+- atlas.py: Intent classification and greeting detection
 - tool_dispatcher.py: Tool routing and synonym mapping
 - mcp_registry.py: Task classification
 - orchestrator.py: State machine decisions
 """
 
+import asyncio
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -55,13 +56,13 @@ class BehaviorEngine:
 
     Usage:
         from src.brain.behavior_engine import behavior_engine
-        
+
         # Classify intent
         result = behavior_engine.classify_intent("Привіт!", {})
-        
+
         # Route tool
         server, tool, args = behavior_engine.route_tool("execute_command", {"cmd": "ls"})
-        
+
         # Match pattern
         pattern = behavior_engine.match_pattern(
             context={'task_type': 'web', 'repeated_failures': True},
@@ -94,7 +95,7 @@ class BehaviorEngine:
         self._pattern_cache: dict[str, list[Pattern]] = {}
         self._evaluators: dict[str, RuleEvaluator] = {}
         self._last_reload = time.time()
-        
+
         # Performance metrics
         self._total_classifications = 0
         self._cache_hits = 0
@@ -209,9 +210,7 @@ class BehaviorEngine:
                 "use_deep_persona": complex_cfg.get("use_deep_persona", True),
                 "require_tools": True,
                 "require_planning": complex_cfg.get("require_planning", True),
-                "enable_sequential_thinking": complex_cfg.get(
-                    "enable_sequential_thinking", True
-                ),
+                "enable_sequential_thinking": complex_cfg.get("enable_sequential_thinking", True),
             }
 
         # Default: Simple chat
@@ -244,7 +243,9 @@ class BehaviorEngine:
                 continue
             # Simple boolean context matching
             if context.get(condition.replace("_", "")) is True:
-                logger.debug(f"[BEHAVIOR ENGINE] Strategy selected: {strategy} (condition: {condition})")
+                logger.debug(
+                    f"[BEHAVIOR ENGINE] Strategy selected: {strategy} (condition: {condition})"
+                )
                 return strategy
 
         # Return default or fallback
@@ -272,7 +273,7 @@ class BehaviorEngine:
         # Check each routing category
         for category, config in tool_routing.items():
             synonyms = config.get("synonyms", [])
-            
+
             # Check if tool matches this category
             if tool_lower in synonyms or any(tool_lower.startswith(syn) for syn in synonyms):
                 priority_server = config.get("priority_server")
@@ -349,16 +350,12 @@ class BehaviorEngine:
             keywords = config.get("keywords", [])
             if any(kw in task_lower for kw in keywords):
                 recommended = config.get("recommended_servers", [])
-                logger.debug(
-                    f"[BEHAVIOR ENGINE] Task classified as {task_type}: {recommended}"
-                )
+                logger.debug(f"[BEHAVIOR ENGINE] Task classified as {task_type}: {recommended}")
                 return recommended
 
         # Default fallback
         default_servers = ["macos-use", "filesystem"]
-        logger.debug(
-            f"[BEHAVIOR ENGINE] Task classification fallback: {default_servers}"
-        )
+        logger.debug(f"[BEHAVIOR ENGINE] Task classification fallback: {default_servers}")
         return default_servers
 
     def match_pattern(
@@ -407,9 +404,7 @@ class BehaviorEngine:
 
         return None
 
-    def _evaluate_conditions(
-        self, conditions: dict[str, Any], context: dict[str, Any]
-    ) -> bool:
+    def _evaluate_conditions(self, conditions: dict[str, Any], context: dict[str, Any]) -> bool:
         """Evaluates if conditions match context."""
         for key, expected in conditions.items():
             if key == "error_contains":
@@ -432,6 +427,39 @@ class BehaviorEngine:
         regex_pattern = pattern.replace(".*", ".*").replace("*", ".*")
         return bool(re.match(regex_pattern, text))
 
+    def evaluate_rule(self, rule_name: str, context: dict[str, Any]) -> Any:
+        """
+        Evaluates a rule from configuration.
+
+        Args:
+            rule_name: Name of rule in orchestration_flow.rules
+            context: Context for evaluation
+
+        Returns:
+            The result of the first matching condition or default.
+        """
+        rules_config = self.config.get("orchestration_flow", {}).get("rules", {})
+        rule = rules_config.get(rule_name, [])
+
+        for entry in rule:
+            if "condition" in entry:
+                condition = entry["condition"]
+                # Evaluate condition based on context
+                if context.get(condition) or context.get(condition.replace("_", "")) is True:
+                    return entry.get("result")
+            elif "default" in entry:
+                return entry.get("default")
+
+        return None
+
+    def get_output_processing(self, category: str) -> dict[str, Any]:
+        """Returns output processing rules for a category."""
+        return self.config.get("output_processing", {}).get(category, {})
+
+    def get_background_monitoring(self, task_name: str) -> dict[str, Any]:
+        """Returns background monitoring config for a task."""
+        return self.config.get("background_monitoring", {}).get(task_name, {})
+
     def get_stats(self) -> dict[str, Any]:
         """Returns usage statistics."""
         cache_hit_rate = (
@@ -439,7 +467,7 @@ class BehaviorEngine:
             if self._total_classifications > 0
             else 0
         )
-        
+
         return {
             "total_classifications": self._total_classifications,
             "cache_hits": self._cache_hits,
@@ -450,5 +478,142 @@ class BehaviorEngine:
         }
 
 
+class WorkflowEngine:
+    """
+    Deterministic Finite State Machine for executing workflows defined in config.
+    """
+
+    def __init__(self, behavior_engine_instance: BehaviorEngine):
+        self.be = behavior_engine_instance
+
+    async def execute_workflow(self, workflow_name: str, context: dict[str, Any]) -> bool:
+        """
+        Executes a workflow defined in behavior config.
+
+        Args:
+            workflow_name: Name of workflow (e.g. 'startup', 'error_recovery')
+            context: Execution context (must contain 'orchestrator' for internal actions)
+
+        Returns:
+            Success status
+        """
+        workflow_config = self.be.config.get("workflows", {}).get(workflow_name)
+        if not workflow_config:
+            logger.warning(f"[WORKFLOW] Workflow '{workflow_name}' not found in config.")
+            return False
+
+        logger.info(f"[WORKFLOW] Starting workflow: {workflow_name}")
+        stages = workflow_config.get("stages", [])
+
+        try:
+            for stage in stages:
+                stage_name = stage.get("name", "unnamed")
+                logger.info(f"[WORKFLOW] Entering stage: {stage_name}")
+
+                steps = stage.get("steps", [])
+                for step in steps:
+                    await self._execute_step(step, context)
+
+            logger.info(f"[WORKFLOW] Workflow '{workflow_name}' completed successfully.")
+            return True
+
+        except Exception as e:
+            logger.error(f"[WORKFLOW] Workflow '{workflow_name}' failed: {e}")
+            on_error = workflow_config.get("on_error", "continue")
+            if on_error == "abort":
+                raise e
+            return False
+
+    async def _execute_step(self, step: dict[str, Any], context: dict[str, Any]):
+        """Executes a single workflow step."""
+        # 1. Check Condition (simple boolean evaluation)
+        if "if" in step:
+            condition = step["if"]
+            # Basic variable substitution for boolean check
+            # Real implementation would need a safer eval or expression parser
+            # For now, we support direct boolean values from context keys
+            # e.g. "${error_analysis.can_auto_fix}" -> context['error_analysis']['can_auto_fix']
+
+            # Simple variable resolution logic
+            clean_cond = condition.strip("${} ")
+            parts = clean_cond.split(".")
+            val = context
+            try:
+                for part in parts:
+                    val = val.get(part, {})
+
+                result = bool(val)
+            except Exception:
+                result = False
+
+            if not result:
+                # Execute 'else' block if present
+                if "else" in step:
+                    await self._execute_step(step["else"], context)
+                return
+
+            # If condition met, execute 'then' block if present, or just the action logic below
+            if "then" in step:
+                await self._execute_step(step["then"], context)
+                return
+
+        # 2. Execute Action
+        action_name = step.get("action")
+        if not action_name:
+            return
+
+        params = step.get("params", {})
+        # Resolve params (regex substitution)
+        import re
+
+        resolved_params = {}
+
+        def _resolve_val(v):
+            if isinstance(v, str):
+                # Replace ${var.path} with context values
+                def replacer(match):
+                    path = match.group(1)
+                    parts = path.split(".")
+                    curr = context
+                    try:
+                        for p in parts:
+                            curr = curr.get(p, {})
+                        return str(curr)
+                    except Exception:
+                        return match.group(0)
+
+                return re.sub(r"\$\{([^}]+)\}", replacer, v)
+            elif isinstance(v, dict):
+                return {ik: _resolve_val(iv) for ik, iv in v.items()}
+            elif isinstance(v, list):
+                return [_resolve_val(iv) for iv in v]
+            return v
+
+        for k, v in params.items():
+            resolved_params[k] = _resolve_val(v)
+
+        if action_name.startswith("internal."):
+            # Execute Internal Action
+            from .internal_actions import get_action
+
+            func = get_action(action_name)
+            if func:
+                # Map 'async' param to 'async_warmup' to avoid keyword conflict if needed,
+                # but our internal_actions use specific kwargs.
+                # We pass context + kwargs.
+                if asyncio.iscoroutinefunction(func):
+                    await func(context, **resolved_params)
+                else:
+                    func(context, **resolved_params)
+            else:
+                logger.warning(f"[WORKFLOW] Internal action '{action_name}' not registered.")
+        else:
+            # Fallback: Treat as MCP Tool (via context orchestrator -> mcp_manager)
+            # This requires the context to have access to tool execution capability
+            # For startup workflows, we mostly use internal actions.
+            pass
+
+
 # Global singleton
 behavior_engine = BehaviorEngine()
+workflow_engine = WorkflowEngine(behavior_engine)

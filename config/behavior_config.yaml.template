@@ -1480,3 +1480,142 @@ software_development:
       format: google                 # google | numpy | sphinx
       language: english              # english | ukrainian
       detail_level: standard         # minimal | standard | comprehensive
+
+# =============================================================================
+# WORKFLOW AUTOMATION
+# =============================================================================
+# Deterministic finite state machine definitions for system processes
+# Replaces hardcoded sequences in orchestrator.py
+
+# ---------------------------------------------------------------------------
+# WORKFLOWS (Finite State Machines)
+# ---------------------------------------------------------------------------
+workflows:
+  # ---------------------------------------------------------------------------
+  # SYSTEM STARTUP
+  # ---------------------------------------------------------------------------
+  startup:
+    description: "System initialization sequence"
+    on_error: "continue"              # abort | continue | retry
+    
+    stages:
+      - name: "init_services"
+        steps:
+          - action: "internal.log"
+            params: { msg: "AtlasTrinity Brain is waking up...", level: "info" }
+            
+          - action: "internal.check_services"
+            params: { timeout: 60 }
+            
+          - action: "internal.state_init"
+            params: { reset: false }
+            
+      - name: "load_memory"
+        steps: 
+          - action: "internal.db_init"
+            
+          - action: "internal.memory_warmup"
+            params: { async: true }
+            
+      - name: "final_check"
+        steps:
+          - action: "internal.log"
+            params: { msg: "System initialization complete. Waiting for input.", level: "info" }
+
+  # ---------------------------------------------------------------------------
+  # ERROR RECOVERY
+  # ---------------------------------------------------------------------------
+  error_recovery:
+    description: "Autonomous self-healing protocol"
+    
+    stages:
+      - name: "diagnose"
+        steps:
+          - action: "internal.log"
+            params: { msg: "Initiating self-healing protocols...", level: "warning" }
+          - action: "internal.check_services"
+            params: { timeout: 30 }
+          - action: "internal.analyze_error"
+            id: "error_analysis"
+            
+      - name: "attempt_fix"
+        steps:
+          - if: "${error_analysis.can_auto_fix}"
+            then:
+              action: "internal.apply_fix"
+              params: { fix_id: "${error_analysis.fix_id}" }
+            else:
+              action: "internal.escalate"
+              params: { target: "user" }
+
+
+# ---------------------------------------------------------------------------
+# ORCHESTRATION FLOW (LangGraph Structure)
+# ---------------------------------------------------------------------------
+orchestration_flow:
+  entry_point: "atlas_planning"
+  nodes:
+    - name: "atlas_planning"
+      type: "planner"
+      next: "tetyana_execution"
+    - name: "tetyana_execution"
+      type: "executor"
+      conditional_edge:
+        evaluator: "should_verify"
+        mapping:
+          verify: "grisha_verification"
+          continue: "tetyana_execution"
+          end: "__end__"
+    - name: "grisha_verification"
+      type: "verifier"
+      next: "tetyana_execution"
+
+  rules:
+    should_verify:
+      - condition: "has_error"
+        result: "continue"   # Retry execution
+      - condition: "task_completed"
+        result: "end"
+      - condition: "needs_verification"
+        result: "verify"
+      - default: "continue"
+
+# ---------------------------------------------------------------------------
+# BACKGROUND MONITORING
+# ---------------------------------------------------------------------------
+background_monitoring:
+  mcp_health:
+    interval: 60
+    auto_restart: true
+    max_retries: 5
+    backoff_base: 0.5
+  
+  memory_consolidation:
+    enabled: true
+    interval: 3600  # 1 hour
+
+# ---------------------------------------------------------------------------
+# OUTPUT PROCESSING
+# ---------------------------------------------------------------------------
+output_processing:
+  voice:
+    sanitization_rules:
+      - pattern: "\\s+"
+        replacement: " "
+      - pattern: "[`*#_]"
+        replacement: "" # Strip markdown
+    min_length: 2
+    max_length: 5000
+
+# ---------------------------------------------------------------------------
+# TOOL ROUTING FALLBACKS
+# ---------------------------------------------------------------------------
+tool_routing_fallbacks:
+  fetch: "macos-use_fetch_url"
+  fetch_url: "macos-use_fetch_url"
+  get_time: "macos-use_get_time"
+  screenshot: "macos-use_take_screenshot"
+  terminal: "execute_command"
+  search: "macos-use_spotlight_search"
+  notification: "macos-use_send_notification"
+  finder_list: "macos-use_finder_list_files"

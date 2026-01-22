@@ -70,6 +70,11 @@ class MCPManager:
         self._connection_tasks: dict[str, asyncio.Task] = {}
         self._close_events: dict[str, asyncio.Event] = {}
         self._session_futures: dict[str, asyncio.Future] = {}
+
+        from src.brain.behavior_engine import behavior_engine
+
+        mon_config = behavior_engine.get_background_monitoring("mcp_health")
+
         self.config = self._load_config()
         self._lock = asyncio.Lock()
         self._log_callbacks = []
@@ -82,10 +87,8 @@ class MCPManager:
         # Controls for restart concurrency and retry/backoff
         # Limit number of concurrent restarts to avoid forking storms
         self._restart_semaphore = asyncio.Semaphore(4)
-        self._max_restart_attempts = int(config.get("mcp_enhanced.max_restart_attempts", 5))
-        self._restart_backoff_base = float(
-            config.get("mcp_enhanced.restart_backoff_base", 0.5)
-        )  # seconds
+        self._max_restart_attempts = int(mon_config.get("max_retries", 5))
+        self._restart_backoff_base = float(mon_config.get("backoff_base", 0.5))  # seconds
 
     def _load_config(self) -> dict[str, Any]:
         """Load MCP config from the global user config folder."""
@@ -569,29 +572,11 @@ class MCPManager:
         return result
 
     def _get_macos_equivalent(self, tool_name: str) -> str | None:
-        """Find macOS-use equivalent for a given tool."""
-        tool_lower = tool_name.lower()
+        """Find macOS-use equivalent for a given tool from behavior config."""
+        from src.brain.behavior_engine import behavior_engine
 
-        # Mapping of common tools to macOS-use equivalents
-        equivalents = {
-            "fetch": "macos-use_fetch_url",
-            "fetch_url": "macos-use_fetch_url",
-            "get_time": "macos-use_get_time",
-            "time": "macos-use_get_time",
-            "screenshot": "macos-use_take_screenshot",
-            "terminal": "execute_command",
-            "execute": "execute_command",
-            "run_command": "execute_command",
-            "search": "macos-use_spotlight_search",
-            "spotlight": "macos-use_spotlight_search",
-            "mdfind": "macos-use_spotlight_search",
-            "notification": "macos-use_send_notification",
-            "mail_send": "macos-use_mail_send",
-            "notes_create": "macos-use_notes_create_note",
-            "finder_list": "macos-use_finder_list_files",
-        }
-
-        return equivalents.get(tool_lower)
+        fallbacks = behavior_engine.config.get("tool_routing_fallbacks", {})
+        return fallbacks.get(tool_name.lower())
 
     async def list_tools(self, server_name: str) -> list[Any]:
         """List available tools for a server"""
@@ -763,8 +748,14 @@ class MCPManager:
             except Exception as e:
                 logger.error(f"[MCP] Health check error: {e}")
 
-    def start_health_monitoring(self, interval: int = 60):
+    def start_health_monitoring(self, interval: int | None = None):
         """Start the health check background task."""
+        if interval is None:
+            from src.brain.behavior_engine import behavior_engine
+
+            mon_config = behavior_engine.get_background_monitoring("mcp_health")
+            interval = mon_config.get("interval", 60)
+
         self._health_task = asyncio.create_task(self.health_check_loop(interval))
         return self._health_task
 

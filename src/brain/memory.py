@@ -480,9 +480,12 @@ class LongTermMemory:
                         try:
                             if step_uuid:
                                 import uuid
+
                                 uuid.UUID(str(step_uuid))
                         except (ValueError, TypeError):
-                            logger.warning(f"[MEMORY] Invalid step_id UUID: {step_uuid}. Logging as None.")
+                            logger.warning(
+                                f"[MEMORY] Invalid step_id UUID: {step_uuid}. Logging as None."
+                            )
                             step_uuid = None
 
                         deviation_entry = BehavioralDeviation(

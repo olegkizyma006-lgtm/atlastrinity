@@ -112,12 +112,12 @@ class Tetyana(BaseAgent):
     def __init__(self, model_name: str | None = None):
         # Get model config (config.yaml > parameter)
         agent_config = config.get_agent_config("tetyana")
-        
+
         # Main execution model
         final_model = model_name or agent_config.get("model")
         if not final_model:
             raise ValueError("[TETYANA] Main model not specified in config.yaml or constructor")
-            
+
         self.llm = CopilotLLM(model_name=final_model)
 
         # Specialized models for Reasoning and Reflexion
@@ -135,7 +135,7 @@ class Tetyana(BaseAgent):
         if not vision_model:
             # Fallback to main model if vision not explicitly set, but Main must exist
             vision_model = final_model
-            
+
         self.vision_llm = CopilotLLM(model_name=vision_model, vision_model_name=vision_model)
 
         self.temperature = agent_config.get("temperature", 0.5)
@@ -581,15 +581,29 @@ IMPORTANT:
         if is_consent_request:
             # Exclude technical checks from human confirmation
             technical_verification_keywords = [
-                "file", "directory", "process", "connection", "port", "schema", "table", "database",
-                "log", "script", "config", "environment", "version", "status", "health"
+                "file",
+                "directory",
+                "process",
+                "connection",
+                "port",
+                "schema",
+                "table",
+                "database",
+                "log",
+                "script",
+                "config",
+                "environment",
+                "version",
+                "status",
+                "health",
             ]
             if any(tk in step_action_lower for tk in technical_verification_keywords):
                 is_consent_request = False
-                logger.info(f"[TETYANA] Step '{step_id}' - skipping consent: identified as technical verification.")
+                logger.info(
+                    f"[TETYANA] Step '{step_id}' - skipping consent: identified as technical verification."
+                )
 
         if is_consent_request:
-
             logger.info(f"[TETYANA] Step '{step_id}' requires consent. Signal orchestrator.")
             consent_msg = f"Потрібна ваша згода або відповідь для кроку: {step.get('action')}\nОчікуваний результат: {step.get('expected_result', 'Підтвердження користувача')}"
 

@@ -73,7 +73,7 @@ class Atlas(BaseAgent):
     def __init__(self, model_name: str | None = None):
         # Get model config (config.yaml > parameter)
         agent_config = config.get_agent_config("atlas")
-        
+
         # Priority: 1. Constructor arg, 2. Config file, 3. Default in config_loader
         final_model = model_name or agent_config.get("model")
 
@@ -151,17 +151,28 @@ class Atlas(BaseAgent):
 
         # Resolve 'repeat' context if needed
         resolved_context = context or {}
-        repeat_keywords = ["повтор", "repeat", "redo", "останнє завдання", "last task", "з самого початку"]
+        repeat_keywords = [
+            "повтор",
+            "repeat",
+            "redo",
+            "останнє завдання",
+            "last task",
+            "з самого початку",
+        ]
         if any(kw in request_lower for kw in repeat_keywords):
-            logger.info(f"[ATLAS] Detecting 'repeat' intent in: {user_request}. Resolving context from memory...")
-            
+            logger.info(
+                f"[ATLAS] Detecting 'repeat' intent in: {user_request}. Resolving context from memory..."
+            )
+
             # Fetch recent task context
-            recent_tasks = long_term_memory.recall_similar_tasks(user_request, n_results=1, only_successful=False)
+            recent_tasks = long_term_memory.recall_similar_tasks(
+                user_request, n_results=1, only_successful=False
+            )
             if recent_tasks:
                 task_info = recent_tasks[0].get("document", "No details")
                 resolved_context["recent_task_memory"] = task_info
                 logger.info("[ATLAS] Resolved recent task from long-term memory.")
-            
+
             # Fetch recent conversation context for better intent mapping
             recent_convs = long_term_memory.recall_similar_conversations(user_request, n_results=1)
             if recent_convs:
@@ -256,16 +267,14 @@ class Atlas(BaseAgent):
 
         from langchain_core.messages import HumanMessage, SystemMessage
 
-        from ..mcp_manager import mcp_manager
-
-
         from ..behavior_engine import behavior_engine
+        from ..mcp_manager import mcp_manager
 
         # Use BehaviorEngine for intent classification (replaces 50+ lines of hardcoded keywords)
         classification = behavior_engine.classify_intent(user_request, context={})
-        is_info_query = classification['type'] == 'info_query'
-        is_simple_chat = classification['type'] == 'simple_chat'
-        
+        intent = classification.get("intent", "solo_task")
+        is_simple_chat = classification.get("type") == "simple_chat"
+
         resolved_query = user_request
         if history and not is_simple_chat:
             resolved_query = await self._resolve_query_context(user_request, history)
@@ -309,7 +318,9 @@ class Atlas(BaseAgent):
                         if tasks_res:
                             v_ctx += "\nPast Strategy: " + tasks_res[0]["document"][:200]
                         conv_res = await asyncio.to_thread(
-                            long_term_memory.recall_similar_conversations, resolved_query, n_results=2
+                            long_term_memory.recall_similar_conversations,
+                            resolved_query,
+                            n_results=2,
                         )
                         if conv_res:
                             c_texts = [
@@ -539,7 +550,7 @@ class Atlas(BaseAgent):
             last_messages.append(f"{role}: {content[:200]}")
 
         history_str = "\n".join(last_messages)
-        
+
         prompt = f"""Conversation History:
 {history_str}
 
@@ -553,10 +564,14 @@ Standalone Query:"""
 
         try:
             # Use a slightly higher temperature for query variety but keep it focused
-            response = await self.llm.ainvoke([
-                SystemMessage(content="You are a context resolution engine. Optimize queries for memory retrieval."),
-                HumanMessage(content=prompt)
-            ])
+            response = await self.llm.ainvoke(
+                [
+                    SystemMessage(
+                        content="You are a context resolution engine. Optimize queries for memory retrieval."
+                    ),
+                    HumanMessage(content=prompt),
+                ]
+            )
             resolved = str(response.content).strip().strip('"')
             return resolved if resolved else query
         except Exception as e:

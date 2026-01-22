@@ -85,9 +85,11 @@ try:
     VIBE_WORKSPACE = get_config_value("mcp.vibe", "workspace", str(CONFIG_ROOT / "vibe_workspace"))
     VIBE_CONFIG_FILE = get_config_value("mcp.vibe", "config_file", None)
     AGENT_MODEL_OVERRIDE = get_config_value("agents.tetyana", "model", None)
-    
+
     if not AGENT_MODEL_OVERRIDE:
-        logger.warning("[VIBE] AGENT_MODEL_OVERRIDE not set in config, strict configuration enforced")
+        logger.warning(
+            "[VIBE] AGENT_MODEL_OVERRIDE not set in config, strict configuration enforced"
+        )
 
 except Exception:
 

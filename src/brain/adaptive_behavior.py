@@ -43,8 +43,10 @@ class AdaptiveBehaviorEngine:
 
         # Behavior engine replaces hardcoded patterns
         from .behavior_engine import behavior_engine
+        from .logger import logger
+
         self._engine = behavior_engine
-        
+
         logger.info("[ADAPTIVE BEHAVIOR] Using config-driven behavior engine")
 
     # REMOVED: Patterns now defined in config/behavior_config.yaml
@@ -64,13 +66,13 @@ class AdaptiveBehaviorEngine:
             (should_deviate: bool, reason: str)
         """
         # Delegate to behavior engine for pattern matching
-        combined_context = {**context, 'step': current_step}
+        combined_context = {**context, "step": current_step}
         pattern = self._engine.match_pattern(
             context=combined_context,
-            pattern_type='adaptive_behavior',
-            confidence_threshold=confidence_threshold
+            pattern_type="adaptive_behavior",
+            confidence_threshold=confidence_threshold,
         )
-        
+
         if pattern:
             return True, f"Pattern '{pattern.name}' matched with confidence {pattern.confidence}"
 

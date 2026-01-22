@@ -79,7 +79,7 @@ class BaseAgent:
         # 1. Get model from config
         seq_config = config.get("mcp.sequential_thinking", {})
         model_name = seq_config.get("model")
-        
+
         if not model_name:
             raise ValueError("[BASE_AGENT] Sequential thinking model not specified in config.yaml")
 

@@ -11,6 +11,7 @@ import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from .agents.atlas import Atlas
 from .logger import logger
 from .memory import long_term_memory
 
@@ -57,7 +58,10 @@ class ConsolidationModule:
             else:
                 # Use consolidation model from config (fallback to default)
                 from .config import config
-                consolidation_model = config.get("models", {}).get("consolidation") or config.get("models", {}).get("default", "gpt-4o")
+
+                consolidation_model = config.get("models", {}).get("consolidation") or config.get(
+                    "models", {}
+                ).get("default", "gpt-4o")
                 atlas = Atlas(model_name=consolidation_model)
                 llm = atlas.llm
 

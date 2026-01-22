@@ -23,6 +23,7 @@ import uuid
 from src.brain.adaptive_behavior import adaptive_behavior
 from src.brain.agents import Atlas, Grisha, Tetyana
 from src.brain.agents.tetyana import StepResult
+from src.brain.behavior_engine import workflow_engine
 from src.brain.config import IS_MACOS, PLATFORM_NAME
 from src.brain.config_loader import config
 from src.brain.consolidation import consolidation_module
@@ -86,8 +87,18 @@ class Trinity:
         self.active_task = None  # Track current run task for cancellation
 
     async def initialize(self):
-        """Async initialization of system components"""
-        # Initialize state if not exists
+        """Async initialization of system components via Config-Driven Workflow"""
+        # Execute 'startup' workflow from behavior config
+        # This replaces hardcoded service checks and state init
+        context = {"orchestrator": self}
+        success = await workflow_engine.execute_workflow("startup", context)
+
+        if not success:
+            logger.error(
+                "[ORCHESTRATOR] Startup workflow failed or partial. Proceeding with caution."
+            )
+
+        # Legacy fallback if workflow didn't fully initialize context (safety net)
         if not hasattr(self, "state") or not self.state:
             self.state = {
                 "messages": [],
@@ -97,18 +108,6 @@ class Trinity:
                 "error": None,
                 "logs": [],
             }
-            logger.info("[ORCHESTRATOR] State initialized during initialize()")
-
-        # Start MCP health check loop
-        mcp_manager.start_health_monitoring(interval=60)
-
-        # Capture MCP server log notifications for UI visibility
-        async def mcp_log_forwarder(message, source, level="info"):
-            await self._log(message, source=source, type=level)
-
-        mcp_manager.register_log_callback(mcp_log_forwarder)
-        # Initialize DB
-        await db_manager.initialize()
 
         # Check for pending restart state
         await self._resume_after_restart()
@@ -209,27 +208,51 @@ class Trinity:
         return {"status": "error", "message": "Session not found"}
 
     def _build_graph(self):
+        """Builds LangGraph dynamically from orchestration_flow config."""
+        from src.brain.behavior_engine import behavior_engine
+
+        flow_config = behavior_engine.config.get("orchestration_flow", {})
+
         workflow = StateGraph(TrinityState)
 
-        # Define nodes
-        workflow.add_node("atlas_planning", lambda state: self.planner_node(state))
-        workflow.add_node("tetyana_execution", lambda state: self.executor_node(state))
-        workflow.add_node("grisha_verification", lambda state: self.verifier_node(state))
+        # Mapping of config node types to orchestrator functions
+        node_functions = {
+            "planner": self.planner_node,
+            "executor": self.executor_node,
+            "verifier": self.verifier_node,
+        }
 
-        # Define edges
-        workflow.set_entry_point("atlas_planning")
+        # 1. Define nodes
+        nodes = flow_config.get("nodes", [])
+        for node_cfg in nodes:
+            name = node_cfg.get("name")
+            n_type = node_cfg.get("type")
+            if isinstance(name, str) and n_type in node_functions:
+                action = node_functions[n_type]
+                workflow.add_node(name, action)
 
-        workflow.add_edge("atlas_planning", "tetyana_execution")
-        workflow.add_conditional_edges(
-            "tetyana_execution",
-            self.should_verify,
-            {
-                "verify": "grisha_verification",
-                "continue": "tetyana_execution",
-                "end": END,
-            },
-        )
-        workflow.add_edge("grisha_verification", "tetyana_execution")
+        # 2. Define edges
+        entry_point = flow_config.get("entry_point")
+        if entry_point:
+            workflow.set_entry_point(entry_point)
+
+        for node_cfg in nodes:
+            name = node_cfg.get("name")
+            next_node = node_cfg.get("next")
+            cond_edge = node_cfg.get("conditional_edge")
+
+            if next_node:
+                workflow.add_edge(name, next_node)
+            elif cond_edge:
+                evaluator_name = cond_edge.get("evaluator")
+                mapping = cond_edge.get("mapping", {})
+                # Resolve __end__ to END
+                resolved_mapping = {k: (v if v != "__end__" else END) for k, v in mapping.items()}
+
+                # Check if evaluator is a method on Trinity
+                eval_func = getattr(self, evaluator_name, None) if evaluator_name else None
+                if name and eval_func:
+                    workflow.add_conditional_edges(name, eval_func, resolved_mapping)
 
         return workflow.compile()
 
@@ -281,15 +304,27 @@ class Trinity:
         self.state["system_state"] = SystemState.IDLE.value
 
     async def _speak(self, agent_id: str, text: str):
-        """Voice wrapper with smarter sanitization"""
-        # 1. Clean up text for TTS (don't be too aggressive)
-        # We only strip weird control chars or excessive whitespace
+        """Voice wrapper with config-driven sanitization"""
+        from src.brain.behavior_engine import behavior_engine
+
+        voice_config = behavior_engine.get_output_processing("voice")
+
+        # 1. Clean up text for TTS using config rules
         import re
 
-        clean_text = re.sub(r"\s+", " ", text).strip()
+        clean_text = text
+        for rule in voice_config.get("sanitization_rules", []):
+            pattern = rule.get("pattern")
+            replacement = rule.get("replacement", "")
+            if pattern:
+                clean_text = re.sub(pattern, replacement, clean_text)
 
-        # If text is empty or too short for TTS, skip
-        if not clean_text or len(clean_text) < 2:
+        clean_text = clean_text.strip()
+
+        # If text is empty or outside length limits, skip
+        min_len = voice_config.get("min_length", 2)
+        max_len = voice_config.get("max_length", 5000)
+        if not clean_text or len(clean_text) < min_len or len(clean_text) > max_len:
             return
 
         print(f"[{agent_id.upper()}] Speaking: {clean_text}")
@@ -691,6 +726,28 @@ class Trinity:
 
                 analysis = await self.atlas.analyze_request(user_request, history=history)
                 intent = analysis.get("intent")
+
+                # 1.7 Check for Config-Driven Workflow (New Path)
+                from src.brain.behavior_engine import behavior_engine
+
+                if intent and behavior_engine.config.get("workflows", {}).get(str(intent)):
+                    logger.info(f"[ORCHESTRATOR] Intent '{intent}' maps to a workflow. Executing.")
+                    self.state["system_state"] = SystemState.EXECUTING.value
+
+                    context = {
+                        "orchestrator": self,
+                        "user_request": user_request,
+                        "intent_analysis": analysis,
+                    }
+
+                    success = await workflow_engine.execute_workflow(str(intent), context)
+
+                    msg = f"Workflow '{intent}' execution {'completed' if success else 'failed'}."
+                    await self._speak("atlas", msg)
+
+                    self.state["system_state"] = SystemState.IDLE.value
+                    self.active_task = None
+                    return {"status": "completed", "result": msg, "type": "workflow"}
 
                 # Handle Atlas Solo Modes (Chat, Recall, Status, Solo Task)
 
@@ -1553,7 +1610,10 @@ class Trinity:
                                         deviation=p_text[:300],
                                         reason=reason_text,
                                         result="Deviated plan approved",
-                                        context={"step_id": str(self.state.get("db_step_id") or ""), "sequence_id": str(step_id)},
+                                        context={
+                                            "step_id": str(self.state.get("db_step_id") or ""),
+                                            "sequence_id": str(step_id),
+                                        },
                                         decision_factors={
                                             "original_step": step,
                                             "analysis": proposal_text,
@@ -1694,12 +1754,7 @@ class Trinity:
                 try:
                     from src.brain.db.manager import db_manager
 
-                    if (
-                        db_manager
-                        and getattr(db_manager, "available", False)
-                        and db_step_id
-                    ):
-
+                    if db_manager and getattr(db_manager, "available", False) and db_step_id:
                         async with await db_manager.get_session() as db_sess:
                             tool_call_data = result.tool_call or {}
                             tool_exec = DBToolExecution(
@@ -1971,7 +2026,28 @@ class Trinity:
         return {"system_state": SystemState.VERIFYING.value}
 
     def should_verify(self, state: TrinityState) -> str:
-        return "continue"
+        """
+        Determines the next state based on config-driven rules.
+        """
+        from src.brain.behavior_engine import behavior_engine
+
+        # Build context for rule evaluation
+        context = {
+            "has_error": bool(state.get("error")),
+            "task_completed": state.get("system_state") == SystemState.COMPLETED.value,
+            "needs_verification": False,  # Dynamic check based on plan or state
+        }
+
+        # Check if current plan indicates completion
+        if state.get("current_plan") and not state.get("error"):
+            # Simple check: if all steps have results, it might be completed
+            plan = state["current_plan"]
+            if isinstance(plan, list) and len(plan) == len(state.get("step_results", [])):
+                context["task_completed"] = True
+                context["needs_verification"] = True  # Default to verify before ending
+
+        result = behavior_engine.evaluate_rule("should_verify", context)
+        return str(result or "continue")
 
     async def shutdown(self):
         """Clean shutdown of system components"""

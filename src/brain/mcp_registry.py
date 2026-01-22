@@ -219,13 +219,13 @@ def get_servers_for_task(task_type: str) -> list[str]:
     Now delegates to BehaviorEngine for config-driven classification.
     """
     from src.brain.behavior_engine import behavior_engine
-    
+
     # Delegate to behavior engine (replaces 80+ lines of hardcoded conditionals)
     servers = behavior_engine.classify_task(task_type)
-    
+
     if servers:
         return servers
-    
+
     # Default fallback
     return ["macos-use", "filesystem"]
 

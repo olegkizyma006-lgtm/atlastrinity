@@ -212,7 +212,9 @@ class VibeConfig(BaseModel):
     """
 
     # Core settings
-    active_model: str = Field("", description="Default model alias (Must be set in vibe_config.toml)")
+    active_model: str = Field(
+        "", description="Default model alias (Must be set in vibe_config.toml)"
+    )
     system_prompt_id: str = Field("default", description="System prompt ID")
     default_mode: AgentMode = Field(AgentMode.AUTO_APPROVE, description="Default operational mode")
 
@@ -459,7 +461,6 @@ class VibeConfig(BaseModel):
             # Removing because current CLI version does not recognize --model
             # args.extend(["--model", model])
             pass
-
 
         # Mode
         effective_mode = mode or self.default_mode

@@ -584,14 +584,16 @@ class ToolDispatcher:
             server, resolved_tool, normalized_args = behavior_engine.route_tool(
                 tool_name, args, explicit_server
             )
-            
+
             if server:
                 logger.debug(
                     f"[DISPATCHER] BehaviorEngine routing: {tool_name} -> {server}.{resolved_tool}"
                 )
                 return server, resolved_tool, normalized_args
         except Exception as e:
-            logger.warning(f"[DISPATCHER] BehaviorEngine routing failed: {e}, falling back to registry")
+            logger.warning(
+                f"[DISPATCHER] BehaviorEngine routing failed: {e}, falling back to registry"
+            )
 
         # Fallback: Use registry-based resolution
         return self._resolve_tool_and_args(tool_name, args, explicit_server)
