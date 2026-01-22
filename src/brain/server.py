@@ -221,7 +221,7 @@ async def speech_to_text(audio: UploadFile = File(...)):
         if suffix != ".wav":
             wav_path = temp_file_path.replace(suffix, ".wav")
             try:
-                # Optimized for Whisper large-v3-turbo: High clarity, no aggressive cutoff
+                # Optimized for Whisper large-v3: High clarity, no aggressive cutoff
                 result = subprocess.run(
                     [
                         "ffmpeg",

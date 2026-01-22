@@ -36,7 +36,7 @@ behavior:
 voice:
   stt:
     model: large-v3
-    device: cpp
+    device: auto
     language: uk
   tts:
     engine: ukrainian-tts

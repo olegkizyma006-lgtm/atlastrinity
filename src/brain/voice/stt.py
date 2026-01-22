@@ -107,13 +107,8 @@ class WhisperSTT:
         stt_config = config.get("voice.stt", {})
 
         # Use model from config (priority - config.yaml)
-        self.model_name = model_name or stt_config.get("model", "large-v3-turbo")
+        self.model_name = model_name or stt_config.get("model", "large-v3")
 
-        # Mapping for optimized turbo models
-        if self.model_name in ["turbo", "large-v3-turbo"]:
-            # Check if we should use the specific ctranslate2 conversion or let faster-whisper handle it
-            # Standard faster-whisper now supports "large-v3-turbo" directly if available on HF
-            pass
 
         self.language = stt_config.get("language", "uk")
 

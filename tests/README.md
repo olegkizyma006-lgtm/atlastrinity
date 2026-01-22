@@ -5,16 +5,20 @@
 ## 📋 Доступні тести
 
 ### STT & Whisper
+
 - **test_whisper_mps.py** - Тест Whisper на MPS (Apple Silicon GPU) vs CPU
 - **verify_whisper.py** (in scripts/) - Колишній скрипт верифікації, тепер у папці scripts/.
 
 ### Agents
+
 - **test_copilot.py** - Тест GitHub Copilot провайдера
+
   ```bash
   python tests/test_copilot.py
   ```
 
 - **test_grisha_real.py** - Реальний тест агента Grisha (Computer Use)
+
   ```bash
   python tests/test_grisha_real.py
   ```
@@ -27,6 +31,7 @@
 ## 🔧 Вимоги
 
 Переконайтесь що виконано setup:
+
 ```bash
 ./setup.sh
 # або
@@ -36,13 +41,17 @@ python setup_dev.py
 ## 📊 Результати
 
 ### Whisper MPS Test
+
 Очікуваний результат на Apple Silicon:
-- MPS: ~30s завантаження моделі turbo
+
+- MPS: ~15s (для великих моделей)
 - CPU: ~439s завантаження
 - **Прискорення: ~14x**
 
 ### Verify Whisper
+
 Має пройти всі 25 перевірок:
+
 - ✅ Config files
 - ✅ Directories
 - ✅ Python imports

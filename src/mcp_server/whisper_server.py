@@ -10,10 +10,10 @@ from src.brain.voice.stt import WhisperSTT
 try:
     from .config_loader import get_config_value
 
-    STT_MODEL = get_config_value("whisper", "model", "large-v3-turbo")
+    STT_MODEL = get_config_value("whisper", "model", "large-v3")
     STT_LANGUAGE = get_config_value("whisper", "language", "uk")
 except Exception:
-    STT_MODEL = config.get("voice.stt.model", "large-v3-turbo")
+    STT_MODEL = config.get("voice.stt.model", "large-v3")
     STT_LANGUAGE = config.get("voice.stt.language", "uk")
 
 # Initialize FastMCP server
@@ -26,7 +26,7 @@ _local_stt = None
 async def get_local_stt():
     global _local_stt
     if _local_stt is None:
-        model_name = config.get("voice.stt.model", "large-v3-turbo")
+        model_name = config.get("voice.stt.model", "large-v3")
         _local_stt = WhisperSTT(model_name=model_name)
     return _local_stt
 

@@ -136,7 +136,7 @@ class SystemConfig:
                     "device": "mps",
                 },
                 "stt": {
-                    "model": os.getenv("STT_MODEL", "large-v3-turbo"),
+                    "model": os.getenv("STT_MODEL", "large-v3"),
                     "language": "uk",
                 },
             },

@@ -614,7 +614,7 @@ class FirstRunInstaller:
             self._report(SetupStep.DOWNLOAD_STT, 1.0, "STT моделі вже завантажені ✓")
             return True
 
-        self._report(SetupStep.DOWNLOAD_STT, 0.2, "Завантаження Faster-Whisper large-v3-turbo...")
+        self._report(SetupStep.DOWNLOAD_STT, 0.2, "Завантаження Faster-Whisper large-v3...")
 
         try:
             WHISPER_DIR.mkdir(parents=True, exist_ok=True)
@@ -622,7 +622,7 @@ class FirstRunInstaller:
             from faster_whisper import WhisperModel
 
             WhisperModel(
-                "large-v3-turbo",
+                "large-v3",
                 device="cpu",
                 compute_type="int8",
                 download_root=str(WHISPER_DIR),

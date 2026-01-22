@@ -9,12 +9,14 @@
 ### 1. Системний конфіг AtlasTrinity
 
 **Розташування**:
+
 - Project: `config/config.yaml` (template)
 - Global: `~/.config/atlastrinity/config.yaml` (active)
 
 **Призначення**: Налаштування системи AtlasTrinity
 
 **Містить**:
+
 - Агенти (Atlas, Tetyana, Grisha)
 - MCP сервери (Terminal, Whisper, etc)
 - Voice: `tts.device`, `stt.model`
@@ -31,6 +33,7 @@
 **Призначення**: Параметри тренування моделі ukrainian-tts
 
 **Містить**:
+
 - Tacotron2 параметри
 - HiFiGAN параметри
 - normalize_conf: `feats_stats.npz`
@@ -93,13 +96,15 @@
 ### Користувачу:
 
 ✅ **Редагуй**: `config/config.yaml` (в проекті)
-   - Або `.env` для зручності
-   - Система синхронізує `.env` → `config.yaml`
+
+- Або `.env` для зручності
+- Система синхронізує `.env` → `config.yaml`
 
 ❌ **НЕ чіпай**: `~/.config/atlastrinity/models/tts/config.yaml`
-   - Це внутрішній файл моделі
-   - Автоматично завантажується
-   - Містить параметри тренування
+
+- Це внутрішній файл моделі
+- Автоматично завантажується
+- Містить параметри тренування
 
 ### Розробнику:
 
@@ -133,7 +138,7 @@
     │   ├── feats_stats.npz        # Feature stats
     │   └── spk_xvector.ark        # Speaker vectors
     └── whisper/                   # OpenAI Whisper моделі
-        └── large-v3-turbo.pt      # STT модель (1.5GB)
+        └── large-v3.pt            # STT модель (1.5GB)
 ```
 
 ---

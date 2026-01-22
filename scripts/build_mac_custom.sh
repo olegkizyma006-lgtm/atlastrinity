@@ -32,8 +32,8 @@ rsync -aL --delete .venv/ dist_venv/
 
 # 4.1 Ensure models are initialized
 echo "Checking models in ~/.config/atlastrinity/..."
-if [ ! -f "$HOME/.config/atlastrinity/models/whisper/large-v3-turbo.pt" ] && [ ! -d "$HOME/.config/atlastrinity/models/faster-whisper/models--deepdml--faster-whisper-large-v3-turbo-ct2" ]; then
-    echo "⚠️  Whisper large-v3-turbo model not found. Will be downloaded on first run."
+if [ ! -f "$HOME/.config/atlastrinity/models/whisper/large-v3.pt" ] && [ ! -d "$HOME/.config/atlastrinity/models/faster-whisper/models--deepdml--faster-whisper-large-v3-ct2" ]; then
+    echo "⚠️  Whisper large-v3 model not found. Will be downloaded on first run."
 fi
 if [ ! -f "$HOME/.config/atlastrinity/models/tts/model.pth" ]; then
     echo "⚠️  TTS model not found. Will be downloaded on first run."

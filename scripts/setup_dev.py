@@ -551,7 +551,7 @@ def download_models():
     venv_python = str(VENV_PATH / "bin" / "python")
 
     # 1. Faster-Whisper: Detect model from config or template
-    model_name = "large-v3-turbo"  # Default fallback
+    model_name = "large-v3"  # Default fallback
     try:
         import yaml
 

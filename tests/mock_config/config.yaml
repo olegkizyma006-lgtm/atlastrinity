@@ -30,8 +30,8 @@ mcp:
     enabled: true
   filesystem:
     allowed_paths:
-    - ${HOME}
-    - /tmp
+      - ${HOME}
+      - /tmp
     deny_write_paths: []
     deny_write_repo: true
     enabled: true
@@ -69,7 +69,7 @@ mcp:
   whisper_stt:
     enabled: true
     language: uk
-    model: large-v3-turbo
+    model: large-v3
 mcp_enhanced:
   connection_timeout: 3600
   retry_attempts: 3
@@ -82,10 +82,10 @@ orchestrator:
   validate_failed_steps_with_grisha: false
 security:
   dangerous_commands:
-  - rm -rf
-  - mkfs
-  - dd if=
-  - ':(){ :|:& };:'
+    - rm -rf
+    - mkfs
+    - dd if=
+    - ':(){ :|:& };:'
   require_confirmation: true
 state:
   redis_url: ${REDIS_URL}
@@ -96,7 +96,7 @@ voice:
   stt:
     device: cpu
     language: uk
-    model: large-v3-turbo
+    model: large-v3
   tts:
     device: cpu
     enabled: true
