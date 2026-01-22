@@ -11,8 +11,8 @@ from mcp.server import FastMCP
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='[%(asctime)s] [SEARCH-SERVER] [%(levelname)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    format="[%(asctime)s] [SEARCH-SERVER] [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 
@@ -160,8 +160,10 @@ def duckduckgo_search(
     if not query or not query.strip():
         logger.warning("Search request received with empty query")
         return {"error": "query is required"}
-    
-    logger.info(f"Executing search: query='{query.strip()}', max_results={max_results}, timeout={timeout_s}s")
+
+    logger.info(
+        f"Executing search: query='{query.strip()}', max_results={max_results}, timeout={timeout_s}s"
+    )
 
     try:
         max_results_i = int(max_results)
@@ -181,7 +183,9 @@ def duckduckgo_search(
                 "error": "Zero results found. DDG might be blocking or layout changed.",
                 "query": query.strip(),
             }
-        logger.info(f"Search completed successfully for query: '{query.strip()}' - found {len(results)} results")
+        logger.info(
+            f"Search completed successfully for query: '{query.strip()}' - found {len(results)} results"
+        )
         return {"success": True, "query": query.strip(), "results": results}
     except Exception as e:
         return {"error": str(e)}
@@ -199,13 +203,15 @@ def business_registry_search(company_name: str, step_id: str | None = None) -> d
     if not company_name or not company_name.strip():
         logger.warning("Business registry search request received with empty company_name")
         return {"error": "company_name is required"}
-    
+
     logger.info(f"Executing business registry search: company_name='{company_name.strip()}'")
     result = _execute_protocol_search(
         "business", company_name, "DuckDuckGo (Optimized Registry Search)"
     )
     if result.get("success"):
-        logger.info(f"Business registry search completed: found {len(result.get('results', []))} results")
+        logger.info(
+            f"Business registry search completed: found {len(result.get('results', []))} results"
+        )
     else:
         logger.warning(f"Business registry search failed: {result.get('error', 'unknown error')}")
     return result
@@ -223,7 +229,7 @@ def open_data_search(query: str, step_id: str | None = None) -> dict[str, Any]:
     if not query or not query.strip():
         logger.warning("Open data search request received with empty query")
         return {"error": "query is required"}
-    
+
     logger.info(f"Executing open data search: query='{query.strip()}'")
     result = _execute_protocol_search("open_data", query, "DuckDuckGo (Open Data Portal Search)")
     if result.get("success"):

@@ -109,7 +109,6 @@ class WhisperSTT:
         # Use model from config (priority - config.yaml)
         self.model_name = model_name or stt_config.get("model", "large-v3")
 
-
         self.language = stt_config.get("language", "uk")
 
         configured_device = device or stt_config.get("device", "auto")

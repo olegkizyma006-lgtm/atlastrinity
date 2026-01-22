@@ -866,6 +866,21 @@ def main():
     check_services()
     run_integrity_check()
 
+    import json
+
+    mcp_config_path = CONFIG_ROOT / "mcp" / "config.json"
+    enabled_servers = []
+    if mcp_config_path.exists():
+        try:
+            with open(mcp_config_path, encoding="utf-8") as f:
+                mcp_cfg = json.load(f)
+                servers = mcp_cfg.get("mcpServers", {})
+                for s_name, s_info in servers.items():
+                    if not s_info.get("disabled", False):
+                        enabled_servers.append(s_name)
+        except Exception:
+            pass
+
     print("\n" + "=" * 60)
     print_success("✅ Налаштування завершено!")
     print_info("Кроки для початку роботи:")
@@ -874,19 +889,20 @@ def main():
     print("     - GITHUB_TOKEN (опціонально)")
     print("  2. Запустіть систему: npm run dev")
     print("")
-    print_info("Доступні MCP сервери:")
-    print("  - memory: Граф знань & Long-term Memory (Python)")
-    print("  - macos-use: Нативний контроль macOS + Термінал (Swift)")
-    print("  - vibe: Coding Agent & Self-Healing (Python)")
-    print("  - filesystem: Файлові операції (Node)")
-    print("  - sequential-thinking: Глибоке мислення (Node)")
-    print("  - chrome-devtools: Автоматизація Chrome (Node)")
-    print("  - puppeteer: Веб-скрейпінг та пошук (Node)")
-    print("  - github: Офіційний GitHub MCP (Node)")
-    print("  - duckduckgo-search: Швидкий пошук (Python)")
-    print("  - whisper-stt: Локальне розпізнавання мови (Python)")
-    print("  - graph: Візуалізація графу знань (Python)")
-    print("  - self-healing: Автоматичне відновлення стану (System-wide)")
+
+    if enabled_servers:
+        print_info(f"Активні MCP сервери ({len(enabled_servers)}):")
+        for srv in sorted(enabled_servers):
+            print(f"  - {srv}")
+    else:
+        print_info("Доступні MCP сервери:")
+        print("  - memory: Граф знань & Long-term Memory (Python)")
+        print("  - macos-use: Нативний контроль macOS + Термінал (Swift)")
+        print("  - vibe: Coding Agent & Self-Healing (Python)")
+        print("  - filesystem: Файлові операції (Node)")
+        print("  - sequential-thinking: Глибоке мислення (Node)")
+        print("  - github: Офіційний GitHub MCP (Node)")
+
     print("  - MCP Inspector: Дебаг MCP серверів (npx @modelcontextprotocol/inspector)")
     print("=" * 60 + "\n")
 
