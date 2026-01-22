@@ -1180,3 +1180,303 @@ response_templates:
     planning: "Створюю план дій..."
     executing: "Виконую крок {current}/{total}..."
     verifying: "Перевіряю результат..."
+
+# =============================================================================
+# SELF-HEALING CONFIGURATION
+# =============================================================================
+# Advanced self-repair and recovery mechanisms
+
+self_healing:
+  # ---------------------------------------------------------------------------
+  # AUTOMATIC ERROR RECOVERY
+  # ---------------------------------------------------------------------------
+  enabled: true
+  
+  # Recovery strategies priority order
+  recovery_strategies:
+    - name: retry_with_backoff
+      priority: 1
+      enabled: true
+      max_attempts: 3
+      applicable_errors: [network, timeout, temporary]
+      
+    - name: alternative_tool
+      priority: 2
+      enabled: true
+      try_alternative_server: true
+      try_alternative_tool: true
+      
+    - name: simplify_approach
+      priority: 3
+      enabled: true
+      break_into_smaller_steps: true
+      reduce_complexity: true
+      
+    - name: vibe_consultation
+      priority: 4
+      enabled: true
+      escalate_to_vibe: true
+      vibe_tool: vibe_analyze_error
+      min_failure_count: 2
+      
+    - name: atlas_replanning
+      priority: 5
+      enabled: true
+      request_new_plan: true
+      include_error_context: true
+      
+    - name: user_intervention
+      priority: 6
+      enabled: true
+      ask_user_for_help: true
+      provide_error_details: true
+  
+  # ---------------------------------------------------------------------------
+  # ERROR ANALYSIS AND DIAGNOSIS
+  # ---------------------------------------------------------------------------
+  error_analysis:
+    enabled: true
+    
+    # Automatic classification
+    classify_errors: true
+    error_categories:
+      - network_errors        # Connection, timeout
+      - permission_errors     # Access denied, sudo needed
+      - resource_errors       # File not found, disk full
+      - logic_errors          # Wrong approach, invalid state
+      - llm_errors           # Rate limit, token overflow
+      - tool_errors          # Tool not available, server down
+      
+    # Root cause analysis
+    deep_analysis:
+      enabled: true
+      use_vibe_for_complex: true
+      complexity_threshold: 3      # Use Vibe after 3 failures
+      
+    # Pattern recognition
+    learn_from_errors:
+      enabled: true
+      store_error_patterns: true
+      suggest_prevention: true
+  
+  # ---------------------------------------------------------------------------
+  # PROACTIVE HEALTH MONITORING
+  # ---------------------------------------------------------------------------
+  health_monitoring:
+    enabled: true
+    
+    # Pre-execution validation
+    pre_checks:
+      validate_tools_available: true
+      check_server_health: true
+      verify_permissions: true
+      estimate_success_probability: true
+      
+    # During execution monitoring
+    live_monitoring:
+      track_step_duration: true
+      detect_infinite_loops: true
+      monitor_resource_usage: true
+      early_failure_detection: true
+      
+    # Post-execution validation
+    post_checks:
+      verify_expected_outcome: true
+      check_side_effects: true
+      validate_data_integrity: true
+  
+  # ---------------------------------------------------------------------------
+  # RECOVERY PERSISTENCE
+  # ---------------------------------------------------------------------------
+  persistence:
+    save_recovery_attempts: true
+    database_table: recovery_attempts
+    
+    # Analytics
+    track_success_rate: true
+    identify_problematic_tools: true
+    recommend_preventive_actions: true
+
+# =============================================================================
+# SOFTWARE DEVELOPMENT WORKFLOW
+# =============================================================================
+# Specialized configuration for code creation and modification
+
+software_development:
+  # ---------------------------------------------------------------------------
+  # CODE GENERATION SETTINGS
+  # ---------------------------------------------------------------------------
+  code_generation:
+    enabled: true
+    
+    # Quality standards
+    quality:
+      require_type_hints: true
+      require_docstrings: true
+      require_error_handling: true
+      max_function_length: 50        # Lines
+      max_complexity: 10             # Cyclomatic complexity
+      
+    # Code style
+    style:
+      formatter: ruff                # ruff | black
+      linter: ruff                   # ruff | pylint
+      auto_format: true
+      auto_fix_lint: true
+      
+    # Testing requirements
+    testing:
+      require_tests: false           # Require tests for new code
+      test_framework: pytest         # pytest | unittest
+      min_coverage: 80               # Percentage
+      
+  # ---------------------------------------------------------------------------
+  # CODE MODIFICATION WORKFLOW
+  # ---------------------------------------------------------------------------
+  code_modification:
+    enabled: true
+    
+    # Safety checks
+    safety:
+      require_backup: true
+      git_commit_before: true
+      validate_syntax_before: true
+      run_tests_after: true
+      
+    # Modification strategies
+    strategies:
+      - name: minimal_change
+        priority: high
+        description: "Make smallest possible change"
+        
+      - name: refactor_first
+        priority: medium
+        description: "Refactor before adding features"
+        
+      - name: test_driven
+        priority: medium
+        description: "Write tests first, then implement"
+        
+  # ---------------------------------------------------------------------------
+  # CODE REVIEW PROCESS
+  # ---------------------------------------------------------------------------
+  code_review:
+    enabled: true
+    
+    # Automatic review
+    auto_review:
+      enabled: true
+      use_vibe: true
+      vibe_tool: vibe_code_review
+      
+      # Review criteria
+      check_security: true
+      check_performance: true
+      check_readability: true
+      check_best_practices: true
+      
+    # Review depth
+    depth:
+      quick_scan: false              # Just lint and format
+      standard_review: true          # Security, performance
+      deep_audit: false              # Architecture, design patterns
+      
+    # Grisha verification
+    grisha_verification:
+      enabled: false                 # Require Grisha audit
+      on_critical_changes: true      # Only for critical code
+      quality_threshold: 0.8
+      
+  # ---------------------------------------------------------------------------
+  # DEBUGGING WORKFLOW
+  # ---------------------------------------------------------------------------
+  debugging:
+    enabled: true
+    
+    # Debug strategies
+    strategies:
+      - name: reproduce_error
+        priority: 1
+        enabled: true
+        
+      - name: analyze_logs
+        priority: 2
+        enabled: true
+        use_vibe: true
+        
+      - name: isolate_cause
+        priority: 3
+        enabled: true
+        create_minimal_example: true
+        
+      - name: fix_and_verify
+        priority: 4
+        enabled: true
+        run_tests_after_fix: true
+        
+    # Vibe integration
+    vibe_debugging:
+      enabled: true
+      auto_escalate_on_complex: true
+      complexity_indicators:
+        - multiple_failure_attempts
+        - unfamiliar_error_message
+        - cross_system_issue
+        
+  # ---------------------------------------------------------------------------
+  # ARCHITECTURE DECISIONS
+  # ---------------------------------------------------------------------------
+  architecture:
+    enabled: true
+    
+    # Decision-making
+    decisions:
+      consult_vibe_for_design: true
+      vibe_tool: vibe_smart_plan
+      
+      # When to consult
+      consult_triggers:
+        - new_component
+        - major_refactoring
+        - performance_critical
+        - security_sensitive
+        
+    # Design patterns
+    patterns:
+      suggest_patterns: true
+      prefer_simple: true
+      avoid_over_engineering: true
+      
+  # ---------------------------------------------------------------------------
+  # DEPENDENCY MANAGEMENT
+  # ---------------------------------------------------------------------------
+  dependencies:
+    # Installation
+    auto_install: false              # Manual approval required
+    use_venv: true
+    prefer_pinned_versions: true
+    
+    # Version control
+    version_strategy: conservative   # conservative | latest | specific
+    
+    # Security
+    check_vulnerabilities: true
+    block_known_vulnerabilities: true
+    
+  # ---------------------------------------------------------------------------
+  # DOCUMENTATION GENERATION
+  # ---------------------------------------------------------------------------
+  documentation:
+    enabled: true
+    
+    # Auto-generate
+    auto_generate:
+      docstrings: true
+      readme: true
+      api_docs: false
+      
+    # Documentation style
+    style:
+      format: google                 # google | numpy | sphinx
+      language: english              # english | ukrainian
+      detail_level: standard         # minimal | standard | comprehensive
