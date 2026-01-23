@@ -1515,7 +1515,7 @@ workflows:
           - action: "internal.db_init"
             
           - action: "internal.memory_warmup"
-            params: { async: true }
+            params: { async_warmup: true }
             
       - name: "final_check"
         steps:
