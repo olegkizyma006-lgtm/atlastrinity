@@ -1,9 +1,11 @@
 # =============================================================================
 # AtlasTrinity Behavior Configuration
 # =============================================================================
-# Centralized config-driven decision system
-# Replaces hardcoded logic from: adaptive_behavior.py, atlas.py,
-# tool_dispatcher.py, mcp_registry.py, orchestrator.py
+# IMPORTANT: This is a TEMPLATE file. 
+# After modifying this file, ensure the same changes are reflected in 
+# the active config at ~/.config/atlastrinity/behavior_config.yaml.
+# Conversely, if you modify the active config, update this template.
+# =============================================================================
 #
 # Version: 1.1.0 (Atlas Focus Fix)
 # Last Updated: 2026-01-23
@@ -208,6 +210,10 @@ tool_routing:
       - sudo
     priority_server: macos-use
     fallback_server: null
+    tool_mapping:
+      terminal: execute_command
+      execute: execute_command
+      run: execute_command
     routing_rules:
       - pattern: 'git.*'
         server: macos-use
@@ -234,6 +240,10 @@ tool_routing:
       - tree
     priority_server: filesystem
     fallback_server: macos-use
+    tool_mapping:
+      filesystem: read_file
+      fs: read_file
+      file: read_file
     routing_rules:
       - pattern: 'read.*'
         server: filesystem
@@ -256,6 +266,9 @@ tool_routing:
       - online_search
     priority_server: puppeteer
     fallback_server: macos-use
+    tool_mapping:
+      browser: puppeteer_navigate
+      puppeteer: puppeteer_navigate
     routing_rules:
       - pattern: 'navigate.*'
         server: puppeteer
@@ -321,6 +334,14 @@ tool_routing:
       - mode
     priority_server: vibe
     fallback_server: null
+    tool_mapping:
+      vibe: vibe_prompt
+      debug: vibe_analyze_error
+      fix: vibe_analyze_error
+      implement: vibe_implement_feature
+      review: vibe_code_review
+      plan: vibe_smart_plan
+      ask: vibe_ask
 
   # Memory/Knowledge graph
   memory:
