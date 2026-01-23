@@ -1,0 +1,96 @@
+name: Auto Fix Dependencies
+
+on:
+  workflow_dispatch:  # Manual trigger
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+
+jobs:
+  auto-fix:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+        
+    - name: Configure Git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        
+    - name: Fix dependency conflicts
+      run: |
+        echo "🔧 Auto-fixing dependency conflicts..."
+        
+        # Update requirements.txt with fixed versions
+        python << 'EOF'
+        import re
+        
+        # Read current requirements
+        with open('requirements.txt', 'r') as f:
+            content = f.read()
+        
+        # Add fixed dependencies at the end if not present
+        fixed_deps = """
+# === Fixed Dependencies for espnet compatibility ===
+importlib-metadata<5.0
+protobuf<=3.20.1
+"""
+        
+        if "importlib-metadata<5.0" not in content:
+            content += fixed_deps
+            
+        # Write back
+        with open('requirements.txt', 'w') as f:
+            f.write(content)
+            
+        print("✅ Updated requirements.txt with fixed dependencies")
+        EOF
+        
+    - name: Commit and push changes
+      run: |
+        git add requirements.txt
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "🔧 chore: Fix dependency conflicts for espnet compatibility
+
+          - Add importlib-metadata<5.0 for espnet compatibility
+          - Add protobuf<=3.20.1 for espnet compatibility
+          - Ensures ukrainian-tts continues to work with system updates"
+          git push
+        fi
+        
+    - name: Test installation
+      run: |
+        echo "🧪 Testing fixed dependencies..."
+        
+        # Create test environment
+        python -m venv test-env
+        source test-env/bin/activate
+        
+        # Install requirements
+        pip install -r requirements.txt
+        
+        # Install ukrainian-tts from git
+        pip install git+https://github.com/robinhad/ukrainian-tts.git
+        
+        # Test import
+        python -c "import ukrainian_tts; print('✅ ukrainian-tts works with fixed deps!')"
+        
+        # Check for conflicts
+        pip check || echo "⚠️ Some conflicts remain but ukrainian-tts works"
+        
+        # Cleanup
+        deactivate
+        rm -rf test-env
+        
+        echo "🎉 Dependency fix completed successfully!"

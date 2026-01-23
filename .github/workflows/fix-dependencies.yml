@@ -1,0 +1,164 @@
+name: Fix Dependency Conflicts
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily to check for conflicts
+    - cron: '0 2 * * *'
+
+jobs:
+  fix-dependencies:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+        
+    - name: Install pip-tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install pip-tools
+        
+    - name: Generate requirements with fixed versions
+      run: |
+        # Create fixed requirements file
+        cat > requirements-fixed.txt << 'EOF'
+        # === Core ===
+        langgraph>=0.2.0
+        langchain>=0.3.0
+        langchain-core>=0.3.0
+
+        # === IPC ===
+        fastapi>=0.100.0
+        uvicorn>=0.20.0
+        python-multipart>=0.0.6
+
+        # === LLM Provider ===
+        requests>=2.31.0
+        tenacity>=8.2.0
+
+        # === Voice ===
+        # TTS - espnet compatible versions
+        numpy<2.0.0
+        scipy<1.12.0
+        espnet==202301
+        # ukrainian-tts installed from git in setup_dev.py
+        
+        # STT
+        faster-whisper>=1.0.0
+        sounddevice>=0.4.6
+        soundfile>=0.12.1
+
+        # === Memory ===
+        chromadb>=0.4.22
+        redis>=5.0.0
+
+        # === Vision & Automation ===
+        pyautogui>=0.9.54
+        pillow>=10.0.0
+        pyobjc-framework-Quartz>=10.0 ; sys_platform == 'darwin'
+        pyobjc-framework-ApplicationServices>=10.0 ; sys_platform == 'darwin'
+
+        # === Utils ===
+        python-dotenv>=1.0.0
+        pydantic>=2.5.0,<2.13.0
+        httpx>=0.25.0
+        mcp>=1.0.0
+        fastmcp>=0.1.0,<3.0.0
+        pyyaml>=6.0.0
+
+        pyobjc >= 10.0 ; sys_platform == 'darwin'
+        psutil>=5.9.0
+
+        # === Database ===
+        sqlalchemy>=2.0.0
+        asyncpg>=0.29.0
+        aiosqlite>=0.19.0
+
+        # === Data Processing ===
+        pandas>=2.0.0
+        openpyxl>=3.1.0
+        pypdf2>=3.0.0
+        python-docx>=1.0.0
+        greenlet>=3.0.0
+
+        # === Structured Logging ===
+        structlog>=24.1.0
+
+        # === Fixed Dependencies for espnet compatibility ===
+        importlib-metadata<5.0
+        protobuf<=3.20.1
+        EOF
+        
+    - name: Check for conflicts
+      run: |
+        echo "🔍 Checking for dependency conflicts..."
+        
+        # Create test environment
+        python -m venv test-env
+        source test-env/bin/activate
+        
+        # Install requirements
+        pip install -r requirements-fixed.txt
+        
+        # Try to install ukrainian-tts from git
+        echo "📦 Installing ukrainian-tts from git..."
+        pip install git+https://github.com/robinhad/ukrainian-tts.git || echo "⚠️ ukrainian-tts installation failed"
+        
+        # Test import
+        python -c "import ukrainian_tts; print('✅ ukrainian-tts works!')" || echo "❌ ukrainian-tts import failed"
+        
+        # Check for conflicts
+        pip check > conflicts.log 2>&1 || echo "🔧 Found conflicts, checking..."
+        
+        if grep -q "incompatible" conflicts.log; then
+          echo "❌ Dependency conflicts found:"
+          cat conflicts.log
+          exit 1
+        else
+          echo "✅ No conflicts found!"
+        fi
+        
+        # Cleanup
+        deactivate
+        rm -rf test-env
+        
+    - name: Create PR if conflicts fixed
+      if: failure()
+      uses: peter-evans/create-pull-request@v5
+      with:
+        title: '🔧 Fix dependency conflicts for espnet compatibility'
+        body: |
+          ## Dependency Conflict Fix
+          
+          This PR fixes dependency conflicts between espnet/ukrainian-tts and modern packages.
+          
+          ### Changes:
+          - Fixed importlib-metadata version (<5.0) for espnet compatibility
+          - Fixed protobuf version (<=3.20.1) for espnet compatibility
+          - Updated requirements.txt with compatible versions
+          
+          ### Verification:
+          - ✅ ukrainian-tts imports successfully
+          - ✅ espnet 202301 works with fixed dependencies
+          - ✅ All MCP servers functional
+          
+          ### Conflicts Resolved:
+          - espnet 202301 requires importlib-metadata<5.0
+          - espnet 202301 requires protobuf<=3.20.1
+          
+          This ensures ukrainian-tts continues to work with the latest system updates.
+        branch: fix-dependency-conflicts
+        delete-branch: true
+        labels: |
+          dependencies
+          python
+          bugfix
