@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<people>
+    <person id="1">
+        <name>John</name>
+        <age>25</age>
+        <city>New York</city>
+        <score>85.5</score>
+    </person>
+    <person id="2">
+        <name>Jane</name>
+        <age>30</age>
+        <city>Los Angeles</city>
+        <score>92.3</score>
+    </person>
+    <person id="3">
+        <name>Bob</name>
+        <age>22</age>
+        <city>Chicago</city>
+        <score>78.9</score>
+    </person>
+    <person id="4">
+        <name>Alice</name>
+        <age>28</age>
+        <city>Houston</city>
+        <score>88.1</score>
+    </person>
+</people>

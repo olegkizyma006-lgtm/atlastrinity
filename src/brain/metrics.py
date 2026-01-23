@@ -1,15 +1,29 @@
 import time
+import logging
+from typing import Any, Dict, Optional
 
 import psutil
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 class MetricsCollector:
+    """
+    Legacy metrics collector for backward compatibility.
+    
+    This class provides basic system metrics collection and integrates
+    with the new MonitoringSystem for comprehensive observability.
+    """
+    
     def __init__(self):
         self.start_time = time.time()
         self._last_net_io = psutil.net_io_counters()
         self._last_net_time = time.time()
 
     def _format_speed(self, bytes_per_sec):
+        """Format network speed in human-readable units."""
         if bytes_per_sec < 1024:
             return f"{bytes_per_sec:.0f}", "B/S"
         elif bytes_per_sec < 1024**2:
@@ -19,7 +33,13 @@ class MetricsCollector:
         else:
             return f"{bytes_per_sec / 1024**3:.1f}", "G/S"
 
-    def get_metrics(self):
+    def get_metrics(self) -> Dict[str, Any]:
+        """
+        Get formatted system metrics.
+        
+        Returns:
+            Dictionary containing formatted system metrics
+        """
         # CPU
         cpu_percent = psutil.cpu_percent(interval=None)
 
@@ -53,8 +73,40 @@ class MetricsCollector:
             "net_down_unit": down_unit,
         }
 
-    def record(self, name, value, tags=None):
-        """Record a custom metric (stub for now to prevent crashes)."""
+    def record(self, name: str, value: Any, tags: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Record a custom metric and integrate with monitoring system.
+        
+        Args:
+            name: Metric name
+            value: Metric value
+            tags: Optional tags for the metric
+        """
+        try:
+            # Log the custom metric
+            metric_data = {"name": name, "value": value}
+            if tags:
+                metric_data["tags"] = tags
+            
+            logger.info(f"Custom metric recorded: {metric_data}")
+            
+            # Integrate with monitoring system if available
+            try:
+                from .monitoring import monitoring_system
+                monitoring_system.log_for_grafana(
+                    f"Custom metric: {name} = {value}",
+                    level="info",
+                    metric_name=name,
+                    metric_value=value,
+                    tags=tags or {}
+                )
+            except ImportError:
+                # Monitoring system not available, continue without it
+                pass
+                
+        except Exception as e:
+            logger.error(f"Error recording custom metric: {e}")
 
 
+# Global metrics collector instance
 metrics_collector = MetricsCollector()

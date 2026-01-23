@@ -1,0 +1,12 @@
+[
+  {
+    "name": "John Smith",
+    "position": "CEO",
+    "company": "Tech Corp"
+  },
+  {
+    "director": "Alice Johnson",
+    "role": "CTO",
+    "organization": "Innovate Ltd"
+  }
+]

@@ -1,0 +1,56 @@
+# AtlasTrinity Monitoring Configuration
+# This file defines settings for Prometheus, Grafana, and OpenSearch integration
+
+monitoring:
+  # Prometheus configuration
+  prometheus:
+    enabled: true
+    port: 8001
+    scrape_interval: 15s
+    evaluation_interval: 15s
+    
+  # Grafana configuration
+  grafana:
+    enabled: true
+    logging_format: json
+    log_level: info
+    
+  # OpenSearch configuration
+  opensearch:
+    enabled: true
+    # Connection settings (would be configured in production)
+    hosts: []
+    index_prefix: "atlastrinity"
+    
+  # OpenTelemetry tracing configuration
+  tracing:
+    enabled: true
+    service_name: "atlastrinity"
+    otlp_endpoint: "localhost:4317"
+    batch_timeout: 5s
+    max_export_batch_size: 512
+    
+  # ETL Pipeline monitoring
+  etl:
+    enabled: true
+    track_stages: ["scraping", "transformation", "distribution", "indexing"]
+    error_thresholds:
+      warning: 5
+      critical: 10
+      
+  # Alerting rules (for future implementation)
+  alerts:
+    high_cpu_usage:
+      threshold: 90
+      duration: 5m
+      severity: warning
+      
+    high_memory_usage:
+      threshold: 85
+      duration: 5m
+      severity: warning
+      
+    request_failures:
+      threshold: 10
+      duration: 1m
+      severity: critical

@@ -1,0 +1,17 @@
+[
+  {
+    "company": "Tech Corp",
+    "registration": "12345678",
+    "address": "123 Tech Street, Silicon Valley",
+    "director": "John Smith"
+  },
+  {
+    "name": "Innovate Ltd",
+    "edrpou": "87654321",
+    "location": "456 Innovation Ave, San Francisco",
+    "directors": [
+      "Alice Johnson",
+      "Bob Williams"
+    ]
+  }
+]
