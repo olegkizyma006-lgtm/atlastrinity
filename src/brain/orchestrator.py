@@ -19,7 +19,6 @@ except ImportError:
 
 import uuid
 
-from src.brain.adaptive_behavior import adaptive_behavior
 from src.brain.agents import Atlas, Grisha, Tetyana
 from src.brain.agents.tetyana import StepResult
 from src.brain.behavior_engine import workflow_engine

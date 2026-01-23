@@ -5,7 +5,6 @@ import sys
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.brain.logger import logger
 from src.brain.memory import long_term_memory
 
 

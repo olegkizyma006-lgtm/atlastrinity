@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock
 # Add src to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.brain.config_loader import config
 from src.brain.orchestrator import Trinity
 
 

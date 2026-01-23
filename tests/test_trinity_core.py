@@ -59,7 +59,6 @@ class TestAtlasCore:
 
                 return MockResponse()
 
-        from typing import Any
 
         atlas.llm = MockLLM()  # type: ignore
 

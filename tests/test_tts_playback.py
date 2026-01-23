@@ -1,7 +1,6 @@
 import asyncio
 import os
 import sys
-from pathlib import Path
 
 # Add src to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))

@@ -45,7 +45,6 @@ async def run_verification():
             if is_notification
             else f"-> Sending {method} (ID: {curr_id})",
         )
-        import subprocess
         from typing import cast
 
         stdin = cast("subprocess.Popen", process).stdin
@@ -66,7 +65,6 @@ async def run_verification():
         return obj
 
     def read_response():
-        import subprocess
         from typing import cast
 
         stdout = cast("subprocess.Popen", process).stdout

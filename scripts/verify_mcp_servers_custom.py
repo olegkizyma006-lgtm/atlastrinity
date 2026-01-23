@@ -1,10 +1,9 @@
 import asyncio
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # Constants
 CONFIG_PATH = Path.home() / ".config/atlastrinity/mcp/config.json"

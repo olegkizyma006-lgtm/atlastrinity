@@ -175,7 +175,6 @@ Synthesize findings into a comprehensive validation verdict.
         3. State Layer - did system state change as expected?
         4. Goal Layer - does this advance the mission?
         """
-        from ..mcp_manager import mcp_manager
 
         layers: list[dict[str, Any]] = []
 

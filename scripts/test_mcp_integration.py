@@ -5,7 +5,7 @@ import struct
 import sys
 import wave
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # Constants
 CONFIG_PATH = Path.home() / ".config/atlastrinity/mcp/config.json"

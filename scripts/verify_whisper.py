@@ -99,7 +99,6 @@ def main():
         return 1
 
     try:
-        from src.mcp_server.whisper_server import server
 
         print_check("MCP Whisper Server import", True, "src.mcp_server.whisper_server")
     except Exception as e:

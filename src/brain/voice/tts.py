@@ -20,6 +20,7 @@ from pathlib import Path
 
 from ..config import MODELS_DIR
 from ..config_loader import config
+from ..logger import logger
 
 # Lazy import to avoid loading heavy dependencies at startup
 TTS_AVAILABLE = None
@@ -450,7 +451,7 @@ class VoiceManager:
             self._tts = None
 
     def stop(self):
-        \"\"\"Immediately stop current speech.\"\"\"
+        """Immediately stop current speech."""
         if self._stop_event:
             self._stop_event.set()
 
@@ -461,13 +462,13 @@ class VoiceManager:
                 print("[TTS] 🛑 Playback interrupted.")
             except Exception as e:
                 # Ignore errors during process termination
-                logger.debug(f\"[TTS] Error terminating playback process: {e}\")
+                logger.debug(f"[TTS] Error terminating playback process: {e}")
             self._current_process = None
 
         self.is_speaking = False
 
     async def close(self):
-        \"\"\"Shutdown the voice manager.\"\"\"
+        """Shutdown the voice manager."""
         self.stop()
         await asyncio.sleep(0.1)
 
@@ -511,12 +512,12 @@ class VoiceManager:
                     if self._stop_event.is_set():
                         return None
 
-                    c_id = f\"{agent_id}_{c_idx}_{hash(c_text) % 10000}\"
-                    c_file = Path(tempfile.gettempdir()) / f\"tts_{c_id}.wav\"
+                    c_id = f"{agent_id}_{c_idx}_{hash(c_text) % 10000}"
+                    c_file = Path(tempfile.gettempdir()) / f"tts_{c_id}.wav"
 
                     def _do_gen():
                         if self.engine:
-                            with c_file.open(mode=\"wb\") as f:
+                            with c_file.open(mode="wb") as f:
                                 self.engine.tts(c_text, voice_enum, Stress.Dictionary.value, f)
 
                     await asyncio.to_thread(_do_gen)

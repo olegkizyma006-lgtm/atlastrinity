@@ -30,7 +30,6 @@ async def main():
         if params:
             msg["params"] = params
 
-        import asyncio
         from typing import cast
 
         stdin = cast("asyncio.subprocess.Process", process).stdin  # type: ignore

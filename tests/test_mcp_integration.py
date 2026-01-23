@@ -14,7 +14,6 @@ def _integration_enabled() -> bool:
 
 def _mcp_package_available() -> bool:
     try:
-        import mcp
 
         return True
     except Exception:

@@ -7,23 +7,19 @@ Uses predefined schemas from the project's validation system.
 
 import json
 import logging
-import os
-import sqlite3
 import sys
 from pathlib import Path
 
 # Add src to path before other project imports
 sys.path.insert(0, "src")
 
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 from sqlalchemy import inspect
 
-from brain.config import CONFIG_ROOT, PROJECT_ROOT
 from brain.config_validator import ConfigValidator, ValidationResult
 from brain.data_guard import DataQualityGuard
-from brain.db.schema import Base
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")

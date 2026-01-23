@@ -5,7 +5,6 @@ These bridge the gap between YAML configuration and Python system logic.
 
 import asyncio
 from collections.abc import Callable
-from typing import Any
 
 from src.brain.db.manager import db_manager
 from src.brain.logger import logger
