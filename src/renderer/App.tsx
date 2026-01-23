@@ -113,10 +113,17 @@ const App: React.FC = () => {
 
           if (data.logs) {
             setLogs(
-              data.logs.map((l: LogEntry) => ({
-                ...l,
-                timestamp: new Date((l.timestamp as unknown as number) * 1000),
-              }))
+              data.logs.map((l: LogEntry) => {
+                let ts: Date;
+                if (typeof l.timestamp === 'number') {
+                  ts = new Date(l.timestamp * 1000);
+                } else if (typeof l.timestamp === 'string') {
+                  ts = new Date(l.timestamp);
+                } else {
+                  ts = new Date();
+                }
+                return { ...l, timestamp: ts };
+              })
             );
           }
 
@@ -126,12 +133,19 @@ const App: React.FC = () => {
                 (m: {
                   agent: AgentName;
                   text: string;
-                  timestamp: number;
+                  timestamp: number | string;
                   type: 'text' | 'voice';
-                }) => ({
-                  ...m,
-                  timestamp: new Date(m.timestamp * 1000),
-                })
+                }) => {
+                  let ts: Date;
+                  if (typeof m.timestamp === 'number') {
+                    ts = new Date(m.timestamp * 1000);
+                  } else if (typeof m.timestamp === 'string') {
+                    ts = new Date(m.timestamp);
+                  } else {
+                    ts = new Date();
+                  }
+                  return { ...m, timestamp: ts };
+                }
               )
             );
           }

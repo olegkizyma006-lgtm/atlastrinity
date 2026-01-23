@@ -82,4 +82,7 @@ async def db_init_action(context: dict):
 async def memory_warmup_action(context: dict, async_warmup: bool = True):
     """Warm up memory systems/TTS if needed."""
     logger.info("[WORKFLOW] Warming up memory/voice...")
-    # Add actual warmup logic here if extracted from orchestrator
+    orchestrator = context.get("orchestrator")
+    if orchestrator:
+        await orchestrator.warmup(async_warmup=async_warmup)
+    logger.info("[WORKFLOW] Warmup triggered.")

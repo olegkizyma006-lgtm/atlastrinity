@@ -43,6 +43,7 @@ from src.brain.message_bus import AgentMsg, MessageType, message_bus
 from src.brain.metrics import metrics_collector
 from src.brain.notifications import notifications
 from src.brain.state_manager import state_manager
+from src.brain.voice.stt import WhisperSTT
 from src.brain.voice.tts import VoiceManager
 
 
@@ -75,6 +76,7 @@ class Trinity:
         self.tetyana = Tetyana()
         self.grisha = Grisha()
         self.voice = VoiceManager()
+        self.stt = WhisperSTT()
 
         # Ensure global singletons are loaded
 
@@ -150,6 +152,33 @@ class Trinity:
             asyncio.create_task(auto_resume())
 
         logger.info(f"[GRISHA] Auditor ready. Vision: {self.grisha.llm.model_name}")
+
+    async def warmup(self, async_warmup: bool = True):
+        """Warm up memory, voice types, and engine models."""
+        try:
+            logger.info("[ORCHESTRATOR] Warming up system components...")
+
+            async def run_warmup():
+                # 1. Warm up STT
+                logger.info(f"[ORCHESTRATOR] Pre-loading STT model: {self.stt.model_name}...")
+                model = await self.stt.get_model()
+                if model:
+                    logger.info("[ORCHESTRATOR] STT model loaded successfully.")
+                else:
+                    logger.warning("[ORCHESTRATOR] STT model unavailable.")
+
+                # 2. Warm up TTS
+                logger.info("[ORCHESTRATOR] Initializing TTS engine...")
+                await self.voice.get_engine()
+                logger.info("[ORCHESTRATOR] Voice engines ready.")
+
+            if async_warmup:
+                asyncio.create_task(run_warmup())
+            else:
+                await run_warmup()
+
+        except Exception as e:
+            logger.error(f"[ORCHESTRATOR] Warmup failed: {e}")
 
     async def reset_session(self):
         """Reset the current session and start a fresh one"""

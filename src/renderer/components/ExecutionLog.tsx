@@ -95,7 +95,27 @@ const ExecutionLog: React.FC<ExecutionLogProps> = ({ logs }) => {
   }, [filteredLogs, userScrolledUp, isNearBottom]);
 
   const formatTime = (ts: Date | number | string) => {
-    const d = ts instanceof Date ? ts : new Date(Number(ts) * 1000);
+    let d: Date;
+    if (ts instanceof Date) {
+      d = ts;
+    } else if (typeof ts === 'number') {
+      // Assume seconds if < 10^12, else milliseconds
+      d = new Date(ts < 10000000000 ? ts * 1000 : ts);
+    } else if (typeof ts === 'string') {
+      const n = Number(ts);
+      if (!isNaN(n)) {
+        d = new Date(n < 10000000000 ? n * 1000 : n);
+      } else {
+        d = new Date(ts);
+      }
+    } else {
+      d = new Date();
+    }
+
+    if (isNaN(d.getTime())) {
+      return '??:??:??';
+    }
+
     return d.toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',

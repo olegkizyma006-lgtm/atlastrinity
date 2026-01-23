@@ -41,7 +41,7 @@ from .voice.stt import SpeechType, WhisperSTT  # noqa: E402
 
 # Global instances (Trinity will now find Redis running)
 trinity = Trinity()
-stt = WhisperSTT()  # Automatically reads model from config.yaml
+# stt is now part of trinity orchestrator
 
 
 class TaskRequest(BaseModel):
@@ -77,29 +77,8 @@ async def lifespan(app: FastAPI):
     # Production: copy configs from Resources/ to ~/.config/ if needed
     run_production_setup()
 
-    # TTS models are lazy-loaded by ukrainian-tts on first call.
-    # Pre-initializing them in background to avoid latency during first response.
-    async def warmup():
-        try:
-            logger.info("[LifeSpan] Warming up voice engines...")
-            # Warm up STT model (may be None if faster-whisper not installed)
-            logger.info(f"[LifeSpan] Pre-loading STT model: {stt.model_name}...")
-            model = await stt.get_model()
-            if model:
-                logger.info("[LifeSpan] STT model loaded successfully.")
-            else:
-                logger.warning("[LifeSpan] STT model unavailable - faster-whisper not installed.")
-            # Warm up TTS engine
-            logger.info("[LifeSpan] Starting TTS engine initialization (this may take 2-5 mins)...")
-            logger.info(
-                "[LifeSpan] SYSTEM IS READY for chat. Voice will be active once initialized."
-            )
-            await trinity.voice.get_engine()
-            logger.info("[LifeSpan] Voice engines are ready.")
-        except Exception as e:
-            logger.error(f"[LifeSpan] Warmup error: {e}")
-
-    asyncio.create_task(warmup())
+    # Production: copy configs from Resources/ to ~/.config/ if needed
+    run_production_setup()
 
     yield
     # Shutdown
@@ -260,7 +239,7 @@ async def speech_to_text(audio: UploadFile = File(...)):
                 wav_path = temp_file_path
 
         # Transcribe using Whisper
-        result = await stt.transcribe_file(wav_path)
+        result = await trinity.stt.transcribe_file(wav_path)
 
         # Echo cancellation: Ignore if Whisper heard the agent's own voice
         clean_text = result.text.strip().lower().replace(".", "").replace(",", "")
@@ -366,7 +345,7 @@ async def smart_speech_to_text(
                 wav_path = temp_file_path
 
         # Smart analysis with context (async)
-        result = await stt.transcribe_with_analysis(wav_path, previous_text=previous_text)
+        result = await trinity.stt.transcribe_with_analysis(wav_path, previous_text=previous_text)
 
         # --- ECHO CANCELLATION & INTERRUPTION LOGIC ---
 
@@ -514,8 +493,25 @@ async def smart_speech_to_text(
 @app.post("/api/voice/transcribe")
 async def transcribe_audio(file_path: str):
     """Transcribe a wav file"""
-    result = await stt.transcribe_file(file_path)
+    result = await trinity.stt.transcribe_file(file_path)
     return {"text": result.text, "confidence": result.confidence}
+
+
+# MCP Wrapper
+class WhisperMCPServer:
+    def __init__(self):
+        # Local WhisperSTT instance for MCP wrapper
+        from .voice.stt import WhisperSTT
+
+        self.stt = WhisperSTT()
+
+    async def transcribe_audio(self, audio_path: str, language: str | None = "uk"):
+        result = await self.stt.transcribe_file(audio_path, language)
+        return {"text": result.text, "confidence": result.confidence}
+
+    async def record_and_transcribe(self, duration: float = 5.0, language: str | None = None):
+        result = await self.stt.record_and_transcribe(duration, language)
+        return {"text": result.text, "confidence": result.confidence}
 
 
 if __name__ == "__main__":

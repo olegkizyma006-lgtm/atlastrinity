@@ -47,6 +47,16 @@ class DatabaseManager:
                 self.db_url, echo=False, pool_size=20, max_overflow=10, pool_pre_ping=True
             )
 
+            # Enable Foreign Key support for SQLite
+            if "sqlite" in self.db_url:
+                from sqlalchemy import event
+
+                @event.listens_for(self._engine.sync_engine, "connect")
+                def set_sqlite_pragma(dbapi_connection, connection_record):
+                    cursor = dbapi_connection.cursor()
+                    cursor.execute("PRAGMA foreign_keys=ON")
+                    cursor.close()
+
             # Create tables
             async with self._engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
