@@ -570,6 +570,7 @@ IMPORTANT:
             (
                 any(kw in step_action_lower for kw in ["ask", "request", "await", "get", "confirm"])
                 and is_human_targeted
+                and not any(kw in step_action_lower for kw in ["technical", "data", "api"])
             )
             or ("consent" in step_action_lower)
             or ("approval" in step_action_lower and is_human_targeted)
@@ -840,15 +841,23 @@ IMPORTANT:
                         thought=monologue.get("thought"),
                     )
 
-                tool_call = (
-                    monologue.get("proposed_action")
-                    or step.get("tool_call")
-                    or {
-                        "name": step.get("tool") or "",
-                        "args": step.get("args")
-                        or {"action": step.get("action"), "path": step.get("path")},
+                proposed = monologue.get("proposed_action")
+                if isinstance(proposed, dict):
+                    tool_call = {
+                        "name": proposed.get("tool") or proposed.get("name") or step.get("tool") or "",
+                        "args": proposed.get("args") or {},
+                        "server": proposed.get("server") or target_server
                     }
-                )
+                else:
+                    tool_call = (
+                        proposed
+                        or step.get("tool_call")
+                        or {
+                            "name": step.get("tool") or "",
+                            "args": step.get("args")
+                            or {"action": step.get("action"), "path": step.get("path")},
+                        }
+                    )
 
                 if not tool_call.get("name"):
                     # Enhanced fallback: Try to infer tool name from step metadata
@@ -1665,12 +1674,12 @@ IMPORTANT:
         path = args.get("path", "")
 
         # SMART ACTION INFERENCE if action is missing
-        if not action:
+        if not action or action == "filesystem":
             if "content" in args:
                 action = "write_file"
-            elif path.endswith("/") or "." not in path.split("/")[-1]:
+            elif path.endswith("/") or (path and "." not in path.split("/")[-1]):
                 action = "list_directory"
-            elif path:
+            else:
                 action = "read_file"
             logger.info(f"[TETYANA] Inferred FS action: {action} for path: {path}")
 
@@ -1916,7 +1925,11 @@ IMPORTANT:
         # This prevents technical jargon like "vibe_server" or "json" from leaking into TTS.
         import re
 
+        # Filter words that contain any Latin characters, unless they are numbers
         essence = " ".join([w for w in essence.split() if not re.search(r"[a-zA-Z]", w)])
+
+        # Generic technical term replacement if they appear as standalone words
+        essence = essence.replace("json", "дані").replace("api", "інтерфейс").replace("mcp", "система")
 
         # If essence becomes empty after filtering, use a generic fallback based on action
         if not essence.strip():

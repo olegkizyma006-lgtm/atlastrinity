@@ -596,7 +596,7 @@ class ToolDispatcher:
                 tool_name, args, explicit_server
             )
 
-            if server:
+            if server and server != resolved_tool:
                 logger.debug(
                     f"[DISPATCHER] BehaviorEngine routing: {tool_name} -> {server}.{resolved_tool}"
                 )
