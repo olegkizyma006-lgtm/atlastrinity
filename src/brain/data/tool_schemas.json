@@ -22,7 +22,7 @@
       "query": "str",
       "mode": "str"
     },
-    "description": "Search the Golden Fund (semantic, keyword, graph, or hybrid)"
+    "description": "Search the Golden Fund (semantic, keyword, graph, hybrid, or recursive)"
   },
   "ingest_dataset": {
     "server": "golden-fund",
@@ -55,6 +55,25 @@
       "links": "list"
     },
     "description": "Manually add a confirmed knowledge node"
+  },
+  "store_blob": {
+    "server": "golden-fund",
+    "required": ["content"],
+    "optional": ["filename"],
+    "types": {
+      "content": "str",
+      "filename": "str"
+    },
+    "description": "Store raw data blob (simulated MinIO)"
+  },
+  "retrieve_blob": {
+    "server": "golden-fund",
+    "required": ["filename"],
+    "optional": [],
+    "types": {
+      "filename": "str"
+    },
+    "description": "Retrieve raw data blob"
   },
   "c7_search": {
     "server": "context7",

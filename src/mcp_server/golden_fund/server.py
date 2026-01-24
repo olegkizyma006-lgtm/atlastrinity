@@ -44,6 +44,20 @@ async def search_golden_fund(query: str, mode: str = "semantic") -> str:
         
     return str(result)
 
+# Initialize Blob Storage
+from .lib.storage.blob import BlobStorage
+blob_store = BlobStorage()
+
+@mcp.tool()
+async def store_blob(content: str, filename: str = None) -> str:
+    """Store raw data as a blob (mock MinIO)."""
+    return str(blob_store.store(content, filename))
+
+@mcp.tool()
+async def retrieve_blob(filename: str) -> str:
+    """Retrieve raw data blob."""
+    return str(blob_store.retrieve(filename))
+
 @mcp.tool()
 async def ingest_dataset(url: str, type: str, process_pipeline: List[str] = []) -> str:
     """
