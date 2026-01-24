@@ -96,7 +96,7 @@ class Trinity:
         self._background_tasks = set()
 
         # ARCHITECTURAL IMPROVEMENT: Live Voice status during long tools (like Vibe)
-        self._last_live_speech_time = 0
+        self._last_live_speech_time: float = 0.0
         from .mcp_manager import mcp_manager
 
         mcp_manager.register_log_callback(self._mcp_log_voice_callback)
@@ -730,7 +730,10 @@ class Trinity:
                 ):
                     async with await db_manager.get_session() as db_sess:
                         # Create session with name from theme
-                        session_name = self.state.get("_theme")
+                        raw_theme = self.state.get("_theme")
+                        # Ensure session_name is a string for SessionPathManager
+                        session_name = str(raw_theme) if raw_theme else None
+                        
                         new_session = DBSession(
                             started_at=datetime.now(UTC),
                             name=session_name,
@@ -1543,8 +1546,9 @@ class Trinity:
                                 total_thoughts=3,
                             )
                             if analysis.get("success"):
+                                analysis_text = analysis.get("analysis") or ""
                                 await self._log(
-                                    f"[ATLAS] Deep Analysis: {analysis.get('analysis')[:200]}...",
+                                    f"[ATLAS] Deep Analysis: {analysis_text[:200]}...",
                                     "atlas",
                                 )
                                 # Inject analysis results into the next attempt's context
