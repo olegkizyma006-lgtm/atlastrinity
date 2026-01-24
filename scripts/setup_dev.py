@@ -1041,7 +1041,6 @@ def main():
     print("  2. Запустіть систему: npm run dev")
     print()
 
-    print_info(f"Доступні MCP сервери ({len(enabled_servers) if enabled_servers else 17}):")
     mcp_info = [
         ("memory", "Граф знань & Long-term Memory (Python)"),
         ("macos-use", "Нативний контроль macOS + Термінал (Swift)"),
@@ -1058,9 +1057,11 @@ def main():
         ("devtools", "Лінтер та аналіз коду (Python)"),
         ("redis", "Оглядовість кешу та сесій (Python)"),
         ("golden-fund", "Golden Fund Data & Vector DB (Python)"),
-        ("data-analysis", "Аналіз даних та статистика (Python)"),
         ("self-healing", "Автоматичне відновлення стану (System-wide)"),
     ]
+
+    total_mcp = len(mcp_info)
+    print_info(f"Доступні MCP сервери ({total_mcp}):")
 
     for srv_id, desc in mcp_info:
         status = " (Активен)" if srv_id in enabled_servers else ""

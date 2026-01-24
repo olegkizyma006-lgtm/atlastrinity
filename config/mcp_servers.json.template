@@ -198,7 +198,7 @@
         "-m",
         "src.mcp_server.devtools_server"
       ],
-      "description": "Developer Tools (Linter & Analysis) wrapper (Ruff, Oxlint, Knip, Pyrefly, Inspector, Health).",
+      "description": "Developer Tools (Linter, Testing & Analysis) wrapper (Ruff, ruff-format, Pytest, Mypy, Oxlint, Knip, Pyrefly).",
       "disabled": false,
       "tier": 2,
       "agents": [
@@ -243,11 +243,11 @@
     }
   },
   "_metadata": {
-    "version": "4.4",
-    "last_updated": "2026-01-20",
+    "version": "4.5",
+    "last_updated": "2026-01-24",
     "description": "Synced MCP configuration for AtlasTrinity - matches mcp_registry.py and data/ JSONs",
-    "active_servers": 11,
-    "total_servers": 11,
+    "active_servers": 15,
+    "total_servers": 15,
     "notes": [
       "Servers with 'disabled': true are not loaded by default",
       "Tier 1-2 servers load at startup, Tier 3-4 on-demand"

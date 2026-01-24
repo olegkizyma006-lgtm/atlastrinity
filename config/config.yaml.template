@@ -138,6 +138,7 @@ mcp:
     enabled: true
     # All tools enabled by default
     ruff_enabled: true
+    ruff_format_enabled: true
     oxlint_enabled: true
     knip_enabled: true
     pyrefly_enabled: true
