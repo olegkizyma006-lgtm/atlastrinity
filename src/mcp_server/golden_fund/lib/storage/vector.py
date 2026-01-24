@@ -30,10 +30,12 @@ class VectorStorage:
     
     def __init__(self, persistence_path: str | None = None, collection_name: str = "golden_fund_vectors"):
         if persistence_path is None:
-            persistence_path = Path.home() / ".config" / "atlastrinity" / "data" / "golden_fund" / "chroma_db"
-        self.enabled = CHROMA_AVAILABLE
+            self.persistence_path = Path.home() / ".config" / "atlastrinity" / "data" / "golden_fund" / "chroma_db"
+        else:
+            self.persistence_path = Path(persistence_path)
+            
         self.collection_name = collection_name
-        self.persistence_path = Path(persistence_path)
+        self.enabled = CHROMA_AVAILABLE
         self.client = None
         self.collection = None
         
@@ -83,9 +85,9 @@ class VectorStorage:
                 meta["timestamp"] = datetime.now().isoformat()
                 metadatas.append(meta)
             
-            # Upsert into Chroma (it handles embedding generation automatically by default if no embeddings provided)
-            # Default embedding function is all-MiniLM-L6-v2 ONNX
-            self.collection.upsert(
+            # Upsert into Chroma
+            if self.collection:
+                self.collection.upsert(
                 documents=documents,
                 metadatas=metadatas,
                 ids=ids
@@ -113,10 +115,13 @@ class VectorStorage:
         try:
             logger.info(f"Searching ChromaDB '{self.collection_name}' for query: {query}")
             
-            results = self.collection.query(
-                query_texts=[query],
-                n_results=limit
-            )
+            if self.collection:
+                results = self.collection.query(
+                    query_texts=[query],
+                    n_results=limit
+                )
+            else:
+                return StorageResult(False, "vector", error="Chroma collection not initialized")
             
             # Format results
             formatted_results = []

@@ -22,8 +22,9 @@ class BlobStorage:
     
     def __init__(self, root_path: str | None = None, bucket: str = "default"):
         if root_path is None:
-            root_path = Path.home() / ".config" / "atlastrinity" / "data" / "golden_fund" / "blobs"
-        self.root = Path(root_path)
+            self.root = Path.home() / ".config" / "atlastrinity" / "data" / "golden_fund" / "blobs"
+        else:
+            self.root = Path(root_path)
         self.bucket = bucket
         self.root.mkdir(parents=True, exist_ok=True)
         self.bucket_path = self.root / self.bucket

@@ -28,9 +28,11 @@ class RecursiveEnricher:
 
         # 1. Local Search
         local_results = self.vector_store.search(query, limit=3)
-        if local_results.success and len(local_results.data.get("results", [])) > 0:
-            # Check confidence (simulated)
-            first_score = local_results.data["results"][0].get("score", 0)
+        if local_results.success and local_results.data and len(local_results.data.get("results", [])) > 0:
+            # Check confidence score
+            first_score = 0
+            if local_results.data["results"]:
+                 first_score = local_results.data["results"][0].get("score", 0)
             if first_score > 0.8:
                 return f"Found locally (Score {first_score}): {local_results.data}"
         

@@ -66,7 +66,7 @@ class DataTransformer:
             
             # Validate
             validated = self.schema(**record)
-            return validated.dict()
+            return validated.model_dump()
         except ValidationError as e:
             logger.warning(f"Validation failed for item: {e}")
             return None

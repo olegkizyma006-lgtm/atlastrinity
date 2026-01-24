@@ -48,23 +48,24 @@ class XMLParser:
         try:
             tree = ET.parse(file_path)
             root = tree.getroot()
-            data = self._xml_to_dict(root)
+            data = self._element_to_dict(root)
             return ParseResult(True, data=data) 
         except Exception as e:
             return ParseResult(False, error=f"XML parse error: {e}")
 
-    def _xml_to_dict(self, element: ET.Element) -> dict[str, Any]:
-        result = {}
+    def _element_to_dict(self, element: ET.Element) -> dict[str, Any]:
+        result: dict[str, Any] = {}
         if element.attrib:
             result["@attributes"] = element.attrib
         
         for child in element:
-            child_data = self._xml_to_dict(child)
+            child_data = self._element_to_dict(child)
             if child.tag in result:
-                if isinstance(result[child.tag], list):
-                    result[child.tag].append(child_data)
+                current_val = result[child.tag]
+                if isinstance(current_val, list):
+                    current_val.append(child_data)
                 else:
-                    result[child.tag] = [result[child.tag], child_data]
+                    result[child.tag] = [current_val, child_data]
             else:
                 result[child.tag] = child_data
         
@@ -72,5 +73,5 @@ class XMLParser:
             if result:
                 result["#text"] = element.text.strip()
             else:
-                return element.text.strip()
+                return {"#text": element.text.strip()}
         return result

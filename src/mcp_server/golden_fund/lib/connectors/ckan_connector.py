@@ -70,7 +70,7 @@ class CKANConnector:
         """
         Extract the download URL for a resource.
         """
-        return resource.get("url")
+        return str(resource.get("url") or "")
 
     def find_resources_by_format(self, package: dict[str, Any], formats: list[str] | None = None) -> list[dict[str, Any]]:
         if formats is None:
