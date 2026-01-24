@@ -167,7 +167,19 @@ class BehaviorEngine:
                 "require_planning": True,
             }
 
-        # Priority 2: Simple chat (greetings)
+        # Priority 2: Philosophical query (Soul detection)
+        philos_cfg = intent_config.get("philosophical_query", {})
+        if any(kw in request_lower for kw in philos_cfg.get("keywords", [])):
+            return {
+                "intent": philos_cfg.get("intent", "chat"),
+                "type": "philosophical_query",
+                "priority": philos_cfg.get("priority", "highest"),
+                "use_deep_persona": True,
+                "require_tools": False,
+                "require_planning": False,
+            }
+
+        # Priority 3: Simple chat (greetings)
         simple_cfg = intent_config.get("simple_chat", {})
         max_words = simple_cfg.get("max_words", 6)
         if word_count <= max_words and any(

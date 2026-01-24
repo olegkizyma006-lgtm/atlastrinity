@@ -96,6 +96,30 @@ intent_detection:
     priority: high
     use_deep_persona: false
 
+  # deep philosophical questions about identity/soul
+  philosophical_query:
+    keywords:
+      - 'хто ти'
+      - 'хто ви'
+      - 'ти хто'
+      - 'що ти'
+      - 'як ти себе'
+      - 'відчуваєш'
+      - 'усвідомлюєш'
+      - 'свідомість'
+      - 'душа'
+      - 'ти людина'
+      - 'твоя мета'
+      - 'твоє покликання'
+      - 'інструмент'
+      - 'бот'
+      - 'програма'
+      - 'код'
+      - 'живий'
+    intent: chat
+    priority: highest
+    use_deep_persona: true
+
   # Information queries requiring tool usage
   info_query:
     keywords:
