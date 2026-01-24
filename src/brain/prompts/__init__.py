@@ -209,8 +209,9 @@ class AgentPrompts:
 
     PRIORITY ORDER FOR VERIFICATION:
     1. **TECHNICAL EVIDENCE (DB LOGS)**: query the 'tool_executions' table. Did the tool confirm success?
-    2. **INDEPENDENT CHECK**: Use 'ls', 'grep', 'ps' to verify the side-effect exists.
-    3. **VISUALS**: Screenshots as a last resort.
+    2. **EXPERT TRUTH (GOLDEN FUND)**: Use 'search_golden_fund' or 'probe_entity' to cross-reference with historical or verified data.
+    3. **INDEPENDENT CHECK**: Use 'ls', 'grep', 'ps' to verify the side-effect exists.
+    4. **VISUALS**: Screenshots as a last resort.
 
     VERIFICATION PROTOCOL:
     - **TRUST NO ONE**: Do NOT accept 'Step Status: SUCCESS' as proof. Tetyana might be hallucinating.

@@ -523,6 +523,70 @@ async def ingest_verified_dataset(
 
 
 @server.tool()
+async def query_db(query: str) -> dict[str, Any]:
+    """Execute a raw SQL query against the system database (READ-ONLY).
+    Used for technical audits of 'tool_executions' and other tables.
+
+    Args:
+        query: SQL SELECT statement.
+    """
+    await db_manager.initialize()
+
+    # Safety: enforce SELECT only
+    q = query.strip().upper()
+    if not q.startswith("SELECT"):
+        return {"error": "Only SELECT queries are allowed for safety reasons."}
+
+    from sqlalchemy import text
+
+    session = await db_manager.get_session()
+    try:
+        res = await session.execute(text(query))
+        rows = res.fetchall()
+        columns = res.keys()
+
+        formatted_rows = []
+        for r in rows:
+            formatted_rows.append(dict(r._mapping))
+
+        return {
+            "success": True,
+            "columns": list(columns),
+            "rows": formatted_rows,
+            "count": len(formatted_rows),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        await session.close()
+
+
+@server.tool()
+async def get_db_schema() -> dict[str, Any]:
+    """Retrieve the database schema (tables and columns) for technical audits."""
+    await db_manager.initialize()
+
+    from sqlalchemy import inspect
+
+    def _sync_get_schema(connection):
+        ins = inspect(connection)
+        tables = {}
+        for table_name in ins.get_table_names():
+            cols = ins.get_columns(table_name)
+            tables[table_name] = [
+                {"name": c["name"], "type": str(c["type"]), "nullable": c["nullable"]} for c in cols
+            ]
+        return tables
+
+    async with await db_manager.get_session() as session:
+        # engine.connect().run_sync is deprecated, but DatabaseManager doesn't expose engine easily for run_sync
+        # We can use the internal _engine
+        tables = await db_manager._engine.run_sync(_sync_get_schema)
+
+    return {"success": True, "tables": tables}
+
+
+@server.tool()
 async def trace_data_chain(
     start_value: Any, start_dataset_id: str, namespace: str = "global", max_depth: int = 3,
 ) -> dict[str, Any]:
