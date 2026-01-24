@@ -168,27 +168,34 @@ def devtools_validate_config() -> dict[str, Any]:
         return {"valid": False, "error": str(e)}
 
 
+def _find_binary(name: str) -> str | None:
+    """Find a binary in the project's .venv/bin or system PATH."""
+    # 1. Check .venv/bin
+    venv_bin = PROJECT_ROOT / ".venv" / "bin" / name
+    if venv_bin.exists():
+        return str(venv_bin)
+    
+    # 2. Check system PATH
+    return shutil.which(name)
+
+
 @server.tool()
 def devtools_lint_python(file_path: str = ".") -> dict[str, Any]:
     """Run the 'ruff' linter on a specific file or directory.
     Returns structured JSON results of any violations found.
     """
-    # Check if ruff is installed
-    if not shutil.which("ruff"):
+    binary = _find_binary("ruff")
+    if not binary:
         return {"error": "Ruff is not installed or not in PATH."}
 
     try:
         # Run ruff check --output-format=json
-        cmd = ["ruff", "check", "--output-format=json", file_path]
+        cmd = [binary, "check", "--output-format=json", file_path]
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
-        # If exit code is 0, no errors (usually). But ruff returns non-zero on lint errors too.
-        # We parse stdout.
         output = result.stdout.strip()
 
-        # If empty and stderr has content, something crashed or misconfigured
         if not output and result.stderr:
-            # Check if it was just a "no errors" case or actual failure
             if result.returncode == 0:
                 return {"success": True, "violations": []}
             return {"error": f"Ruff execution failed: {result.stderr}"}
@@ -211,16 +218,90 @@ def devtools_lint_python(file_path: str = ".") -> dict[str, Any]:
 
 
 @server.tool()
+def devtools_format_python(file_path: str = ".") -> dict[str, Any]:
+    """Run 'ruff format' on a specific file or directory to fix formatting issues."""
+    binary = _find_binary("ruff")
+    if not binary:
+        return {"error": "Ruff is not installed."}
+
+    try:
+        cmd = [binary, "format", file_path]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+
+        return {
+            "success": result.returncode == 0,
+            "stdout": result.stdout.strip(),
+            "stderr": result.stderr.strip(),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@server.tool()
+def devtools_type_check(path: str = ".") -> dict[str, Any]:
+    """Run 'mypy' for static type analysis on a specific path."""
+    binary = _find_binary("mypy")
+    if not binary:
+        return {"error": "Mypy is not installed."}
+
+    try:
+        # We use simple output for now, but could use JSON if we had a parser
+        cmd = [binary, path, "--ignore-missing-imports"]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+
+        stdout = result.stdout.strip()
+        
+        # Simple heuristic for success
+        success = "Success: no issues found" in stdout or result.returncode == 0
+
+        return {
+            "success": success,
+            "stdout": stdout,
+            "stderr": result.stderr.strip(),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@server.tool()
+def devtools_run_tests(path: str = "tests/", use_cov: bool = False) -> dict[str, Any]:
+    """Run 'pytest' tests on a given path.
+    Args:
+        path: Path to tests directory or file.
+        use_cov: Whether to run with coverage (requires pytest-cov).
+    """
+    binary = _find_binary("pytest")
+    if not binary:
+        return {"error": "Pytest is not installed."}
+
+    try:
+        cmd = [binary, path]
+        if use_cov:
+            cmd.extend(["--cov=src", "--cov-report=term-missing"])
+
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+
+        return {
+            "success": result.returncode == 0,
+            "stdout": result.stdout.strip(),
+            "stderr": result.stderr.strip(),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@server.tool()
 def devtools_lint_js(file_path: str = ".") -> dict[str, Any]:
     """Run 'oxlint' on a specific file or directory (for JS/TS).
     Returns structured JSON results.
     """
-    if not shutil.which("oxlint"):
-        return {"error": "oxlint is not installed or not in PATH."}
+    binary = shutil.which("oxlint") or shutil.which("npx")
+    if not binary:
+        return {"error": "oxlint (or npx) is not installed."}
+    
+    cmd = [binary, "oxlint", "--format", "json", file_path] if "npx" in binary else [binary, "--format", "json", file_path]
 
     try:
-        # oxlint --format json
-        cmd = ["oxlint", "--format", "json", file_path]
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
         output = result.stdout.strip()
@@ -229,7 +310,6 @@ def devtools_lint_js(file_path: str = ".") -> dict[str, Any]:
 
         try:
             data = json.loads(output)
-            # Oxlint JSON format is typically an array of objects
             violations = data if isinstance(data, list) else data.get("messages", [])
             return {
                 "success": len(violations) == 0,
@@ -251,14 +331,11 @@ def devtools_find_dead_code(target_path: str = ".") -> dict[str, Any]:
     if not shutil.which("knip") and not shutil.which("npx"):
         return {"error": "knip (or npx) is not found."}
 
+    # Use npx for knip to ensure it uses the local version
+    cmd = ["npx", "knip", "--reporter", "json"]
+    cwd = target_path if os.path.isdir(target_path) else str(PROJECT_ROOT)
+
     try:
-        # We use npx knip --reporter json
-        # NOTE: knip usually needs to run from the project root where package.json is.
-        # target_path might be used as cwd if it's a directory.
-
-        cwd = target_path if os.path.isdir(target_path) else "."
-
-        cmd = ["npx", "knip", "--reporter", "json"]
         result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=False)
 
         output = result.stdout.strip()
@@ -282,21 +359,19 @@ def devtools_find_dead_code(target_path: str = ".") -> dict[str, Any]:
 @server.tool()
 def devtools_check_integrity(path: str = "src/") -> dict[str, Any]:
     """Run 'pyrefly' to check code integrity and find generic coding errors."""
-    if not shutil.which("pyrefly"):
+    binary = _find_binary("pyrefly")
+    if not binary:
         return {"error": "pyrefly is not installed."}
 
     try:
         # Run pyrefly check
-        cmd = ["pyrefly", "check", path]
+        cmd = [binary, "check", path]
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
         stdout = result.stdout.strip()
         stderr = result.stderr.strip()
 
-        # Simple heuristic to extract violation count if possible
-        # Pyrefly usually prints something like "Found X errors"
         import re
-
         error_match = re.search(r"Found (\d+) error", stdout + stderr, re.IGNORECASE)
         error_count = (
             int(error_match.group(1)) if error_match else (0 if result.returncode == 0 else -1)

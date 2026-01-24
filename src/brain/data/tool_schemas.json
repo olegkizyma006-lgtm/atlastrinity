@@ -1331,6 +1331,34 @@
     },
     "description": "Run 'pyrefly' to check code integrity and find generic coding errors."
   },
+  "devtools_format_python": {
+    "server": "devtools",
+    "required": [],
+    "optional": ["file_path"],
+    "types": {
+      "file_path": "str"
+    },
+    "description": "Run 'ruff format' on a specific file or directory to fix formatting issues."
+  },
+  "devtools_type_check": {
+    "server": "devtools",
+    "required": [],
+    "optional": ["path"],
+    "types": {
+      "path": "str"
+    },
+    "description": "Run 'mypy' for static type analysis on a specific path."
+  },
+  "devtools_run_tests": {
+    "server": "devtools",
+    "required": [],
+    "optional": ["path", "use_cov"],
+    "types": {
+      "path": "str",
+      "use_cov": "bool"
+    },
+    "description": "Run 'pytest' tests on a given path. Supports coverage report."
+  },
   "analyze_dataset": {
     "server": "data-analysis",
     "required": ["data_source"],

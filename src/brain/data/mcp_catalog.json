@@ -253,9 +253,12 @@
     "name": "devtools",
     "tier": 2,
     "category": "developer",
-    "description": "Developer Tools (Linter & Analysis) wrapper",
+    "description": "Developer Tools (Linter, Testing & Analysis) wrapper",
     "capabilities": [
       "Python linting (Ruff)",
+      "Python formatting (Ruff format)",
+      "Python type checking (Mypy)",
+      "Python testing (Pytest)",
       "JavaScript/TypeScript linting (Oxlint)",
       "Dead code analysis (Knip)",
       "Code integrity check (Pyrefly)",
@@ -265,6 +268,9 @@
     ],
     "key_tools": [
       "devtools_lint_python",
+      "devtools_format_python",
+      "devtools_type_check",
+      "devtools_run_tests",
       "devtools_lint_js",
       "devtools_find_dead_code",
       "devtools_check_integrity",
@@ -272,7 +278,7 @@
       "devtools_launch_inspector",
       "devtools_validate_config"
     ],
-    "when_to_use": "Validating code quality, finding errors, and checking project health."
+    "when_to_use": "Validating code quality, running tests, type checking, finding errors, and checking project health."
   },
   "golden-fund": {
     "name": "golden-fund",
