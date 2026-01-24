@@ -731,8 +731,11 @@ def backup_databases():
     sqlite_src = CONFIG_ROOT / "atlastrinity.db"
     if sqlite_src.exists():
         sqlite_dst = backup_dir / "atlastrinity.db"
-        shutil.copy2(sqlite_src, sqlite_dst)
-        print_success(f"SQLite база збережена: {sqlite_dst}")
+        try:
+            shutil.copy2(sqlite_src, sqlite_dst)
+            print_success(f"SQLite база збережена: {sqlite_dst}")
+        except (PermissionError, OSError) as e:
+            print_warning(f"Не вдалося забэкапити SQLite: {e}")
     else:
         print_warning("SQLite база не знайдена, пропускаємо.")
 
@@ -740,12 +743,16 @@ def backup_databases():
     chroma_src = CONFIG_ROOT / "memory"
     if chroma_src.exists():
         chroma_dst = backup_dir / "memory"
-        if chroma_dst.exists():
-            shutil.rmtree(chroma_dst)
-        shutil.copytree(chroma_src, chroma_dst)
-        print_success(f"ChromaDB (векторна база) збережена: {chroma_dst}")
+        try:
+            if chroma_dst.exists():
+                shutil.rmtree(chroma_dst)
+            shutil.copytree(chroma_src, chroma_dst)
+            print_success(f"ChromaDB (векторна база) збережена: {chroma_dst}")
+        except (PermissionError, OSError) as e:
+            print_warning(f"Не вдалося забэкапити ChromaDB: {e}")
     else:
         print_warning("ChromaDB не знайдена, пропускаємо.")
+
 
     # 3. Backup Golden Fund
     gf_src = PROJECT_ROOT / "data" / "golden_fund"

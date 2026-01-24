@@ -22,16 +22,23 @@ def setup_logging(name: str = "brain"):
 
     # File Handler (Rotating)
     # Max 10MB per file, keep 5 backups
-    file_handler = RotatingFileHandler(
-        log_file,
-        maxBytes=10 * 1024 * 1024,
-        backupCount=5,
-        encoding="utf-8",
-    )
-    file_handler.setLevel(logging.INFO)
-    file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    file_handler.setFormatter(file_formatter)
-    logger.addHandler(file_handler)
+    try:
+        file_handler = RotatingFileHandler(
+            log_file,
+            maxBytes=10 * 1024 * 1024,
+            backupCount=5,
+            encoding="utf-8",
+        )
+        file_handler.setLevel(logging.INFO)
+        file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        file_handler.setFormatter(file_formatter)
+        logger.addHandler(file_handler)
+    except (PermissionError, OSError) as e:
+        # Fallback if log file is protected by OS (e.g. sandboxed or locked)
+        import sys
+        sys.stderr.write(f"Warning: Could not open log file {log_file} ({e}). Logging to console only.\n")
+
+
 
     # Stream Handler (Console)
     stream_handler = logging.StreamHandler()
