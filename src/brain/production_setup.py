@@ -99,8 +99,7 @@ def sync_yaml_config(src_path: Path, dst_path: Path) -> bool:
 
 
 def sync_json_config(src_path: Path, dst_path: Path) -> bool:
-    """Копіює JSON конфіг (MCP servers - системний, не user config).
-    """
+    """Копіює JSON конфіг (MCP servers - системний, не user config)."""
     try:
         dst_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -200,8 +199,7 @@ def ensure_tts_models():
 
 
 def ensure_stt_models():
-    """Перевіряє наявність Faster-Whisper моделей в ~/.config/atlastrinity/models/faster-whisper/
-    """
+    """Перевіряє наявність Faster-Whisper моделей в ~/.config/atlastrinity/models/faster-whisper/"""
     if not WHISPER_DIR.exists() or not any(WHISPER_DIR.iterdir()):
         print("[Production Setup] ℹ️  Whisper models will be downloaded automatically on first use")
         print(f"[Production Setup] Target directory: {WHISPER_DIR}")

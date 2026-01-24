@@ -12,7 +12,10 @@ async def test_recovery_uses_grisha_and_announces_grisha_message(monkeypatch):
     # Fake Tetyana to always return a failed step
     async def fake_execute_step(step_copy, attempt=1):
         return StepResult(
-            step_id=step_copy.get("id", 1), success=False, result="failed", error="simulated",
+            step_id=step_copy.get("id", 1),
+            success=False,
+            result="failed",
+            error="simulated",
         )
 
     monkeypatch.setattr(t.tetyana, "execute_step", fake_execute_step)

@@ -285,7 +285,14 @@
       "Blob storage (Simulated MinIO)",
       "Recursive Data Enrichment"
     ],
-    "key_tools": ["search_golden_fund", "ingest_dataset", "probe_entity", "add_knowledge_node", "store_blob", "retrieve_blob"],
+    "key_tools": [
+      "search_golden_fund",
+      "ingest_dataset",
+      "probe_entity",
+      "add_knowledge_node",
+      "store_blob",
+      "retrieve_blob"
+    ],
     "when_to_use": "When you need to persist large datasets, search for global knowledge, or perform deep sequential analysis."
   },
   "context7": {

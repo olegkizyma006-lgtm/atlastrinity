@@ -31,7 +31,9 @@ async def verify_official_mcp():
             if server == "filesystem":
                 # List home dir
                 res = await mcp_manager.call_tool(
-                    server, "list_directory", {"path": os.path.expanduser("~")},
+                    server,
+                    "list_directory",
+                    {"path": os.path.expanduser("~")},
                 )
                 print(
                     f"Execution test (list_directory): {'SUCCESS' if not hasattr(res, 'isError') or res.isError is False else 'FAILURE'}",
@@ -56,7 +58,9 @@ async def verify_official_mcp():
             elif server == "fetch":
                 # Fetch a simple URL (Google)
                 res = await mcp_manager.call_tool(
-                    server, "fetch_url", {"url": "https://www.google.com"},
+                    server,
+                    "fetch_url",
+                    {"url": "https://www.google.com"},
                 )
                 print(
                     f"Execution test (fetch): {'SUCCESS' if not hasattr(res, 'isError') or res.isError is False else 'FAILURE'}",

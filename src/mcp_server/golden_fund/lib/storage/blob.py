@@ -14,12 +14,13 @@ from .types import StorageResult
 
 logger = logging.getLogger("golden_fund.storage.blob")
 
+
 class BlobStorage:
     """
     Blob storage adapter (MinIO-style).
     Persists data to local disk in a structured way (simulating bucket storage).
     """
-    
+
     def __init__(self, root_path: str | None = None, bucket: str = "default"):
         if root_path is None:
             self.root = Path.home() / ".config" / "atlastrinity" / "data" / "golden_fund" / "blobs"
@@ -35,24 +36,28 @@ class BlobStorage:
         try:
             if not filename:
                 filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}.json"
-            
+
             file_path = self.bucket_path / filename
-            
+
             with open(file_path, "w", encoding="utf-8") as f:
                 if isinstance(data, dict | list):
                     json.dump(data, f, indent=2, default=str)
                 else:
                     f.write(str(data))
-            
+
             logger.info(f"Stored blob: {file_path}")
-            
-            return StorageResult(True, "blob", data={
-                "path": str(file_path),
-                "filename": filename,
-                "url": f"file://{file_path.absolute()}", # Simulated URL
-                "size": file_path.stat().st_size
-            })
-            
+
+            return StorageResult(
+                True,
+                "blob",
+                data={
+                    "path": str(file_path),
+                    "filename": filename,
+                    "url": f"file://{file_path.absolute()}",  # Simulated URL
+                    "size": file_path.stat().st_size,
+                },
+            )
+
         except Exception as e:
             return StorageResult(False, "blob", error=str(e))
 
@@ -61,14 +66,14 @@ class BlobStorage:
             file_path = self.bucket_path / filename
             if not file_path.exists():
                 return StorageResult(False, "blob", error="File not found")
-                
+
             with open(file_path, encoding="utf-8") as f:
                 try:
                     data = json.load(f)
                 except json.JSONDecodeError:
                     f.seek(0)
                     data = f.read()
-                    
+
             return StorageResult(True, "blob", data=data)
         except Exception as e:
             return StorageResult(False, "blob", error=str(e))

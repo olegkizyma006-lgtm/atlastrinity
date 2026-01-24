@@ -29,7 +29,9 @@ def get_redis_client():
         )
         try:
             _redis_client = redis.Redis.from_url(
-                redis_url, decode_responses=True, socket_connect_timeout=2,
+                redis_url,
+                decode_responses=True,
+                socket_connect_timeout=2,
             )
             # Ping is async in redis.asyncio
             # We skip ping in initialization to avoid blocking if we don't have an event loop yet
@@ -122,8 +124,7 @@ async def redis_delete(key: str) -> dict[str, Any]:
 
 @server.tool()
 async def redis_info() -> dict[str, Any]:
-    """Get Redis server information and statistics.
-    """
+    """Get Redis server information and statistics."""
     try:
         r = get_redis_client()
         info = await r.info()

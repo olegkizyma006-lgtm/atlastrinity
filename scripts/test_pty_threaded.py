@@ -61,7 +61,12 @@ async def run_vibe_pty_threaded():
     print(f"Running via PTY (Threaded): {argv}")
 
     process = await asyncio.create_subprocess_exec(
-        *argv, cwd=cwd, stdout=slave, stderr=slave, stdin=slave, close_fds=True,
+        *argv,
+        cwd=cwd,
+        stdout=slave,
+        stderr=slave,
+        stdin=slave,
+        close_fds=True,
     )
     os.close(slave)
 

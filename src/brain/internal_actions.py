@@ -118,6 +118,7 @@ async def escalate_action(context: dict, target: str = "user"):
     orchestrator = context.get("orchestrator")
     if orchestrator:
         await orchestrator._speak(
-            "atlas", "Мені потрібна ваша допомога. Виникла помилка, яку я не можу виправити сам.",
+            "atlas",
+            "Мені потрібна ваша допомога. Виникла помилка, яку я не можу виправити сам.",
         )
     logger.info(f"[WORKFLOW] Escalation to {target} initiated.")

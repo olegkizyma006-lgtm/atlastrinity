@@ -49,7 +49,9 @@ async def test_grisha_real():
 
     try:
         verification = await grisha.verify_step(
-            step=mock_step, result=mock_result, screenshot_path=screenshot_path,
+            step=mock_step,
+            result=mock_result,
+            screenshot_path=screenshot_path,
         )
 
         print("\nVerification Results:")

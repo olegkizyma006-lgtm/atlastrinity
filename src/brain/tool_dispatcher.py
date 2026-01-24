@@ -406,7 +406,10 @@ class ToolDispatcher:
     }
 
     async def resolve_and_dispatch(
-        self, tool_name: str | None, args: dict[str, Any], explicit_server: str | None = None,
+        self,
+        tool_name: str | None,
+        args: dict[str, Any],
+        explicit_server: str | None = None,
     ) -> dict[str, Any]:
         """The main entry point for dispatching a tool call.
         Resolves the tool name, normalizes arguments, and executes the call via MCPManager.
@@ -468,7 +471,9 @@ class ToolDispatcher:
 
             # 5. Intelligent Routing with macOS-use Priority
             server, resolved_tool, normalized_args = self._intelligent_routing(
-                tool_name, args, explicit_server,
+                tool_name,
+                args,
+                explicit_server,
             )
 
             # Special case: System tools handled internally
@@ -554,22 +559,22 @@ class ToolDispatcher:
         self, server: str, tool_name: str, args: dict[str, Any]
     ) -> tuple[bool, str]:
         """Validate that a tool is compatible with its assigned realm/server.
-        
+
         Returns:
             (is_valid: bool, error_message: str)
         """
         from .mcp_registry import SERVER_CATALOG, TOOL_SCHEMAS
-        
+
         # Get server capabilities and key tools
         server_info = SERVER_CATALOG.get(server)
         if not server_info:
             return False, f"Unknown server/realm: {server}"
-        
+
         # Check if tool is in the server's key tools
         key_tools = server_info.get("key_tools", [])
         if tool_name in key_tools:
             return True, ""
-        
+
         # Check if tool exists in the tool schemas for this server
         # Tool names in schemas are typically in the format "server_tool_name"
         expected_tool_patterns = [
@@ -577,47 +582,53 @@ class ToolDispatcher:
             f"{server.replace('-', '_')}_{tool_name}",
             tool_name,  # Some tools might be listed without server prefix
         ]
-        
+
         # Check if any of the patterns exist in tool schemas
         tool_found = False
         for pattern in expected_tool_patterns:
             if pattern in TOOL_SCHEMAS:
                 tool_found = True
                 break
-        
+
         if tool_found:
             return True, ""
-        
+
         # Special case: data-analysis realm validation
         if server == "data-analysis":
             data_analysis_tools = [
                 "analyze_dataset",
-                "generate_statistics", 
+                "generate_statistics",
                 "create_visualization",
                 "data_cleaning",
                 "predictive_modeling",
-                "data_aggregation"
+                "data_aggregation",
             ]
             if tool_name in data_analysis_tools:
                 return True, ""
             else:
-                return False, f"Tool '{tool_name}' is not compatible with data-analysis realm. Available tools: {', '.join(data_analysis_tools)}"
-        
+                return (
+                    False,
+                    f"Tool '{tool_name}' is not compatible with data-analysis realm. Available tools: {', '.join(data_analysis_tools)}",
+                )
+
         # For other realms, provide a generic compatibility check
         capabilities = server_info.get("capabilities", [])
         tool_lower = tool_name.lower()
-        
+
         # Check if tool name contains keywords from server capabilities
         capability_match = any(
-            cap_keyword in tool_lower 
-            for capability in capabilities 
+            cap_keyword in tool_lower
+            for capability in capabilities
             for cap_keyword in capability.lower().split()
         )
-        
+
         if capability_match:
             return True, ""
-        
-        return False, f"Tool '{tool_name}' may not be compatible with {server} realm. Server capabilities: {', '.join(capabilities)}"
+
+        return (
+            False,
+            f"Tool '{tool_name}' may not be compatible with {server} realm. Server capabilities: {', '.join(capabilities)}",
+        )
 
     def _validate_args(self, tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
         """Validate and normalize arguments according to tool schema.
@@ -711,7 +722,10 @@ class ToolDispatcher:
         return False
 
     def _intelligent_routing(
-        self, tool_name: str, args: dict[str, Any], explicit_server: str | None = None,
+        self,
+        tool_name: str,
+        args: dict[str, Any],
+        explicit_server: str | None = None,
     ) -> tuple[str | None, str, dict[str, Any]]:
         """Intelligent tier-based routing with macOS-use priority.
         Now delegates to BehaviorEngine for config-driven routing.
@@ -725,7 +739,9 @@ class ToolDispatcher:
         # Delegate to behavior engine for routing (replaces 150+ lines of hardcoded logic)
         try:
             server, resolved_tool, normalized_args = behavior_engine.route_tool(
-                tool_name, args, explicit_server,
+                tool_name,
+                args,
+                explicit_server,
             )
 
             if server and server != resolved_tool:
@@ -754,7 +770,10 @@ class ToolDispatcher:
         }
 
     def _resolve_tool_and_args(
-        self, tool_name: str, args: dict[str, Any], explicit_server: str | None = None,
+        self,
+        tool_name: str,
+        args: dict[str, Any],
+        explicit_server: str | None = None,
     ) -> tuple[str | None, str, dict[str, Any]]:
         """Resolves tool name to canonical form and normalizes arguments."""
         # --- TERMINAL ROUTING ---
@@ -821,7 +840,10 @@ class ToolDispatcher:
             return "context7", tool_name, args
 
         # --- GOLDEN FUND ROUTING ---
-        if tool_name in self.GOLDEN_FUND_SYNONYMS or explicit_server in ["golden-fund", "golden_fund"]:
+        if tool_name in self.GOLDEN_FUND_SYNONYMS or explicit_server in [
+            "golden-fund",
+            "golden_fund",
+        ]:
             if tool_name in ["ingest", "ingestion", "etl"]:
                 return "golden-fund", "ingest_dataset", args
             if tool_name in ["probe", "deep_search", "explore"]:
@@ -830,7 +852,7 @@ class ToolDispatcher:
                 # Assume semantic mode for generic searches
                 args["mode"] = args.get("mode", "semantic")
                 return "golden-fund", "search_golden_fund", args
-            
+
             return "golden-fund", tool_name, args
 
         # --- DATA ANALYSIS ROUTING ---
@@ -858,7 +880,9 @@ class ToolDispatcher:
         return server, tool_name, args
 
     def _handle_legacy_git(
-        self, tool_name: str, args: dict[str, Any],
+        self,
+        tool_name: str,
+        args: dict[str, Any],
     ) -> tuple[str, str, dict[str, Any]]:
         """Maps legacy git_server tools to macos-use execute_command."""
         subcommand = tool_name.replace("git_", "").replace("_", "-")  # git_status -> status
@@ -897,7 +921,9 @@ class ToolDispatcher:
         return "macos-use", "execute_command", new_args
 
     def _handle_data_analysis(
-        self, tool_name: str, args: dict[str, Any],
+        self,
+        tool_name: str,
+        args: dict[str, Any],
     ) -> tuple[str, str, dict[str, Any]]:
         """Maps data analysis synonyms to canonical data-analysis tools."""
         action = args.get("action") or tool_name
@@ -926,7 +952,9 @@ class ToolDispatcher:
         return "data-analysis", resolved_tool, args
 
     def _handle_terminal(
-        self, tool_name: str, args: dict[str, Any],
+        self,
+        tool_name: str,
+        args: dict[str, Any],
     ) -> tuple[str, str, dict[str, Any]]:
         """Standardizes terminal command execution via macos-use."""
         cmd = (
@@ -962,7 +990,9 @@ class ToolDispatcher:
         return "macos-use", "execute_command", args
 
     def _handle_filesystem(
-        self, tool_name: str, args: dict[str, Any],
+        self,
+        tool_name: str,
+        args: dict[str, Any],
     ) -> tuple[str, str, dict[str, Any]]:
         """Maps filesystem synonyms to canonical tools."""
         action = args.get("action") or tool_name
@@ -989,7 +1019,9 @@ class ToolDispatcher:
         return "filesystem", resolved_tool, args
 
     def _handle_browser(
-        self, tool_name: str, args: dict[str, Any],
+        self,
+        tool_name: str,
+        args: dict[str, Any],
     ) -> tuple[str, str, dict[str, Any]]:
         """Maps browser synonyms to Puppeteer tools.
 
@@ -1189,7 +1221,9 @@ class ToolDispatcher:
         return {"success": False, "error": f"Unknown system tool: {tool_name}"}
 
     def _handle_macos_use(
-        self, tool_name: str, args: dict[str, Any],
+        self,
+        tool_name: str,
+        args: dict[str, Any],
     ) -> tuple[str, str, dict[str, Any]]:
         """Standardizes macos-use GUI and productivity tool calls."""
         # Clean prefix if it exists

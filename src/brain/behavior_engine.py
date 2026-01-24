@@ -128,7 +128,9 @@ class BehaviorEngine:
         logger.info("[BEHAVIOR ENGINE] Configuration reloaded successfully")
 
     def classify_intent(
-        self, user_request: str, context: dict[str, Any] | None = None,
+        self,
+        user_request: str,
+        context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Classifies user intent based on config patterns.
 
@@ -177,7 +179,9 @@ class BehaviorEngine:
                 "type": "philosophical_query",
                 "priority": philos_cfg.get("priority", "highest"),
                 "use_deep_persona": True,
-                "requires_semantic_verification": philos_cfg.get("requires_semantic_verification", False),
+                "requires_semantic_verification": philos_cfg.get(
+                    "requires_semantic_verification", False
+                ),
                 "require_tools": False,
                 "require_planning": False,
             }
@@ -195,7 +199,9 @@ class BehaviorEngine:
                 "type": "simple_chat",
                 "priority": simple_cfg.get("priority", "high"),
                 "use_deep_persona": simple_cfg.get("use_deep_persona", False),
-                "requires_semantic_verification": simple_cfg.get("requires_semantic_verification", False),
+                "requires_semantic_verification": simple_cfg.get(
+                    "requires_semantic_verification", False
+                ),
                 "require_tools": False,
                 "require_planning": False,
             }
@@ -279,7 +285,10 @@ class BehaviorEngine:
         return default
 
     def route_tool(
-        self, tool_name: str, args: dict[str, Any], explicit_server: str | None = None,
+        self,
+        tool_name: str,
+        args: dict[str, Any],
+        explicit_server: str | None = None,
     ) -> tuple[str | None, str, dict[str, Any]]:
         """Routes tool to appropriate server based on config.
 
@@ -384,7 +393,10 @@ class BehaviorEngine:
         return default_servers
 
     def match_pattern(
-        self, context: dict[str, Any], pattern_type: str, confidence_threshold: float = 0.6,
+        self,
+        context: dict[str, Any],
+        pattern_type: str,
+        confidence_threshold: float = 0.6,
     ) -> Pattern | None:
         """Matches context against configured patterns.
 
@@ -504,8 +516,7 @@ class BehaviorEngine:
 
 
 class WorkflowEngine:
-    """Deterministic Finite State Machine for executing workflows defined in config.
-    """
+    """Deterministic Finite State Machine for executing workflows defined in config."""
 
     def __init__(self, behavior_engine_instance: BehaviorEngine):
         self.be = behavior_engine_instance

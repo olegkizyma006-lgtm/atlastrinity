@@ -53,7 +53,9 @@ async def verify_workspace():
 
         content = "Hello from Global Workspace!"
         result = await mcp_manager.call_tool(
-            "filesystem", "write_file", {"path": test_file, "content": content},
+            "filesystem",
+            "write_file",
+            {"path": test_file, "content": content},
         )
         print(f"Write Result: {result}")
 

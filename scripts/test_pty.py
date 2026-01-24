@@ -62,7 +62,8 @@ async def run_vibe_pty():
                 print(f"Read error: {e}")
 
         await asyncio.wait_for(
-            asyncio.gather(read_loop(), loop.run_in_executor(None, process.wait)), timeout=10.0,
+            asyncio.gather(read_loop(), loop.run_in_executor(None, process.wait)),
+            timeout=10.0,
         )
 
         print(f"\nExit code: {process.returncode}")

@@ -14,11 +14,13 @@ import pandas as pd
 
 class ParseResult:
     """Result container for parsed data."""
+
     def __init__(self, success: bool, data: Any | None = None, error: str | None = None):
         self.success = success
         self.data = data
         self.error = error
         self.metadata = {}
+
 
 class JSONParser:
     def parse(self, file_path: Path, **kwargs) -> ParseResult:
@@ -29,11 +31,12 @@ class JSONParser:
                 return ParseResult(True, data=df)
             except ValueError:
                 # Fallback to standard json
-                with open(file_path, encoding='utf-8') as f:
+                with open(file_path, encoding="utf-8") as f:
                     data = json.load(f)
                 return ParseResult(True, data=data)
         except Exception as e:
             return ParseResult(False, error=f"JSON parse error: {e}")
+
 
 class CSVParser:
     def parse(self, file_path: Path, **kwargs) -> ParseResult:
@@ -43,13 +46,14 @@ class CSVParser:
         except Exception as e:
             return ParseResult(False, error=f"CSV parse error: {e}")
 
+
 class XMLParser:
     def parse(self, file_path: Path, **kwargs) -> ParseResult:
         try:
             tree = ET.parse(file_path)
             root = tree.getroot()
             data = self._element_to_dict(root)
-            return ParseResult(True, data=data) 
+            return ParseResult(True, data=data)
         except Exception as e:
             return ParseResult(False, error=f"XML parse error: {e}")
 
@@ -57,7 +61,7 @@ class XMLParser:
         result: dict[str, Any] = {}
         if element.attrib:
             result["@attributes"] = element.attrib
-        
+
         for child in element:
             child_data = self._element_to_dict(child)
             if child.tag in result:
@@ -68,7 +72,7 @@ class XMLParser:
                     result[child.tag] = [current_val, child_data]
             else:
                 result[child.tag] = child_data
-        
+
         if element.text and element.text.strip():
             if result:
                 result["#text"] = element.text.strip()

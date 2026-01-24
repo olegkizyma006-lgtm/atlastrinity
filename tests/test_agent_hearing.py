@@ -5,8 +5,7 @@ from brain.message_bus import AgentMsg, MessageType, message_bus
 
 @pytest.mark.asyncio
 async def test_tetyana_hearing_bus_messages():
-    """Test that Tetyana correctly receives and processes messages from the bus.
-    """
+    """Test that Tetyana correctly receives and processes messages from the bus."""
     # 1. Inject a message into the bus for Tetyana
     msg = AgentMsg(
         from_agent="grisha",
@@ -42,7 +41,9 @@ async def test_tetyana_hearing_bus_messages():
     step_typed: Any = step
     bus_messages_typed: Any = step["bus_messages"]
     prompt = AgentPrompts.tetyana_reasoning_prompt(
-        step=str(step_typed), context={}, bus_messages=bus_messages_typed,
+        step=str(step_typed),
+        context={},
+        bus_messages=bus_messages_typed,
     )
 
     assert "Testing bus: change your strategy" in prompt
@@ -51,8 +52,7 @@ async def test_tetyana_hearing_bus_messages():
 
 @pytest.mark.asyncio
 async def test_grisha_step_centric_verification():
-    """Verify that Grisha's prompt now includes step-centric instructions.
-    """
+    """Verify that Grisha's prompt now includes step-centric instructions."""
     from brain.prompts import AgentPrompts
 
     prompt = AgentPrompts.grisha_verification_prompt(

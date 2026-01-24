@@ -72,7 +72,8 @@ async def main():
         # 1. Test Dynamic Help
         print("\n[Test 1] Dynamic Help...")
         rid = await send_request(
-            "tools/call", {"name": "macos-use_list_tools_dynamic", "arguments": {}},
+            "tools/call",
+            {"name": "macos-use_list_tools_dynamic", "arguments": {}},
         )
         while True:
             line = await process.stdout.readline()
@@ -92,7 +93,8 @@ async def main():
         # 2. Test Notes List Folders
         print("\n[Test 2] Notes: List Folders...")
         rid = await send_request(
-            "tools/call", {"name": "macos-use_notes_list_folders", "arguments": {}},
+            "tools/call",
+            {"name": "macos-use_notes_list_folders", "arguments": {}},
         )
         while True:
             line = await process.stdout.readline()
@@ -111,7 +113,8 @@ async def main():
         # 3. Test Mail Inbox Read
         print("\n[Test 3] Mail: Read Inbox...")
         rid = await send_request(
-            "tools/call", {"name": "macos-use_mail_read_inbox", "arguments": {"limit": 3}},
+            "tools/call",
+            {"name": "macos-use_mail_read_inbox", "arguments": {"limit": 3}},
         )
         while True:
             line = await process.stdout.readline()

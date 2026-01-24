@@ -58,10 +58,14 @@ async def test_v24_logic():
 
     # Register these datasets in KG (Simulating what Tetyana does)
     await knowledge_graph.add_node(
-        "DATASET", f"dataset:{table_name}", {"columns": list(df.columns)},
+        "DATASET",
+        f"dataset:{table_name}",
+        {"columns": list(df.columns)},
     )
     await knowledge_graph.add_node(
-        "DATASET", f"dataset:{table_name2}", {"columns": list(df2.columns)},
+        "DATASET",
+        f"dataset:{table_name2}",
+        {"columns": list(df2.columns)},
     )
 
     # Run Semantic Linker
@@ -81,12 +85,18 @@ async def test_v24_logic():
     print("4. Testing Knowledge Promotion...")
     # (Simplified test as full promotion involves Grisha logic, but we check if namespaces work)
     await knowledge_graph.add_node(
-        "ENTITY", "entity:test_fact", {"value": "Trinity is Omniscient"}, namespace="task_123",
+        "ENTITY",
+        "entity:test_fact",
+        {"value": "Trinity is Omniscient"},
+        namespace="task_123",
     )
 
     # Mocking a promotion (we can just add another node in global for now)
     await knowledge_graph.add_node(
-        "ENTITY", "entity:test_fact", {"value": "Trinity is Omniscient"}, namespace="global",
+        "ENTITY",
+        "entity:test_fact",
+        {"value": "Trinity is Omniscient"},
+        namespace="global",
     )
 
     # Check if we can find it in global

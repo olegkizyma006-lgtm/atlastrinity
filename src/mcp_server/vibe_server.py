@@ -109,7 +109,9 @@ LOG_DIR = str(CONFIG_ROOT / "logs")
 INSTRUCTIONS_DIR = str(Path(VIBE_WORKSPACE) / "instructions")
 VIBE_SESSION_DIR = Path.home() / ".vibe" / "logs" / "session"
 DATABASE_URL = get_config_value(
-    "database", "url", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db",
+    "database",
+    "url",
+    f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db",
 )
 
 # ANSI escape code pattern for stripping colors
@@ -193,7 +195,9 @@ def strip_ansi(text: str) -> str:
 
 
 async def is_network_available(
-    host: str = "api.mistral.ai", port: int = 443, timeout: float = 3.0,
+    host: str = "api.mistral.ai",
+    port: int = 443,
+    timeout: float = 3.0,
 ) -> bool:
     """Check if the network and specific host are reachable."""
     try:
@@ -355,7 +359,9 @@ async def run_vibe_subprocess(
                 stderr_chunks: list[bytes] = []
 
                 async def read_stream_with_logging(
-                    stream: asyncio.StreamReader, chunks: list[bytes], stream_name: str,
+                    stream: asyncio.StreamReader,
+                    chunks: list[bytes],
+                    stream_name: str,
                 ) -> None:
                     """Read from stream, log important lines, collect output."""
                     buffer = b""
@@ -500,7 +506,10 @@ async def run_vibe_subprocess(
                     if attempt < MAX_RETRIES - 1:
                         wait_time = (attempt + 1) * 10
                         logger.warning(f"[VIBE] Rate limit detected. Retrying in {wait_time}s...")
-                        await emit_log("warning", f"⚠️ [VIBE-LIVE] Перевищено ліміт запитів API. Повторна спроба через {wait_time}с...")
+                        await emit_log(
+                            "warning",
+                            f"⚠️ [VIBE-LIVE] Перевищено ліміт запитів API. Повторна спроба через {wait_time}с...",
+                        )
                         await asyncio.sleep(wait_time)
                         continue
 

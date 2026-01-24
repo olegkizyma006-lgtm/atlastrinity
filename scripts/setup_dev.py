@@ -244,7 +244,9 @@ def install_brew_deps():
 
     # === Встановлення формул ===
     def _brew_formula_installed(formula: str) -> bool:
-        rc = subprocess.run(["brew", "list", "--formula", formula], check=False, capture_output=True)
+        rc = subprocess.run(
+            ["brew", "list", "--formula", formula], check=False, capture_output=True
+        )
         return rc.returncode == 0
 
     for formula, check_cmd in formulas.items():
@@ -317,7 +319,8 @@ def install_brew_deps():
             # Перевіряємо статус
             result = subprocess.run(
                 ["brew", "services", "info", service, "--json"],
-                check=False, capture_output=True,
+                check=False,
+                capture_output=True,
                 text=True,
             )
 
@@ -332,7 +335,10 @@ def install_brew_deps():
                 print_info(f"Запуск {service}...")
                 # Use check=False and check output for 'already started'
                 res = subprocess.run(
-                    ["brew", "services", "start", service], check=False, capture_output=True, text=True,
+                    ["brew", "services", "start", service],
+                    check=False,
+                    capture_output=True,
+                    text=True,
                 )
                 if res.returncode == 0 or "already started" in res.stderr.lower():
                     print_success(f"{service} запущено")
@@ -432,7 +438,8 @@ def install_deps():
     # Update PIP first
     subprocess.run(
         [venv_python, "-m", "pip", "install", "-U", "pip", "setuptools<72.0.0", "wheel"],
-        check=False, capture_output=True,
+        check=False,
+        capture_output=True,
     )
 
     # Pre-install protobuf with no-build-isolation to avoid setuptools build issues
@@ -448,7 +455,8 @@ def install_deps():
         print_info("PIP install -r requirements.txt...")
         subprocess.run(
             [venv_python, "-m", "pip", "install", "-U", "pip", "setuptools<72.0.0", "wheel"],
-            check=False, capture_output=True,
+            check=False,
+            capture_output=True,
         )
         # Install espnet and ukrainian-tts separately with no-build-isolation
         subprocess.run(
@@ -644,7 +652,11 @@ def download_models():
             "print('STT OK')",
         ]
         res = subprocess.run(
-            cmd, check=False, capture_output=True, text=True, timeout=900,
+            cmd,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=900,
         )  # Increased timeout for large models
         if res.returncode == 0:
             print_success(f"STT модель {model_name} готова")
@@ -795,7 +807,8 @@ async def verify_database_tables():
     venv_python = str(VENV_PATH / "bin" / "python")
     try:
         subprocess.run(
-            [venv_python, str(PROJECT_ROOT / "scripts" / "verify_db_tables.py")], check=True,
+            [venv_python, str(PROJECT_ROOT / "scripts" / "verify_db_tables.py")],
+            check=True,
         )
         return True
     except Exception as e:
@@ -815,7 +828,8 @@ def check_services():
             # Use manual string parsing to avoid json import dependency if missing
             res = subprocess.run(
                 ["brew", "services", "info", service, "--json"],
-                check=False, capture_output=True,
+                check=False,
+                capture_output=True,
                 text=True,
             )
             # Look for running status in JSON output
@@ -825,7 +839,12 @@ def check_services():
 
             # Fallback: check functional ping (Redis only)
             if service == "redis" and shutil.which("redis-cli"):
-                if subprocess.run(["redis-cli", "ping"], check=False, capture_output=True).returncode == 0:
+                if (
+                    subprocess.run(
+                        ["redis-cli", "ping"], check=False, capture_output=True
+                    ).returncode
+                    == 0
+                ):
                     print_success(f"{label} запущено (CLI)")
                     continue
 

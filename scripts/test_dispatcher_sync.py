@@ -48,7 +48,9 @@ async def test_tool_selection():
     mock_mcp.call_tool.reset_mock()
     await dispatcher.resolve_and_dispatch("git_status", {"porcelain": True})
     mock_mcp.call_tool.assert_awaited_with(
-        "macos-use", "execute_command", {"command": "git status --porcelain"},
+        "macos-use",
+        "execute_command",
+        {"command": "git status --porcelain"},
     )
     print("Success: 'git_status' routed to macos-use.execute_command through legacy handler")
 
@@ -57,7 +59,9 @@ async def test_tool_selection():
     mock_mcp.call_tool.reset_mock()
     await dispatcher.resolve_and_dispatch("fetch", {"url": "https://google.com"})
     mock_mcp.call_tool.assert_awaited_with(
-        "macos-use", "macos-use_fetch_url", {"url": "https://google.com"},
+        "macos-use",
+        "macos-use_fetch_url",
+        {"url": "https://google.com"},
     )
     print("Success: 'fetch' routed to macos-use.macos-use_fetch_url")
 

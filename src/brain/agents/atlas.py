@@ -161,7 +161,9 @@ class Atlas(BaseAgent):
 
             # Fetch recent task context
             recent_tasks = long_term_memory.recall_similar_tasks(
-                user_request, n_results=1, only_successful=False,
+                user_request,
+                n_results=1,
+                only_successful=False,
             )
             if recent_tasks:
                 task_info = recent_tasks[0].get("document", "No details")
@@ -179,7 +181,9 @@ class Atlas(BaseAgent):
         # This prevents robotic, predictable responses to keywords like 'привіт'.
 
         prompt = AgentPrompts.atlas_intent_classification_prompt(
-            user_request, str(resolved_context or "None"), str(history or "None"),
+            user_request,
+            str(resolved_context or "None"),
+            str(history or "None"),
         )
         system_prompt = self.SYSTEM_PROMPT.replace("{{CONTEXT_SPECIFIC_DOCTRINE}}", "")
         messages = [
@@ -215,10 +219,12 @@ class Atlas(BaseAgent):
             }
 
     async def evaluate_deviation(
-        self, current_step: dict, proposed_deviation: str, full_plan: list,
+        self,
+        current_step: dict,
+        proposed_deviation: str,
+        full_plan: list,
     ) -> dict:
-        """Evaluates a strategic deviation proposed by Tetyana.
-        """
+        """Evaluates a strategic deviation proposed by Tetyana."""
         from langchain_core.messages import HumanMessage, SystemMessage
 
         prompt = AgentPrompts.atlas_deviation_evaluation_prompt(
@@ -269,22 +275,26 @@ class Atlas(BaseAgent):
         classification = behavior_engine.classify_intent(user_request, context={})
         intent = classification.get("intent", "solo_task")
         is_simple_chat = classification.get("type") == "simple_chat"
-        
+
         # Override with classification's preference for deep persona if not explicitly True
         if not use_deep_persona:
             use_deep_persona = classification.get("use_deep_persona", False)
-            
+
         # SEMANTIC ESSENCE VERIFICATION:
         # If classification says simple chat but requires semantic check, consult the Brain.
         if not use_deep_persona and classification.get("requires_semantic_verification"):
-            logger.info(f"[ATLAS CHAT] Triggering Semantic Essence Analysis for: {user_request[:30]}...")
+            logger.info(
+                f"[ATLAS CHAT] Triggering Semantic Essence Analysis for: {user_request[:30]}..."
+            )
             analysis = await self.analyze_request(user_request, history=history)
             if analysis.get("use_deep_persona"):
                 use_deep_persona = True
                 logger.info("[ATLAS CHAT] Soul recognized via Semantic Essence Analysis")
-        
+
         if use_deep_persona:
-           logger.info(f"[ATLAS CHAT] Deep Persona ENABLED for intent: {classification.get('type')}")
+            logger.info(
+                f"[ATLAS CHAT] Deep Persona ENABLED for intent: {classification.get('type')}"
+            )
 
         resolved_query = user_request
         if history and not is_simple_chat:
@@ -305,7 +315,9 @@ class Atlas(BaseAgent):
             async def get_graph():
                 try:
                     res = await mcp_manager.call_tool(
-                        "memory", "search_nodes", {"query": resolved_query},
+                        "memory",
+                        "search_nodes",
+                        {"query": resolved_query},
                     )
                     if isinstance(res, dict) and "results" in res:
                         return "\n".join(
@@ -324,7 +336,9 @@ class Atlas(BaseAgent):
                     if long_term_memory.available:
                         # Vector recall in thread to avoid blocking event loop
                         tasks_res = await asyncio.to_thread(
-                            long_term_memory.recall_similar_tasks, resolved_query, n_results=1,
+                            long_term_memory.recall_similar_tasks,
+                            resolved_query,
+                            n_results=1,
                         )
                         if tasks_res:
                             v_ctx += "\nPast Strategy: " + tasks_res[0]["document"][:200]
@@ -391,7 +405,8 @@ class Atlas(BaseAgent):
 
                     # Parallel tool listing
                     server_tools = await asyncio.gather(
-                        *[mcp_manager.list_tools(s) for s in active_servers], return_exceptions=True,
+                        *[mcp_manager.list_tools(s) for s in active_servers],
+                        return_exceptions=True,
                     )
 
                     for s_name, t_list in zip(list(active_servers), server_tools, strict=True):
@@ -452,7 +467,9 @@ class Atlas(BaseAgent):
 
             # Gather all context in parallel
             graph_context, vector_context, available_tools_info = await asyncio.gather(
-                get_graph(), get_vector(), get_tools(),
+                get_graph(),
+                get_vector(),
+                get_tools(),
             )
 
         # D. System Context (Always fast)
@@ -478,7 +495,9 @@ class Atlas(BaseAgent):
                 else "- General conversational partner."
             )
             reasoning = await self.use_sequential_thinking(
-                user_request, total_thoughts=2, capabilities=cap_for_thinker,
+                user_request,
+                total_thoughts=2,
+                capabilities=cap_for_thinker,
             )
             if reasoning.get("success"):
                 analysis_context = f"\nDEEP ANALYSIS:\n{reasoning.get('analysis')}\n"
@@ -635,7 +654,9 @@ class Atlas(BaseAgent):
         # ARCHITECTURAL IMPROVEMENT: ESCALATION SIGNAL
         # If we reached the turn limit and haven't satisfied the request, signal the orchestrator.
         if intent == "solo_task":
-            logger.warning("[ATLAS] Solo research reached turn limit. Signaling escalation to Trinity flow.")
+            logger.warning(
+                "[ATLAS] Solo research reached turn limit. Signaling escalation to Trinity flow."
+            )
             return "__ESCALATE__"
 
         fallback_msg = "Я виконав кілька кроків пошуку, але мені потрібно більше часу для повного аналізу. Що саме вас цікавить найбільше?"
@@ -705,8 +726,7 @@ Standalone Query:"""
             logger.warning(f"[ATLAS] Memory write failed: {e}")
 
     async def create_plan(self, enriched_request: dict[str, Any]) -> TaskPlan:
-        """Principal Architect: Creates an execution plan with Strategic Thinking.
-        """
+        """Principal Architect: Creates an execution plan with Strategic Thinking."""
         import uuid
 
         from langchain_core.messages import HumanMessage, SystemMessage
@@ -748,7 +768,8 @@ Standalone Query:"""
                 ],
             )
             simulation_result = cast(
-                "str", sim_resp.content if hasattr(sim_resp, "content") else str(sim_resp),
+                "str",
+                sim_resp.content if hasattr(sim_resp, "content") else str(sim_resp),
             )
         except Exception as e:
             logger.warning(f"[ATLAS] Deep Thinking failed: {e}")
@@ -764,7 +785,8 @@ Standalone Query:"""
             doctrine = AgentPrompts.TASK_PROTOCOL
 
         dynamic_system_prompt = self.SYSTEM_PROMPT.replace(
-            "{{CONTEXT_SPECIFIC_DOCTRINE}}", doctrine,
+            "{{CONTEXT_SPECIFIC_DOCTRINE}}",
+            doctrine,
         )
 
         # 2.5 MCP INFRASTRUCTURE CONTEXT (For adaptive step assignment)
@@ -852,7 +874,8 @@ CRITICAL PLANNING RULES:
                 # Re-check voice_action for new steps
                 for step in steps:
                     if not step.get("voice_action") or re.search(
-                        r"[a-zA-Z]", step.get("voice_action", ""),
+                        r"[a-zA-Z]",
+                        step.get("voice_action", ""),
                     ):
                         step["voice_action"] = "Виконую заплановану дію"
 
@@ -877,7 +900,8 @@ CRITICAL PLANNING RULES:
             if isinstance(payload, dict):
                 return payload
             if hasattr(payload, "structuredContent") and isinstance(
-                payload.structuredContent, dict,
+                payload.structuredContent,
+                dict,
             ):
                 return payload.structuredContent.get("result", payload.structuredContent)
             if hasattr(payload, "content"):
@@ -924,7 +948,9 @@ CRITICAL PLANNING RULES:
         # Fallback to memory
         try:
             result = await mcp_manager.call_tool(
-                "memory", "search_nodes", {"query": f"grisha_rejection_step_{step_id}"},
+                "memory",
+                "search_nodes",
+                {"query": f"grisha_rejection_step_{step_id}"},
             )
 
             if result and hasattr(result, "content"):
@@ -974,7 +1000,11 @@ CRITICAL PLANNING RULES:
         return self._parse_response(cast("str", response.content))
 
     async def evaluate_healing_strategy(
-        self, error: str, vibe_report: str, grisha_audit: dict, context: dict | None = None,
+        self,
+        error: str,
+        vibe_report: str,
+        grisha_audit: dict,
+        context: dict | None = None,
     ) -> dict[str, Any]:
         """Atlas reviews the diagnostics from Vibe and the audit from Grisha.
         Decides whether to proceed with the self-healing fix and sets the tempo.
@@ -984,7 +1014,10 @@ CRITICAL PLANNING RULES:
         context_data = context or shared_context.to_dict()
 
         prompt = AgentPrompts.atlas_healing_review_prompt(
-            error, vibe_report, grisha_audit, context_data,
+            error,
+            vibe_report,
+            grisha_audit,
+            context_data,
         )
 
         messages = [SystemMessage(content=self.SYSTEM_PROMPT), HumanMessage(content=prompt)]
@@ -1037,7 +1070,9 @@ CRITICAL PLANNING RULES:
                     HumanMessage(content=prompt),
                 ],
             )
-            content = cast("str", response.content if hasattr(response, "content") else str(response))
+            content = cast(
+                "str", response.content if hasattr(response, "content") else str(response)
+            )
 
             # JSON extraction
             import json
@@ -1159,8 +1194,7 @@ If the user asked to 'count', you MUST state the exact number found.
             return "Продовжуй виконання завдання згідно з планом."
 
     def get_voice_message(self, action: str, **kwargs) -> str:
-        """Generates dynamic TTS message.
-        """
+        """Generates dynamic TTS message."""
         if action == "plan_created":
             count = kwargs.get("steps", 0)
             suffix = "кроків"

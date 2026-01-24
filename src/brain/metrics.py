@@ -12,11 +12,11 @@ logger = logging.getLogger(__name__)
 class MetricsCollector:
     """
     Legacy metrics collector for backward compatibility.
-    
+
     This class provides basic system metrics collection and integrates
     with the new MonitoringSystem for comprehensive observability.
     """
-    
+
     def __init__(self):
         self.start_time = time.time()
         self._last_net_io = psutil.net_io_counters()
@@ -36,7 +36,7 @@ class MetricsCollector:
     def get_metrics(self) -> dict[str, Any]:
         """
         Get formatted system metrics.
-        
+
         Returns:
             Dictionary containing formatted system metrics
         """
@@ -76,7 +76,7 @@ class MetricsCollector:
     def record(self, name: str, value: Any, tags: dict[str, Any] | None = None) -> None:
         """
         Record a custom metric and integrate with monitoring system.
-        
+
         Args:
             name: Metric name
             value: Metric value
@@ -87,23 +87,24 @@ class MetricsCollector:
             metric_data = {"name": name, "value": value}
             if tags:
                 metric_data["tags"] = tags
-            
+
             logger.info(f"Custom metric recorded: {metric_data}")
-            
+
             # Integrate with monitoring system if available
             try:
                 from .monitoring import monitoring_system
+
                 monitoring_system.log_for_grafana(
                     f"Custom metric: {name} = {value}",
                     level="info",
                     metric_name=name,
                     metric_value=value,
-                    tags=tags or {}
+                    tags=tags or {},
                 )
             except ImportError:
                 # Monitoring system not available, continue without it
                 pass
-                
+
         except Exception as e:
             logger.error(f"Error recording custom metric: {e}")
 

@@ -70,7 +70,8 @@ class LongTermMemory:
 
             # Initialize collections
             self.lessons = self.client.get_or_create_collection(
-                name="lessons", metadata={"description": "Error patterns and solutions"},
+                name="lessons",
+                metadata={"description": "Error patterns and solutions"},
             )
 
             self.strategies = self.client.get_or_create_collection(
@@ -148,7 +149,11 @@ class LongTermMemory:
             return False
 
     def remember_strategy(
-        self, task: str, plan_steps: list[str], outcome: str, success: bool,
+        self,
+        task: str,
+        plan_steps: list[str],
+        outcome: str,
+        success: bool,
     ) -> bool:
         """Store a task execution strategy.
 
@@ -229,7 +234,10 @@ class LongTermMemory:
             return []
 
     def recall_similar_tasks(
-        self, task: str, n_results: int = 3, only_successful: bool = True,
+        self,
+        task: str,
+        n_results: int = 3,
+        only_successful: bool = True,
     ) -> list[dict[str, Any]]:
         """Find similar past tasks and their strategies.
 
@@ -303,7 +311,10 @@ class LongTermMemory:
             return False
 
     def remember_conversation(
-        self, session_id: str, summary: str, metadata: dict[str, Any] | None = None,
+        self,
+        session_id: str,
+        summary: str,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """Store a conversation summary in vector memory."""
         if not self.available:
@@ -392,7 +403,8 @@ class LongTermMemory:
         for error_log in errors:
             # Check if we already have this lesson
             existing = self.recall_similar_errors(
-                error_log.get("error", str(error_log)), n_results=1,
+                error_log.get("error", str(error_log)),
+                n_results=1,
             )
 
             # Only add if not too similar
@@ -462,7 +474,9 @@ class LongTermMemory:
 
             metadata = sanitize_metadata(metadata)
             self.behavior_deviations.upsert(
-                ids=[doc_id], documents=[document], metadatas=[metadata],
+                ids=[doc_id],
+                documents=[document],
+                metadatas=[metadata],
             )
             logger.info(f"[MEMORY] Stored behavior deviation in ChromaDB: {doc_id}")
 

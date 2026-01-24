@@ -47,9 +47,13 @@ def test_setup():
     print(f"Vibe PROJECT_ROOT: {PROJECT_ROOT}")
     print(f"Vibe REPOSITORY_ROOT: {REPOSITORY_ROOT}")
 
-    if repo_path == REPOSITORY_ROOT or str(
-        Path(repo_path).expanduser().absolute(),
-    ) == REPOSITORY_ROOT:
+    if (
+        repo_path == REPOSITORY_ROOT
+        or str(
+            Path(repo_path).expanduser().absolute(),
+        )
+        == REPOSITORY_ROOT
+    ):
         print("✅ Vibe REPOSITORY_ROOT matches config.")
     else:
         print(

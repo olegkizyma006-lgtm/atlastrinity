@@ -10,7 +10,8 @@ def test_check_system_limits_low(monkeypatch):
     except Exception:
         # If resource not available, monkeypatch _run_cmd instead
         monkeypatch.setattr(
-            "src.brain.mcp_preflight._run_cmd", lambda cmd, timeout=10: (0, "512", ""),
+            "src.brain.mcp_preflight._run_cmd",
+            lambda cmd, timeout=10: (0, "512", ""),
         )
 
     issues = check_system_limits()

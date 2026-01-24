@@ -175,7 +175,10 @@ def isolated_globals(monkeypatch):
     monkeypatch.setattr(orch.state_manager, "available", False, raising=False)
     monkeypatch.setattr(orch.long_term_memory, "available", False, raising=False)  # type: ignore
     monkeypatch.setattr(
-        orch.consolidation_module, "should_consolidate", lambda: False, raising=False,
+        orch.consolidation_module,
+        "should_consolidate",
+        lambda: False,
+        raising=False,
     )
 
 

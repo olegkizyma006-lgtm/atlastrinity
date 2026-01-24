@@ -170,7 +170,9 @@ class KnowledgeGraph:
             return False
 
     async def batch_add_nodes(
-        self, nodes: list[dict[str, Any]], namespace: str = "global",
+        self,
+        nodes: list[dict[str, Any]],
+        namespace: str = "global",
     ) -> dict[str, Any]:
         """Optimized batch insertion of nodes.
         Used for bulk data ingestion.
@@ -225,7 +227,10 @@ class KnowledgeGraph:
             return {"success": False, "error": str(e)}
 
     async def promote_node(
-        self, node_id: str, target_namespace: str = "global", agent_name: str = "atlas",
+        self,
+        node_id: str,
+        target_namespace: str = "global",
+        agent_name: str = "atlas",
     ) -> bool:
         """Elevate a node and its immediate relationships to a new namespace.
         Part of the 'Golden Fund' architecture.

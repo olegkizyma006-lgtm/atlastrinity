@@ -236,7 +236,10 @@ Synthesize findings into a comprehensive validation verdict.
             return self._strategy_cache[cache_key]
 
         prompt = AgentPrompts.grisha_strategy_prompt(
-            step_action, expected_result, context, goal_context=goal_context,
+            step_action,
+            expected_result,
+            context,
+            goal_context=goal_context,
         )
 
         # Get available capabilities to inform the strategist
@@ -441,8 +444,7 @@ Synthesize findings into a comprehensive validation verdict.
         goal_context: str = "",
         task_id: str | None = None,
     ) -> VerificationResult:
-        """Verifies the result of step execution using Vision and MCP Tools
-        """
+        """Verifies the result of step execution using Vision and MCP Tools"""
         from langchain_core.messages import HumanMessage, SystemMessage
 
         from ..mcp_manager import mcp_manager
@@ -570,7 +572,9 @@ Synthesize findings into a comprehensive validation verdict.
 
                             resampling = getattr(PILImage, "Resampling", PILImage)
                             resample_filter = getattr(
-                                resampling, "LANCZOS", 1,
+                                resampling,
+                                "LANCZOS",
+                                1,
                             )  # 1 is LANCZOS in old PIL
                             img.thumbnail((1024, 1024), cast("Any", resample_filter))
                         except Exception:
@@ -715,40 +719,44 @@ Synthesize findings into a comprehensive validation verdict.
                 steps = data.get("steps", [])
                 if not isinstance(steps, list):
                     steps = [steps]
-                
+
                 logger.info(f"[GRISHA] Executing {len(steps)} sequential verification steps")
-                
+
                 for v_step in steps:
                     v_tool = v_step.get("tool")
                     v_args = v_step.get("args") or v_step.get("arguments", {})
                     v_server = v_step.get("server")
-                    
+
                     if not v_tool:
                         continue
-                        
+
                     full_v_tool = f"{v_server}.{v_tool}" if v_server else v_tool
                     logger.info(f"[GRISHA] Verif-Step: {full_v_tool}({v_args})")
-                    
+
                     try:
                         v_output = await mcp_manager.dispatch_tool(full_v_tool, v_args)
                         v_res_str = str(v_output)
                         if len(v_res_str) > 2000:
                             v_res_str = v_res_str[:2000] + "...(truncated)"
-                            
-                        verification_history.append({
-                            "tool": full_v_tool,
-                            "args": v_args,
-                            "result": v_res_str,
-                            "step_desc": v_step.get("step")
-                        })
+
+                        verification_history.append(
+                            {
+                                "tool": full_v_tool,
+                                "args": v_args,
+                                "result": v_res_str,
+                                "step_desc": v_step.get("step"),
+                            }
+                        )
                     except Exception as e:
                         logger.warning(f"[GRISHA] Verif-Step failed: {e}")
-                        verification_history.append({
-                            "tool": full_v_tool,
-                            "args": v_args,
-                            "result": f"Error: {e}",
-                            "step_desc": v_step.get("step")
-                        })
+                        verification_history.append(
+                            {
+                                "tool": full_v_tool,
+                                "args": v_args,
+                                "result": f"Error: {e}",
+                                "step_desc": v_step.get("step"),
+                            }
+                        )
                 continue
 
             if data.get("action") in ["audit", "thought", "plan", "strategy"] or (
@@ -778,8 +786,14 @@ Synthesize findings into a comprehensive validation verdict.
                 confidence=confidence,
                 description=data.get("description")
                 or data.get("reason")
-                or (verification_history[-1].get("result") if verification_history and not data.get("verified") else None)
-                or f"Verified via {len(verification_history)} tool calls." if data.get("verified") else f"Verification failed. Raw data: {data}",
+                or (
+                    verification_history[-1].get("result")
+                    if verification_history and not data.get("verified")
+                    else None
+                )
+                or f"Verified via {len(verification_history)} tool calls."
+                if data.get("verified")
+                else f"Verification failed. Raw data: {data}",
                 issues=data.get("issues", []),
                 voice_message=data.get("voice_message", ""),
                 screenshot_analyzed=screenshot_path is not None,
@@ -851,7 +865,10 @@ Synthesize findings into a comprehensive validation verdict.
         )
 
     async def analyze_failure(
-        self, step: dict[str, Any], error: str, context: dict | None = None,
+        self,
+        step: dict[str, Any],
+        error: str,
+        context: dict | None = None,
     ) -> dict[str, Any]:
         """Analyzes a failure reported by Tetyana or Orchestrator using Deep Sequential Thinking.
         Returns constructive feedback for a retry.
@@ -1032,7 +1049,9 @@ Use this report to:
                 # Link to the task (use task_id if provided)
                 source_id = f"task:{task_id}" if task_id else f"task:rejection_{step_id}"
                 await knowledge_graph.add_edge(
-                    source_id=source_id, target_id=node_id, relation="REJECTED",
+                    source_id=source_id,
+                    target_id=node_id,
+                    relation="REJECTED",
                 )
                 logger.info(f"[GRISHA] Rejection node added to Knowledge Graph for step {step_id}")
             except Exception as e:
@@ -1061,8 +1080,7 @@ Use this report to:
             logger.warning(f"[GRISHA] Failed to save rejection report: {e}")
 
     async def security_check(self, action: dict[str, Any]) -> dict[str, Any]:
-        """Performs security check before execution
-        """
+        """Performs security check before execution"""
         from langchain_core.messages import HumanMessage, SystemMessage
 
         action_str = str(action)
@@ -1194,7 +1212,8 @@ Use this report to:
                     os.close(fhandle)
                     subprocess.run(
                         ["screencapture", "-x", "-D", str(d["sc_index"]), path],
-                        check=False, capture_output=True,
+                        check=False,
+                        capture_output=True,
                     )
                     if os.path.exists(path):
                         try:
@@ -1214,10 +1233,14 @@ Use this report to:
                 try:
                     CGWindowListCopyWindowInfo = getattr(Quartz, "CGWindowListCopyWindowInfo", None)
                     kCGWindowListOptionOnScreenOnly = getattr(
-                        Quartz, "kCGWindowListOptionOnScreenOnly", 1,
+                        Quartz,
+                        "kCGWindowListOptionOnScreenOnly",
+                        1,
                     )
                     kCGWindowListExcludeDesktopElements = getattr(
-                        Quartz, "kCGWindowListExcludeDesktopElements", 16,
+                        Quartz,
+                        "kCGWindowListExcludeDesktopElements",
+                        16,
                     )
                     kCGNullWindowID = getattr(Quartz, "kCGNullWindowID", 0)
 
@@ -1243,7 +1266,8 @@ Use this report to:
                                 "-x",
                                 active_win_path,
                             ],
-                            check=False, capture_output=True,
+                            check=False,
+                            capture_output=True,
                         )
                 except Exception as win_err:
                     logger.warning(f"Failed to detect active window ID: {win_err}")
@@ -1268,7 +1292,8 @@ Use this report to:
                     try:
                         res = subprocess.run(
                             ["screencapture", "-x", "-D", str(di), path],
-                            check=False, capture_output=True,
+                            check=False,
+                            capture_output=True,
                         )
                         if res.returncode == 0 and os.path.exists(path):
                             with Image.open(path) as img:
@@ -1291,7 +1316,9 @@ Use this report to:
                         tempfile.gettempdir(),
                         f"grisha_full_{datetime.now().strftime('%H%M%S')}.png",
                     )
-                    subprocess.run(["screencapture", "-x", tmp_full], check=False, capture_output=True)
+                    subprocess.run(
+                        ["screencapture", "-x", tmp_full], check=False, capture_output=True
+                    )
                     if os.path.exists(tmp_full):
                         try:
                             with Image.open(tmp_full) as img:
@@ -1323,7 +1350,8 @@ Use this report to:
                 resampling = getattr(PILImage, "Resampling", PILImage)
                 resample_filter = getattr(resampling, "LANCZOS", 1)
                 desktop_small = desktop_canvas.resize(
-                    (target_w, max(1, dt_h)), cast("Any", resample_filter),
+                    (target_w, max(1, dt_h)),
+                    cast("Any", resample_filter),
                 )
             except Exception:
                 desktop_small = desktop_canvas.resize((target_w, max(1, dt_h)))
@@ -1342,7 +1370,8 @@ Use this report to:
                     resampling = getattr(PILImage, "Resampling", PILImage)
                     resample_filter = getattr(resampling, "LANCZOS", 1)
                     resized_win = active_win_img.resize(
-                        (target_w, max(1, win_h)), cast("Any", resample_filter),
+                        (target_w, max(1, win_h)),
+                        cast("Any", resample_filter),
                     )
                 except Exception:
                     resized_win = active_win_img.resize((target_w, max(1, win_h)))
@@ -1378,7 +1407,11 @@ Use this report to:
                 return ""
 
     async def audit_vibe_fix(
-        self, error: str, vibe_report: str, context: dict | None = None, task_id: str | None = None,
+        self,
+        error: str,
+        vibe_report: str,
+        context: dict | None = None,
+        task_id: str | None = None,
     ) -> dict[str, Any]:
         """Audits a proposed fix from Vibe AI before execution.
         Uses advanced reasoning to ensure safety and correctness.
@@ -1397,7 +1430,10 @@ Use this report to:
             logger.warning(f"[GRISHA] Could not fetch trace for audit: {e}")
 
         prompt = AgentPrompts.grisha_vibe_audit_prompt(
-            error, vibe_report, context_data, technical_trace=technical_trace,
+            error,
+            vibe_report,
+            context_data,
+            technical_trace=technical_trace,
         )
 
         messages = [SystemMessage(content=self.SYSTEM_PROMPT), HumanMessage(content=prompt)]

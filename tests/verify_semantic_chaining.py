@@ -49,14 +49,18 @@ async def verify_semantic_chaining():
     # 2. Ingest Dataset A
     print("2. Ingesting Dataset A...")
     res_a = await ingest_verified_dataset(
-        file_path=str(path_a), dataset_name="Alpha_Pricing", namespace="global",
+        file_path=str(path_a),
+        dataset_name="Alpha_Pricing",
+        namespace="global",
     )
     print(f"   Dataset A node: {res_a.get('node_id')}")
 
     # 3. Ingest Dataset B
     print("3. Ingesting Dataset B...")
     res_b = await ingest_verified_dataset(
-        file_path=str(path_b), dataset_name="Beta_Logistics", namespace="global",
+        file_path=str(path_b),
+        dataset_name="Beta_Logistics",
+        namespace="global",
     )
     print(f"   Dataset B node: {res_b.get('node_id')}")
     print(f"   Links discovered: {res_b.get('links_discovered')}")

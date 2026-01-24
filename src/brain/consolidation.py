@@ -29,8 +29,7 @@ class ConsolidationModule:
         self.log_path = os.path.join(os.path.expanduser("~/.config/atlastrinity/logs"), "brain.log")
 
     async def run_consolidation(self, llm=None) -> dict[str, Any]:
-        """Main consolidation process using DB data and LLM.
-        """
+        """Main consolidation process using DB data and LLM."""
         from .db.manager import db_manager
 
         if not db_manager.available:
@@ -57,7 +56,8 @@ class ConsolidationModule:
                 from .config_loader import config
 
                 consolidation_model = config.get("models", {}).get("consolidation") or config.get(
-                    "models", {},
+                    "models",
+                    {},
                 ).get("default", "gpt-4o")
                 atlas = Atlas(model_name=consolidation_model)
                 llm = atlas.llm
@@ -137,7 +137,9 @@ class ConsolidationModule:
         return results
 
     async def _distill_lesson_via_llm(
-        self, llm, task_data: dict[str, Any],
+        self,
+        llm,
+        task_data: dict[str, Any],
     ) -> dict[str, str] | None:
         """Uses LLM to turn a failure into a generalized rule/lesson."""
         import json

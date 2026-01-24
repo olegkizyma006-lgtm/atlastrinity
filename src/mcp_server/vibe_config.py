@@ -159,7 +159,8 @@ class McpServerConfig(BaseModel):
     api_key_env: str | None = Field(None, description="Env var for API key")
     api_key_header: str | None = Field(None, description="Header name for API key")
     api_key_format: str | None = Field(
-        None, description="Format for API key (e.g., 'Bearer {token}')",
+        None,
+        description="Format for API key (e.g., 'Bearer {token}')",
     )
 
 
@@ -216,14 +217,16 @@ class VibeConfig(BaseModel):
 
     # Core settings
     active_model: str = Field(
-        "", description="Default model alias (Must be set in vibe_config.toml)",
+        "",
+        description="Default model alias (Must be set in vibe_config.toml)",
     )
     system_prompt_id: str = Field("default", description="System prompt ID")
     default_mode: AgentMode = Field(AgentMode.AUTO_APPROVE, description="Default operational mode")
 
     # Tool patterns (glob/regex)
     enabled_tools: list[str] = Field(
-        default_factory=list, description="Tools to enable (empty=all)",
+        default_factory=list,
+        description="Tools to enable (empty=all)",
     )
     disabled_tools: list[str] = Field(default_factory=list, description="Tools to disable")
 

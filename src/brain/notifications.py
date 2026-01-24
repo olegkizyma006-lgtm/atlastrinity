@@ -27,7 +27,11 @@ class NotificationManager:
         self.notification_history: list[dict] = []
 
     def send_notification(
-        self, title: str, message: str, sound: bool = True, subtitle: str = "",
+        self,
+        title: str,
+        message: str,
+        sound: bool = True,
+        subtitle: str = "",
     ) -> bool:
         """Send macOS notification.
 
@@ -123,7 +127,8 @@ class NotificationManager:
 
             result = subprocess.run(
                 ["osascript", "-e", script],
-                check=False, capture_output=True,
+                check=False,
+                capture_output=True,
                 text=True,
                 timeout=300,  # 5 minute timeout
             )

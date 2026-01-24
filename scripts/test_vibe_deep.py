@@ -27,7 +27,9 @@ TOOLS_TO_TEST = [
 
 
 async def run_vibe_tool(
-    server_config: dict[str, Any], tool_name: str, tool_args: dict[str, Any],
+    server_config: dict[str, Any],
+    tool_name: str,
+    tool_args: dict[str, Any],
 ) -> bool:
     print(f"\n--- Testing Vibe -> {tool_name} ---")
 
@@ -121,7 +123,8 @@ async def run_vibe_tool(
             while True:
                 try:
                     line = await asyncio.wait_for(
-                        process.stdout.readline(), timeout=30.0,
+                        process.stdout.readline(),
+                        timeout=30.0,
                     )  # Longer timeout for AI
                 except TimeoutError:
                     print("❌ Timeout waiting for tool execution")

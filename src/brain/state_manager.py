@@ -50,12 +50,17 @@ class StateManager:
 
         if redis_url:
             self.redis: Any | None = redis.Redis.from_url(
-                redis_url, decode_responses=True, socket_connect_timeout=2,
+                redis_url,
+                decode_responses=True,
+                socket_connect_timeout=2,
             )
             logger.info("[STATE] Redis connected via URL")
         else:
             self.redis: Any | None = redis.Redis(
-                host=host, port=port, decode_responses=True, socket_connect_timeout=2,
+                host=host,
+                port=port,
+                decode_responses=True,
+                socket_connect_timeout=2,
             )
             logger.info(f"[STATE] Redis connected at {host}:{port}")
 
@@ -109,8 +114,7 @@ class StateManager:
             return {"messages": [], "system_state": "IDLE"}
 
     async def save_session(self, session_id: str, state: dict[str, Any]) -> bool:
-        """Save full session state.
-        """
+        """Save full session state."""
         if not self.available or not self.redis:
             return False
 
@@ -128,8 +132,7 @@ class StateManager:
             return False
 
     async def restore_session(self, session_id: str) -> dict[str, Any] | None:
-        """Restore session state.
-        """
+        """Restore session state."""
         if not self.available or not self.redis:
             return None
 

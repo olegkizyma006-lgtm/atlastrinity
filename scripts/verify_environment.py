@@ -196,7 +196,9 @@ def check_services():
     # Check Redis
     if shutil.which("redis-cli"):
         try:
-            res = subprocess.run(["redis-cli", "ping"], check=False, capture_output=True, text=True, timeout=2)
+            res = subprocess.run(
+                ["redis-cli", "ping"], check=False, capture_output=True, text=True, timeout=2
+            )
             if "PONG" in res.stdout:
                 print_pass("Redis is running (PONG received)")
                 STATUS_REPORT["passed"] += 1

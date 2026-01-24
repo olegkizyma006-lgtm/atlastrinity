@@ -126,7 +126,10 @@ class MessageBus:
             return False
 
     async def receive(
-        self, agent: str, message_type: MessageType | None = None, mark_read: bool = True,
+        self,
+        agent: str,
+        message_type: MessageType | None = None,
+        mark_read: bool = True,
     ) -> list[AgentMsg]:
         """Receive pending messages for an agent.
 

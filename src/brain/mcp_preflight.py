@@ -55,7 +55,8 @@ def npm_registry_has_version(pkg: str, ver: str) -> bool:
         if ver == "latest" or not ver[0].isdigit():
             url = f"https://registry.npmjs.org/{encoded}"
             req = urllib.request.Request(
-                url, headers={"Accept": "application/vnd.npm.install-v1+json"},
+                url,
+                headers={"Accept": "application/vnd.npm.install-v1+json"},
             )
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = resp.read()

@@ -147,7 +147,10 @@ def _search_ddg(query: str, max_results: int, timeout_s: float) -> list[dict[str
 
 @server.tool()
 def duckduckgo_search(
-    query: str, max_results: int = 5, timeout_s: float = 10.0, step_id: str | None = None,
+    query: str,
+    max_results: int = 5,
+    timeout_s: float = 10.0,
+    step_id: str | None = None,
 ) -> dict[str, Any]:
     """Perform a web search using DuckDuckGo.
 
@@ -206,7 +209,9 @@ def business_registry_search(company_name: str, step_id: str | None = None) -> d
 
     logger.info(f"Executing business registry search: company_name='{company_name.strip()}'")
     result = _execute_protocol_search(
-        "business", company_name, "DuckDuckGo (Optimized Registry Search)",
+        "business",
+        company_name,
+        "DuckDuckGo (Optimized Registry Search)",
     )
     if result.get("success"):
         logger.info(

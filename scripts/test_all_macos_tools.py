@@ -53,7 +53,9 @@ async def test_tools():
         # 5. Test System Control
         logger.info("Testing System Control (volume_up)...")
         sys_res = await mcp_manager.call_tool(
-            SERVER, "macos-use_system_control", {"action": "volume_up"},
+            SERVER,
+            "macos-use_system_control",
+            {"action": "volume_up"},
         )
         logger.info(
             f"Result: {sys_res.content[0].text if hasattr(sys_res, 'content') else sys_res}",
@@ -62,7 +64,9 @@ async def test_tools():
         # 6. Test App Launch & Window Management
         logger.info("Testing App Launch (TextEdit)...")
         open_res = await mcp_manager.call_tool(
-            SERVER, "macos-use_open_application_and_traverse", {"identifier": "com.apple.TextEdit"},
+            SERVER,
+            "macos-use_open_application_and_traverse",
+            {"identifier": "com.apple.TextEdit"},
         )
 
         # Extract PID
@@ -94,7 +98,9 @@ async def test_tools():
             # Type text
             logger.info("Testing Typing...")
             await mcp_manager.call_tool(
-                SERVER, "macos-use_type_and_traverse", {"pid": pid, "text": "Hello from Trinity!"},
+                SERVER,
+                "macos-use_type_and_traverse",
+                {"pid": pid, "text": "Hello from Trinity!"},
             )
 
             # Press Keys

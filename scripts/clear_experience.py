@@ -54,7 +54,8 @@ async def clear_experience():
             # Re-initialize collections
             print("Re-initializing collections...")
             long_term_memory.lessons = long_term_memory.client.get_or_create_collection(
-                name="lessons", metadata={"description": "Error patterns and solutions"},
+                name="lessons",
+                metadata={"description": "Error patterns and solutions"},
             )
             long_term_memory.strategies = long_term_memory.client.get_or_create_collection(
                 name="strategies",

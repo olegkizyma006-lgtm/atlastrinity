@@ -38,7 +38,12 @@ async def test_deviation_sync():
 
     print(f"[TEST] Storing deviation for session {session_id}...")
     success = long_term_memory.remember_behavioral_change(
-        intent, deviation, reason, result, context, factors,
+        intent,
+        deviation,
+        reason,
+        result,
+        context,
+        factors,
     )
 
     if not success:

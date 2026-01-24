@@ -1,5 +1,4 @@
-"""AtlasTrinity Agents Package
-"""
+"""AtlasTrinity Agents Package"""
 
 from .atlas import Atlas
 from .grisha import Grisha

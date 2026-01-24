@@ -172,7 +172,11 @@ def test_scan_mcp_config_for_package_issues(tmp_path, monkeypatch):
         url = req.get_full_url() if hasattr(req, "get_full_url") else str(req)
         if "otherpkg" in url:
             raise urllib.error.HTTPError(
-                url, 404, "Not found", hdrs=email.message.Message(), fp=None,
+                url,
+                404,
+                "Not found",
+                hdrs=email.message.Message(),
+                fp=None,
             )
 
         class R:

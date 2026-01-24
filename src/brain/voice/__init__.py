@@ -1,5 +1,4 @@
-"""AtlasTrinity Voice Package
-"""
+"""AtlasTrinity Voice Package"""
 
 from .stt import WhisperSTT
 from .tts import AgentVoice

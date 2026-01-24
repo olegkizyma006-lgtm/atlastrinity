@@ -98,6 +98,7 @@ class Trinity:
         # ARCHITECTURAL IMPROVEMENT: Live Voice status during long tools (like Vibe)
         self._last_live_speech_time = 0
         from .mcp_manager import mcp_manager
+
         mcp_manager.register_log_callback(self._mcp_log_voice_callback)
 
     async def initialize(self):
@@ -216,7 +217,8 @@ class Trinity:
                 import importlib.util
 
                 spec = importlib.util.spec_from_file_location(
-                    "setup_dev", str(project_root / "scripts" / "setup_dev.py"),
+                    "setup_dev",
+                    str(project_root / "scripts" / "setup_dev.py"),
                 )
                 if spec and spec.loader:
                     setup_dev = importlib.util.module_from_spec(spec)
@@ -392,6 +394,7 @@ class Trinity:
     async def _mcp_log_voice_callback(self, msg: str, server_name: str, level: str):
         """Callback to handle live log notifications from MCP servers for voice feedback."""
         import time
+
         now = time.time()
 
         # Rate limit live speech to once per 10 seconds to avoid spamming
@@ -405,10 +408,11 @@ class Trinity:
             speech_text = msg
             for marker in significant_markers:
                 speech_text = speech_text.replace(marker, "")
-            
+
             # Remove emojis
             import re
-            speech_text = re.sub(r'[^\w\s\.,!\?]', '', speech_text).strip()
+
+            speech_text = re.sub(r"[^\w\s\.,!\?]", "", speech_text).strip()
 
             if len(speech_text) > 5:
                 # Use 'atlas' for status updates
@@ -501,7 +505,8 @@ class Trinity:
                         "system",
                     )
                     await self._speak(
-                        "atlas", "Я повернувся. Продовжую виконання завдання з того ж місця.",
+                        "atlas",
+                        "Я повернувся. Продовжую виконання завдання з того ж місця.",
                     )
         except Exception as e:
             logger.error(f"Failed to resume after restart: {e}")
@@ -644,8 +649,7 @@ class Trinity:
         }
 
     async def run(self, user_request: str) -> dict[str, Any]:
-        """Main orchestration loop with advanced persistence and memory
-        """
+        """Main orchestration loop with advanced persistence and memory"""
         self.stop()  # Stop any current speech and task when a new request arrives
         self.active_task = asyncio.current_task()
         start_time = asyncio.get_event_loop().time()
@@ -779,7 +783,8 @@ class Trinity:
 
                     if state_manager and getattr(state_manager, "available", False):
                         await state_manager.publish_event(
-                            "tasks", {"type": "planning_started", "request": user_request},
+                            "tasks",
+                            {"type": "planning_started", "request": user_request},
                         )
                 except (ImportError, NameError):
                     pass
@@ -829,7 +834,10 @@ class Trinity:
                     )
 
                     if response == "__ESCALATE__":
-                        await self._speak("atlas", "Мій швидкий аналіз показав, що це завдання потребує глибшого опрацювання. Я залучаю Тетяну та Грішу для повного виконання.")
+                        await self._speak(
+                            "atlas",
+                            "Мій швидкий аналіз показав, що це завдання потребує глибшого опрацювання. Я залучаю Тетяну та Грішу для повного виконання.",
+                        )
                         # Proceed to planning phase (fall-through to planning logic below)
                         pass
                     else:
@@ -840,7 +848,9 @@ class Trinity:
                             from src.brain.state_manager import state_manager
 
                             if state_manager and getattr(state_manager, "available", False):
-                                asyncio.create_task(state_manager.save_session(session_id, self.state))
+                                asyncio.create_task(
+                                    state_manager.save_session(session_id, self.state)
+                                )
                         except (ImportError, NameError):
                             pass
 
@@ -889,7 +899,9 @@ class Trinity:
 
                     # Trigger fallback response if Atlas thought it was a task but produced no steps
                     fallback_chat = await self.atlas.chat(
-                        user_request, history=history, use_deep_persona=True,
+                        user_request,
+                        history=history,
+                        use_deep_persona=True,
                     )
                     await self._speak("atlas", fallback_chat)
                     self.state["system_state"] = SystemState.IDLE.value
@@ -997,7 +1009,8 @@ class Trinity:
             ):
                 # Atlas reviews the execution
                 evaluation = await self.atlas.evaluate_execution(
-                    user_request, self.state["step_results"],
+                    user_request,
+                    self.state["step_results"],
                 )
 
                 # Speak Final Report if available and goal achieved
@@ -1136,7 +1149,9 @@ class Trinity:
 
                 if long_term_memory and getattr(long_term_memory, "available", False):
                     long_term_memory.remember_conversation(
-                        session_id=session_id, summary=summary, metadata={"entities": entities},
+                        session_id=session_id,
+                        summary=summary,
+                        metadata={"entities": entities},
                     )
             except (ImportError, NameError):
                 pass
@@ -1148,7 +1163,9 @@ class Trinity:
                 if db_manager and getattr(db_manager, "available", False):
                     async with await db_manager.get_session() as db_sess:
                         new_summary = DBConvSummary(
-                            session_id=session_id, summary=summary, key_entities=entities,
+                            session_id=session_id,
+                            summary=summary,
+                            key_entities=entities,
                         )
                         db_sess.add(new_summary)
                         await db_sess.commit()
@@ -1198,7 +1215,8 @@ class Trinity:
                 return [float("inf")]  # Put weird IDs at current level end
 
         sorted_steps = sorted(
-            latest_results.values(), key=lambda x: parse_step_id(x.get("step_id", "0")),
+            latest_results.values(),
+            key=lambda x: parse_step_id(x.get("step_id", "0")),
         )
 
         # 3. Filter for SUCCESS only
@@ -1226,7 +1244,10 @@ class Trinity:
         return golden_path
 
     async def _execute_steps_recursive(
-        self, steps: list[dict], parent_prefix: str = "", depth: int = 0,
+        self,
+        steps: list[dict],
+        parent_prefix: str = "",
+        depth: int = 0,
     ) -> bool:
         """Recursively executes a list of steps.
         Supports hierarchical numbering (e.g. 3.1, 3.2) and deep recovery.
@@ -1241,7 +1262,8 @@ class Trinity:
         if depth > 1:
             backoff_ms = BACKOFF_BASE_MS * (2 ** (depth - 1))
             await self._log(
-                f"Recursion depth {depth}: applying {backoff_ms}ms backoff", "orchestrator",
+                f"Recursion depth {depth}: applying {backoff_ms}ms backoff",
+                "orchestrator",
             )
             await asyncio.sleep(backoff_ms / 1000)
 
@@ -1295,7 +1317,10 @@ class Trinity:
                 try:
                     step_result = await asyncio.wait_for(
                         self.execute_node(
-                            cast("TrinityState", self.state), step, step_id, attempt=attempt,
+                            cast("TrinityState", self.state),
+                            step,
+                            step_id,
+                            attempt=attempt,
                         ),
                         timeout=float(config.get("orchestrator", {}).get("task_timeout", 1200.0))
                         + 60.0,
@@ -1352,7 +1377,10 @@ class Trinity:
                             result=step_result
                             if step_result is not None
                             else StepResult(
-                                step_id=step_id, success=False, result="", error=last_error,
+                                step_id=step_id,
+                                success=False,
+                                result="",
+                                error=last_error,
                             ),
                             screenshot_path=screenshot,
                             goal_context=goal_ctx,
@@ -1390,11 +1418,13 @@ class Trinity:
                 )
                 if recovery_agent == "atlas":
                     await self._speak(
-                        "atlas", self.atlas.get_voice_message("recovery_started", step_id=step_id),
+                        "atlas",
+                        self.atlas.get_voice_message("recovery_started", step_id=step_id),
                     )
                 else:
                     await self._speak(
-                        recovery_agent, "Крок зупинився — починаю процедуру відновлення.",
+                        recovery_agent,
+                        "Крок зупинився — починаю процедуру відновлення.",
                     )
 
                 # DB: Track Recovery Attempt
@@ -1472,23 +1502,34 @@ class Trinity:
                     if vibe_text:
                         grisha_audit = await self.grisha.audit_vibe_fix(str(last_error), vibe_text)
                         healing_decision = await self.atlas.evaluate_healing_strategy(
-                            str(last_error), vibe_text, grisha_audit,
+                            str(last_error),
+                            vibe_text,
+                            grisha_audit,
                         )
                         await self._speak(
-                            "atlas", healing_decision.get("voice_message", "Я знайшов рішення."),
+                            "atlas",
+                            healing_decision.get("voice_message", "Я знайшов рішення."),
                         )
 
                         if healing_decision.get("decision") == "PROCEED":
                             # USE SEQUENTIAL THINKING BEFORE RETRY (User Requirement: chances via deep thinking)
-                            await self._log(f"[ORCHESTRATOR] Engaging Deep Reasoning (MSP) before Attempt {attempt+1}...", "system")
+                            await self._log(
+                                f"[ORCHESTRATOR] Engaging Deep Reasoning (MSP) before Attempt {attempt + 1}...",
+                                "system",
+                            )
                             analysis = await self.atlas.use_sequential_thinking(
                                 f"Analyze why step {step_id} failed and how to apply the vibe fix effectively.\nError: {last_error}\nVibe Fix: {vibe_text}\nInstructions: {healing_decision.get('instructions_for_vibe')}",
-                                total_thoughts=3
+                                total_thoughts=3,
                             )
                             if analysis.get("success"):
-                                await self._log(f"[ATLAS] Deep Analysis: {analysis.get('analysis')[:200]}...", "atlas")
+                                await self._log(
+                                    f"[ATLAS] Deep Analysis: {analysis.get('analysis')[:200]}...",
+                                    "atlas",
+                                )
                                 # Inject analysis results into the next attempt's context
-                                step["grisha_feedback"] = f"DEEP ANALYSIS FROM PREVIOUS FAILURE:\n{analysis.get('analysis')}\nSUGGESTED ACTION: {healing_decision.get('instructions_for_vibe')}"
+                                step["grisha_feedback"] = (
+                                    f"DEEP ANALYSIS FROM PREVIOUS FAILURE:\n{analysis.get('analysis')}\nSUGGESTED ACTION: {healing_decision.get('instructions_for_vibe')}"
+                                )
 
                             await mcp_manager.call_tool(
                                 "vibe",
@@ -1505,15 +1546,19 @@ class Trinity:
                 # Standard Atlas help as fallback
                 try:
                     recovery = await asyncio.wait_for(
-                        self.atlas.help_tetyana(str(step_id), str(last_error)), timeout=60.0,
+                        self.atlas.help_tetyana(str(step_id), str(last_error)),
+                        timeout=60.0,
                     )
                     await self._speak(
-                        "atlas", recovery.get("voice_message", "Альтернативний шлях."),
+                        "atlas",
+                        recovery.get("voice_message", "Альтернативний шлях."),
                     )
                     alt_steps = recovery.get("alternative_steps", [])
                     if alt_steps:
                         await self._execute_steps_recursive(
-                            alt_steps, parent_prefix=step_id, depth=depth + 1,
+                            alt_steps,
+                            parent_prefix=step_id,
+                            depth=depth + 1,
                         )
                         # If recursion returns, we consider the step fixed
                         break
@@ -1534,7 +1579,11 @@ class Trinity:
         return True
 
     async def execute_node(
-        self, state: TrinityState, step: dict[str, Any], step_id: str, attempt: int = 1,
+        self,
+        state: TrinityState,
+        step: dict[str, Any],
+        step_id: str,
+        attempt: int = 1,
     ) -> StepResult:
         """Atomic execution logic with recursion and dynamic temperature"""
         # Starting message logic
@@ -1544,7 +1593,9 @@ class Trinity:
             msg = step.get("voice_action")
             if not msg:
                 msg = self.tetyana.get_voice_message(
-                    "starting", step=step_id, description=step.get("action", ""),
+                    "starting",
+                    step=step_id,
+                    description=step.get("action", ""),
                 )
             await self._speak("tetyana", msg)
         elif "." in str(step_id):
@@ -1660,7 +1711,8 @@ class Trinity:
                                     "[ORCHESTRATOR] Imminent application restart detected. Saving session state immediately.",
                                 )
                                 await state_manager.save_session(
-                                    self.current_session_id, self.state,
+                                    self.current_session_id,
+                                    self.state,
                                 )
                                 # We stop here. The process replacement (execv) will happen in ToolDispatcher task
                                 # and this orchestrator task will either be killed or return soon.
@@ -1709,7 +1761,9 @@ class Trinity:
                                 from src.brain.memory import long_term_memory
 
                                 if long_term_memory and getattr(
-                                    long_term_memory, "available", False,
+                                    long_term_memory,
+                                    "available",
+                                    False,
                                 ):
                                     reason_text = str(evaluation.get("reason", "Unknown"))
                                     long_term_memory.remember_behavioral_change(
@@ -1836,10 +1890,12 @@ class Trinity:
                         )
 
                         await self._log(
-                            f"Atlas Autonomous Decision (Timeout): {autonomous_decision}", "atlas",
+                            f"Atlas Autonomous Decision (Timeout): {autonomous_decision}",
+                            "atlas",
                         )
                         await self._speak(
-                            "atlas", f"Оскільки ви не відповіли, я вирішив: {autonomous_decision}",
+                            "atlas",
+                            f"Оскільки ви не відповіли, я вирішив: {autonomous_decision}",
                         )
 
                         # Inject decision as feedback
@@ -1886,11 +1942,13 @@ class Trinity:
                 # Handle proactive help requested by Tetyana
                 if result.error == "proactive_help_requested":
                     await self._log(
-                        f"Tetyana requested proactive help: {result.result}", "orchestrator",
+                        f"Tetyana requested proactive help: {result.result}",
+                        "orchestrator",
                     )
                     # Atlas help logic
                     help_resp = await self.atlas.help_tetyana(
-                        str(step.get("id") or step_id), str(result.result or ""),
+                        str(step.get("id") or step_id),
+                        str(result.result or ""),
                     )
 
                     # Extract voice message or reason from Atlas response
@@ -2075,7 +2133,9 @@ class Trinity:
                                         },
                                     )
                                     await knowledge_graph.add_edge(
-                                        lesson_id, factor_node_id, "CONTINGENT_ON",
+                                        lesson_id,
+                                        factor_node_id,
+                                        "CONTINGENT_ON",
                                     )
 
                             except Exception as g_err:
@@ -2135,8 +2195,7 @@ class Trinity:
         return {"system_state": SystemState.VERIFYING.value}
 
     def should_verify(self, state: TrinityState) -> str:
-        """Determines the next state based on config-driven rules.
-        """
+        """Determines the next state based on config-driven rules."""
         from src.brain.behavior_engine import behavior_engine
 
         # Build context for rule evaluation
@@ -2162,15 +2221,18 @@ class Trinity:
         logger.info("[ORCHESTRATOR] Shutting down...")
         try:
             from src.brain.mcp_manager import mcp_manager
+
             await mcp_manager.shutdown()
         except Exception:
             pass
         try:
             from src.brain.db.manager import db_manager
+
             await db_manager.close()
         except Exception:
             pass
         import contextlib
+
         with contextlib.suppress(Exception):
             await self.voice.close()
         logger.info("[ORCHESTRATOR] Shutdown complete.")

@@ -19,7 +19,10 @@ async def test_learning_and_vibe():
 
     print(f"Adding strategy to memory: {task_name}")
     long_term_memory.remember_strategy(
-        task=task_name, plan_steps=plan, outcome="SUCCESS", success=True,
+        task=task_name,
+        plan_steps=plan,
+        outcome="SUCCESS",
+        success=True,
     )
 
     print("Attempting to recall similar task...")

@@ -16,8 +16,7 @@ class DataQualityGuard:
         self.max_null_ratio = max_null_ratio
 
     def validate_dataframe(self, df: pd.DataFrame, dataset_name: str) -> dict[str, Any]:
-        """Performs a multi-point validation of a pandas DataFrame.
-        """
+        """Performs a multi-point validation of a pandas DataFrame."""
         report = {
             "dataset": dataset_name,
             "row_count": len(df),

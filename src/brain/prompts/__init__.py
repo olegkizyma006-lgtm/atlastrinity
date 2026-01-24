@@ -116,7 +116,10 @@ class AgentPrompts:
 
     @staticmethod
     def tetyana_reflexion_prompt(
-        step: str, error: str, history: list, tools_summary: str = "",
+        step: str,
+        error: str,
+        history: list,
+        tools_summary: str = "",
     ) -> str:
         return f"""Analysis of Failure: {error}.
 
@@ -151,7 +154,10 @@ class AgentPrompts:
 
     @staticmethod
     def grisha_strategy_prompt(
-        step_action: str, expected_result: str, context: dict, goal_context: str = "",
+        step_action: str,
+        expected_result: str,
+        context: dict,
+        goal_context: str = "",
     ) -> str:
         return f"""You are the Verification Strategist. 
         Your task is to create a robust verification plan for the following step:
@@ -265,7 +271,10 @@ class AgentPrompts:
 
     @staticmethod
     def grisha_failure_analysis_prompt(
-        step: str, error: str, context: dict, plan_context: str = "",
+        step: str,
+        error: str,
+        context: dict,
+        plan_context: str = "",
     ) -> str:
         return f"""You are the System Architect and Technical Lead.
         Tetyana (Junior Executor) failed to execute a step.
@@ -367,7 +376,10 @@ Do not suggest creating a complex plan, just use your tools autonomously to answ
 
     @staticmethod
     def atlas_deviation_evaluation_prompt(
-        current_step: str, proposed_deviation: str, context: str, full_plan: str,
+        current_step: str,
+        proposed_deviation: str,
+        context: str,
+        full_plan: str,
     ) -> str:
         return f"""Tetyana wants to DEVIATE from the plan.
         
@@ -559,7 +571,10 @@ Output your internal verification strategy in English. Do NOT use markdown forma
 
     @staticmethod
     def grisha_vibe_audit_prompt(
-        error: str, vibe_report: str, context: dict, technical_trace: str = "",
+        error: str,
+        vibe_report: str,
+        context: dict,
+        technical_trace: str = "",
     ) -> str:
         return f"""You are the Reality Auditor (GRISHA). 
         Vibe AI has proposed a fix for a technical error. Your job is to perform a pre-execution AUDIT.
@@ -594,7 +609,10 @@ Output your internal verification strategy in English. Do NOT use markdown forma
 
     @staticmethod
     def atlas_healing_review_prompt(
-        error: str, vibe_report: str, grisha_audit: dict, context: dict,
+        error: str,
+        vibe_report: str,
+        grisha_audit: dict,
+        context: dict,
     ) -> str:
         return f"""You are Atlas, the Strategic Architect. 
         A self-healing process is underway. Vibe has proposed a fix, and Grisha has audited it.

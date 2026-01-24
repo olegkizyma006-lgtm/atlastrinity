@@ -58,7 +58,10 @@ class BaseAgent:
         return {"raw": content}
 
     async def use_sequential_thinking(
-        self, task: str, total_thoughts: int = 3, capabilities: str | None = None,
+        self,
+        task: str,
+        total_thoughts: int = 3,
+        capabilities: str | None = None,
     ) -> dict[str, Any]:
         """Universal reasoning capability for any agent.
         Uses a dedicated LLM (as configured in sequential_thinking.model) to generate

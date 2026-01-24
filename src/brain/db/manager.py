@@ -1,5 +1,4 @@
-"""Database Connection Manager
-"""
+"""Database Connection Manager"""
 
 import asyncio
 import os
@@ -43,7 +42,11 @@ class DatabaseManager:
         """Initialize DB connection and create tables if missing."""
         try:
             self._engine = create_async_engine(
-                self.db_url, echo=False, pool_size=20, max_overflow=10, pool_pre_ping=True,
+                self.db_url,
+                echo=False,
+                pool_size=20,
+                max_overflow=10,
+                pool_pre_ping=True,
             )
 
             # Enable Foreign Key support for SQLite
@@ -131,7 +134,10 @@ class DatabaseManager:
                                             if column.name == "namespace"
                                             else " DEFAULT ''"
                                         )
-                                    elif "INT" in str(col_type).upper() or "BOOLEAN" in str(col_type).upper():
+                                    elif (
+                                        "INT" in str(col_type).upper()
+                                        or "BOOLEAN" in str(col_type).upper()
+                                    ):
                                         default_val = " DEFAULT 0"
 
                                 sql = f'ALTER TABLE "{table_name}" ADD COLUMN "{column.name}" {col_type} {nullable}{default_val};'
@@ -249,8 +255,7 @@ class DatabaseManager:
             await conn.run_sync(_sync_verify)
 
     async def ensure_seed_data(self):
-        """Ensure mandatory initial rows exist in tables (Seed Data).
-        """
+        """Ensure mandatory initial rows exist in tables (Seed Data)."""
         if not self.available:
             return
 

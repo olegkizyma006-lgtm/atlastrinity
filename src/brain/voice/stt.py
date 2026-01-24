@@ -97,8 +97,7 @@ class SmartSTTResult:
 
 
 class WhisperSTT:
-    """Speech-to-Text using Faster Whisper (CTranslate2)
-    """
+    """Speech-to-Text using Faster Whisper (CTranslate2)"""
 
     def __init__(self, model_name: str | None = None, device: str | None = None):
         # Get STT config from config.yaml
@@ -213,7 +212,10 @@ class WhisperSTT:
             return self._model
 
     async def transcribe_file(
-        self, audio_path: str, language: str | None = None, initial_prompt: str | None = None,
+        self,
+        audio_path: str,
+        language: str | None = None,
+        initial_prompt: str | None = None,
     ) -> TranscriptionResult:
         language = language or self.language
 
@@ -267,7 +269,10 @@ class WhisperSTT:
             return TranscriptionResult(text="", language=language, confidence=0, segments=[])
 
     async def transcribe_with_analysis(
-        self, audio_path: str, previous_text: str = "", language: str | None = None,
+        self,
+        audio_path: str,
+        previous_text: str = "",
+        language: str | None = None,
     ) -> SmartSTTResult:
         import time
 
@@ -416,7 +421,9 @@ class WhisperSTT:
         ]
 
     async def record_and_transcribe(
-        self, duration: float = 5.0, language: str | None = None,
+        self,
+        duration: float = 5.0,
+        language: str | None = None,
     ) -> TranscriptionResult:
         """Record audio and transcribe it"""
         if not _check_audio_available():
@@ -430,7 +437,10 @@ class WhisperSTT:
         fs = 16000
         print(f"[STT] Recording for {duration} seconds...")
         recording = await asyncio.to_thread(
-            cast("Any", sd).rec, int(duration * fs), samplerate=fs, channels=1,
+            cast("Any", sd).rec,
+            int(duration * fs),
+            samplerate=fs,
+            channels=1,
         )
         await asyncio.to_thread(cast("Any", sd).wait)
 

@@ -75,7 +75,8 @@ async def run_server_test(server_name: str, test_cases: list) -> dict:
 
             try:
                 result = await asyncio.wait_for(
-                    mcp_manager.call_tool(server_name, tool_name, args), timeout=5.0,
+                    mcp_manager.call_tool(server_name, tool_name, args),
+                    timeout=5.0,
                 )
 
                 if isinstance(result, dict) and "error" in result:

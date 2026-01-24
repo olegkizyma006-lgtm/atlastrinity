@@ -146,8 +146,7 @@ def devtools_launch_inspector(server_name: str) -> dict[str, Any]:
 
 @server.tool()
 def devtools_validate_config() -> dict[str, Any]:
-    """Validate the syntax and basic structure of the local MCP configuration file.
-    """
+    """Validate the syntax and basic structure of the local MCP configuration file."""
     config_path = Path.home() / ".config" / "atlastrinity" / "mcp" / "config.json"
 
     if not config_path.exists():
@@ -282,8 +281,7 @@ def devtools_find_dead_code(target_path: str = ".") -> dict[str, Any]:
 
 @server.tool()
 def devtools_check_integrity(path: str = "src/") -> dict[str, Any]:
-    """Run 'pyrefly' to check code integrity and find generic coding errors.
-    """
+    """Run 'pyrefly' to check code integrity and find generic coding errors."""
     if not shutil.which("pyrefly"):
         return {"error": "pyrefly is not installed."}
 

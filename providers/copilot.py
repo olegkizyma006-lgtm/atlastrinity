@@ -110,7 +110,9 @@ class CopilotLLM(BaseChatModel):
 
             print("[GEMINI FALLBACK] Initializing fallback model...", flush=True)
             llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash", google_api_key=api_key, temperature=0.1,
+                model="gemini-1.5-flash",
+                google_api_key=api_key,
+                temperature=0.1,
             )
             return llm.invoke(messages)
         except Exception as e:
@@ -118,7 +120,9 @@ class CopilotLLM(BaseChatModel):
             return self._invoke_local_blip_fallback(messages, e)
 
     def _invoke_local_blip_fallback(
-        self, messages: list[BaseMessage], prior_error: Exception,
+        self,
+        messages: list[BaseMessage],
+        prior_error: Exception,
     ) -> AIMessage:
         """Ultimate fallback: Use Vision Module (OCR + BLIP) to describe the image."""
         try:
@@ -239,7 +243,8 @@ class CopilotLLM(BaseChatModel):
             # During tests we may set COPILOT_API_KEY to a dummy value; in that case
             # return a dummy token instead of raising an error to avoid network calls.
             if str(self.api_key).lower() in {"dummy", "test"} or os.getenv(
-                "COPILOT_API_KEY", "",
+                "COPILOT_API_KEY",
+                "",
             ).lower() in {"dummy", "test"}:
                 return "dummy-session-token", "https://api.githubcopilot.com"
             raise
@@ -402,7 +407,10 @@ class CopilotLLM(BaseChatModel):
             async with httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=30.0)) as client:
                 try:
                     response = await _do_post(
-                        client, f"{api_endpoint}/chat/completions", headers, payload,
+                        client,
+                        f"{api_endpoint}/chat/completions",
+                        headers,
+                        payload,
                     )
                 except Exception as e:
                     print(f"[COPILOT] Primary request failed after retries: {e}", flush=True)
@@ -441,7 +449,10 @@ class CopilotLLM(BaseChatModel):
                     payload_fb["model"] = "gpt-4o"  # Using official stable model
 
                     retry_response = await _do_post(
-                        client, f"{api_endpoint}/chat/completions", headers_fb, payload_fb,
+                        client,
+                        f"{api_endpoint}/chat/completions",
+                        headers_fb,
+                        payload_fb,
                     )
 
                     if retry_response.status_code != 200:
@@ -537,7 +548,10 @@ class CopilotLLM(BaseChatModel):
             payload = self._build_payload(messages)
 
             response = requests.post(
-                f"{api_endpoint}/chat/completions", headers=headers, json=payload, timeout=300,
+                f"{api_endpoint}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=300,
             )
             response.raise_for_status()
             return self._process_json_result(response.json(), messages)

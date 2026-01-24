@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Verify Graph Server Functionality
-"""
+"""Verify Graph Server Functionality"""
 
 import asyncio
 import os

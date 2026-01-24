@@ -71,10 +71,11 @@ async def lifespan(app: FastAPI):
     # Initialize monitoring system
     try:
         from .monitoring import monitoring_system
+
         monitoring_system.log_for_grafana("Server startup initiated", level="info")
     except ImportError:
         logger.warning("Monitoring system not available")
-    
+
     # Initialize services in background
     asyncio.create_task(ensure_all_services())
 
@@ -90,14 +91,15 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
     logger.info("AtlasTrinity Brain is going to sleep...")
-    
+
     # Shutdown monitoring
     try:
         from .monitoring import monitoring_system
+
         monitoring_system.log_for_grafana("Server shutdown initiated", level="info")
     except ImportError:
         pass
-        
+
     await trinity.shutdown()
 
 
@@ -120,16 +122,15 @@ async def chat(task: TaskRequest, background_tasks: BackgroundTasks):
 
     print(f"[SERVER] Received request: {task.request}")
     logger.info(f"Received request: {task.request}")
-    
+
     # Start monitoring for this request
     start_time = time.time()
     try:
         from .monitoring import monitoring_system
+
         monitoring_system.start_request()
         monitoring_system.log_for_grafana(
-            f"Chat request started: {task.request}",
-            level="info",
-            request_type="chat"
+            f"Chat request started: {task.request}", level="info", request_type="chat"
         )
     except ImportError:
         pass
@@ -137,49 +138,52 @@ async def chat(task: TaskRequest, background_tasks: BackgroundTasks):
     # Run orchestration in background/loop
     try:
         result = await trinity.run(task.request)
-        
+
         # Record successful request
         request_duration = time.time() - start_time
         try:
             from .monitoring import monitoring_system
+
             monitoring_system.record_request("chat", "success", request_duration)
             monitoring_system.log_for_grafana(
                 f"Chat request completed: {task.request}",
                 level="info",
                 request_type="chat",
                 duration=request_duration,
-                status="success"
+                status="success",
             )
         except ImportError:
             pass
-            
+
         return {"status": "completed", "result": result}
     except asyncio.CancelledError:
         logger.info(f"Request interrupted/cancelled: {task.request}")
-        
+
         # Record cancelled request
         request_duration = time.time() - start_time
         try:
             from .monitoring import monitoring_system
+
             monitoring_system.record_request("chat", "cancelled", request_duration)
             monitoring_system.log_for_grafana(
                 f"Chat request cancelled: {task.request}",
                 level="warning",
                 request_type="chat",
                 duration=request_duration,
-                status="cancelled"
+                status="cancelled",
             )
         except ImportError:
             pass
-            
+
         return {"status": "interrupted", "detail": "Task was cancelled by a new request"}
     except Exception as e:
         logger.exception(f"Error processing request: {task.request}")
-        
+
         # Record failed request
         request_duration = time.time() - start_time
         try:
             from .monitoring import monitoring_system
+
             monitoring_system.record_request("chat", "error", request_duration)
             monitoring_system.log_for_grafana(
                 f"Chat request failed: {task.request}",
@@ -187,15 +191,16 @@ async def chat(task: TaskRequest, background_tasks: BackgroundTasks):
                 request_type="chat",
                 duration=request_duration,
                 status="error",
-                error=str(e)
+                error=str(e),
             )
         except ImportError:
             pass
-            
+
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         try:
             from .monitoring import monitoring_system
+
             monitoring_system.end_request()
         except ImportError:
             pass
@@ -212,26 +217,18 @@ async def get_metrics():
     """Get current monitoring metrics"""
     try:
         from .monitoring import monitoring_system
+
         metrics = monitoring_system.get_metrics_snapshot()
-        
+
         # Add system health status
         metrics["monitoring_health"] = monitoring_system.is_healthy()
-        
-        return {
-            "status": "success",
-            "data": metrics
-        }
+
+        return {"status": "success", "data": metrics}
     except ImportError:
-        return {
-            "status": "error",
-            "message": "Monitoring system not available"
-        }
+        return {"status": "error", "message": "Monitoring system not available"}
     except Exception as e:
         logger.error(f"Error getting monitoring metrics: {e}")
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}
 
 
 @app.get("/api/monitoring/health")
@@ -239,17 +236,15 @@ async def monitoring_health():
     """Check monitoring system health"""
     try:
         from .monitoring import monitoring_system
+
         return {
             "status": "healthy" if monitoring_system.is_healthy() else "unhealthy",
             "prometheus_port": monitoring_system.prometheus_port,
             "opensearch_enabled": monitoring_system.opensearch_enabled,
-            "grafana_enabled": monitoring_system.grafana_enabled
+            "grafana_enabled": monitoring_system.grafana_enabled,
         }
     except ImportError:
-        return {
-            "status": "disabled",
-            "message": "Monitoring system not available"
-        }
+        return {"status": "disabled", "message": "Monitoring system not available"}
 
 
 @app.post("/api/session/reset")
@@ -347,7 +342,8 @@ async def speech_to_text(audio: UploadFile = File(...)):
                         "wav",
                         wav_path,
                     ],
-                    check=False, capture_output=True,
+                    check=False,
+                    capture_output=True,
                     text=True,
                     timeout=10,
                 )
@@ -399,10 +395,10 @@ async def speech_to_text(audio: UploadFile = File(...)):
 
 @app.post("/api/stt/smart")
 async def smart_speech_to_text(
-    audio: UploadFile = File(...), previous_text: str = Form(default=""),
+    audio: UploadFile = File(...),
+    previous_text: str = Form(default=""),
 ):
-    """Smart STT with Full Duplex support (Barge-in).
-    """
+    """Smart STT with Full Duplex support (Barge-in)."""
     try:
         import subprocess
         import tempfile

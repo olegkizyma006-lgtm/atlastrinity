@@ -3,8 +3,7 @@ from logging.handlers import RotatingFileHandler
 
 
 def setup_logging(name: str = "brain"):
-    """Setup logging configuration
-    """
+    """Setup logging configuration"""
     from .config import LOG_DIR
 
     log_dir = LOG_DIR
@@ -24,7 +23,10 @@ def setup_logging(name: str = "brain"):
     # File Handler (Rotating)
     # Max 10MB per file, keep 5 backups
     file_handler = RotatingFileHandler(
-        log_file, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8",
+        log_file,
+        maxBytes=10 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8",
     )
     file_handler.setLevel(logging.INFO)
     file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -49,7 +51,7 @@ def setup_logging(name: str = "brain"):
             def emit(self, record):
                 if self._is_emitting:
                     return
-                
+
                 try:
                     self._is_emitting = True
                     import asyncio

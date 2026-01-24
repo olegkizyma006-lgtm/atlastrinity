@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Check that required environment secrets are available in CI.
-"""
+"""Check that required environment secrets are available in CI."""
 
 import os
 import sys

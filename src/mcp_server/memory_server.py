@@ -31,7 +31,9 @@ def _normalize_entity(ent: dict[str, Any]) -> dict[str, Any]:
 
 @server.tool()
 async def create_entities(
-    entities: list[dict[str, Any]], namespace: str = "global", task_id: str | None = None,
+    entities: list[dict[str, Any]],
+    namespace: str = "global",
+    task_id: str | None = None,
 ) -> dict[str, Any]:
     """Args:
     entities: List of entity dictionaries. Each must have a 'name' field.
@@ -92,7 +94,10 @@ async def batch_add_nodes(nodes: list[dict[str, Any]], namespace: str = "global"
 
 @server.tool()
 async def bulk_ingest_table(
-    file_path: str, table_name: str, namespace: str = "global", task_id: str | None = None,
+    file_path: str,
+    table_name: str,
+    namespace: str = "global",
+    task_id: str | None = None,
 ) -> dict[str, Any]:
     """Ingest a large table (CSV/JSON/XLSX) into the Knowledge Graph as a DATASET node.
     This creates a summary node and indexes the content for semantic recall.
@@ -163,7 +168,10 @@ async def bulk_ingest_table(
 
 @server.tool()
 async def add_observations(
-    name: str, observations: list[str], namespace: str = "global", task_id: str | None = None,
+    name: str,
+    observations: list[str],
+    namespace: str = "global",
+    task_id: str | None = None,
 ) -> dict[str, Any]:
     """Args:
     name: The name of the entity to update
@@ -216,8 +224,7 @@ async def add_observations(
 
 @server.tool()
 async def get_entity(name: str) -> dict[str, Any]:
-    """Retrieve full details of a specific entity.
-    """
+    """Retrieve full details of a specific entity."""
     await db_manager.initialize()
     node_id = _get_id(name)
 
@@ -247,8 +254,7 @@ async def get_entity(name: str) -> dict[str, Any]:
 
 @server.tool()
 async def list_entities() -> dict[str, Any]:
-    """List all entity names in the knowledge graph.
-    """
+    """List all entity names in the knowledge graph."""
     await db_manager.initialize()
 
     from sqlalchemy import select
@@ -361,7 +367,10 @@ async def search(query: str, limit: int = 10, namespace: str | None = None) -> d
 
 @server.tool()
 async def create_relation(
-    source: str, target: str, relation: str, namespace: str | None = None,
+    source: str,
+    target: str,
+    relation: str,
+    namespace: str | None = None,
 ) -> dict[str, Any]:
     """Create a relationship between two entities in the knowledge graph.
 
@@ -397,8 +406,7 @@ async def search_nodes(query: str, limit: int = 10, namespace: str | None = None
 
 @server.tool()
 async def delete_entity(name: str, namespace: str | None = None) -> dict[str, Any]:
-    """Delete an entity from the knowledge graph (SQLite + ChromaDB).
-    """
+    """Delete an entity from the knowledge graph (SQLite + ChromaDB)."""
     name = str(name or "").strip()
     if not name:
         return {"error": "name is required"}
@@ -431,7 +439,10 @@ async def delete_entity(name: str, namespace: str | None = None) -> dict[str, An
 
 @server.tool()
 async def ingest_verified_dataset(
-    file_path: str, dataset_name: str, namespace: str = "global", task_id: str | None = None,
+    file_path: str,
+    dataset_name: str,
+    namespace: str = "global",
+    task_id: str | None = None,
 ) -> dict[str, Any]:
     """High-Precision Ingestion Pipeline:
     1. Validates data quality and integrity.
@@ -588,7 +599,10 @@ async def get_db_schema() -> dict[str, Any]:
 
 @server.tool()
 async def trace_data_chain(
-    start_value: Any, start_dataset_id: str, namespace: str = "global", max_depth: int = 3,
+    start_value: Any,
+    start_dataset_id: str,
+    namespace: str = "global",
+    max_depth: int = 3,
 ) -> dict[str, Any]:
     """Recursively follows LINKED_TO edges in the KG to reconstruct a unified record
     accross multiple datasets.

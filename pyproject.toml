@@ -107,9 +107,12 @@ unfixable = []
 "tests/**/*.py" = ["E402", "PLC0415", "F403", "F405", "E722", "E741", "RUF052"]
 "scripts/**/*.py" = ["E402", "PLC0415", "F403", "F405", "E722", "E741"]
 "example_vibe_prompt_usage.py" = ["E402"]
-"src/mcp_server/*.py" = ["PLC0415"] # Late imports for performance
+"src/mcp_server/*.py" = ["E402", "PLC0415"] # Late imports for performance
 "src/brain/voice/tts.py" = ["E402", "F401"] # Special initialization and lazy checks
 "src/brain/server.py" = ["E402", "F401"] # Env load before imports
+"src/brain/agents/*.py" = ["E402"] # Path setup before imports
+"src/brain/mcp_manager.py" = ["E402"]
+"src/brain/mcp_preflight.py" = ["E402"]
 
 [tool.ruff.format]
 # Like Black, use double quotes for strings.

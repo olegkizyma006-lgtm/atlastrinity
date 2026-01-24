@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Generate changelog from git commits since last tag.
-"""
+"""Generate changelog from git commits since last tag."""
 
 import subprocess
 import sys

@@ -37,7 +37,9 @@ async def test_filesystem_server():
 
         logger.info(f"Testing write_file to {test_file}...")
         await mcp_manager.call_tool(
-            SERVER, "write_file", {"path": test_file, "content": test_content},
+            SERVER,
+            "write_file",
+            {"path": test_file, "content": test_content},
         )
 
         logger.info("Testing read_file...")

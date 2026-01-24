@@ -183,10 +183,14 @@ class VoiceConfig:
 # Agent voice mappings
 AGENT_VOICES = {
     "atlas": VoiceConfig(
-        name="Atlas", voice_id="Dmytro", description="Male voice for Meta-Planner",
+        name="Atlas",
+        voice_id="Dmytro",
+        description="Male voice for Meta-Planner",
     ),
     "tetyana": VoiceConfig(
-        name="Tetyana", voice_id="Tetiana", description="Female voice for Executor",
+        name="Tetyana",
+        voice_id="Tetiana",
+        description="Female voice for Executor",
     ),
     "grisha": VoiceConfig(name="Grisha", voice_id="Mykyta", description="Male voice for Visor"),
 }
@@ -312,7 +316,8 @@ class AgentVoice:
         # Determine output path
         if output_file is None:
             output_file = os.path.join(
-                tempfile.gettempdir(), f"tts_{self.agent_name}_{hash(text) % 10000}.wav",
+                tempfile.gettempdir(),
+                f"tts_{self.agent_name}_{hash(text) % 10000}.wav",
             )
 
         try:
@@ -365,8 +370,7 @@ class AgentVoice:
 
 
 class VoiceManager:
-    """Centralized TTS manager for all agents
-    """
+    """Centralized TTS manager for all agents"""
 
     def __init__(self, device: str = "cpu"):
         from collections import deque

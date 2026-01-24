@@ -208,7 +208,8 @@ class MCPManager:
             # Substitute environment variables in command
             if "command" in server_config:
                 server_config["command"] = _substitute_placeholders(
-                    server_config["command"], missing_env,
+                    server_config["command"],
+                    missing_env,
                 )
 
             if missing_env:
@@ -268,7 +269,9 @@ class MCPManager:
                 return None
 
     async def _connect_server(
-        self, server_name: str, config: dict[str, Any],
+        self,
+        server_name: str,
+        config: dict[str, Any],
     ) -> ClientSession | None:
         """Establish a new connection to an MCP server"""
         default_timeout = float(
@@ -413,7 +416,9 @@ class MCPManager:
                                 )
 
                     async with cast("Any", ClientSession)(
-                        read, write, logging_callback=handle_log,
+                        read,
+                        write,
+                        logging_callback=handle_log,
                     ) as session:
                         await session.initialize()
 
@@ -460,7 +465,10 @@ class MCPManager:
             raise
 
     async def call_tool(
-        self, server_name: str, tool_name: str, arguments: dict[str, Any] | None = None,
+        self,
+        server_name: str,
+        tool_name: str,
+        arguments: dict[str, Any] | None = None,
     ) -> Any:
         """Call a tool on a specific server"""
         session = await self.get_session(server_name)
@@ -512,10 +520,12 @@ class MCPManager:
                     "Broken pipe",
                     "ClosedResourceError",
                     "unhandled errors in a TaskGroup",
-                    "McpError: Connection closed"
+                    "McpError: Connection closed",
                 ]
             ):
-                logger.warning(f"Connection lost to {server_name}, attempting reconnection (resiliency fix)...")
+                logger.warning(
+                    f"Connection lost to {server_name}, attempting reconnection (resiliency fix)..."
+                )
                 # Wait a small bit for OS to cleanup
                 await asyncio.sleep(1)
                 async with self._lock:
@@ -553,7 +563,9 @@ class MCPManager:
 
         """
         result = await self.dispatcher.resolve_and_dispatch(
-            tool_name, arguments or {}, explicit_server,
+            tool_name,
+            arguments or {},
+            explicit_server,
         )
 
         # Intelligent fallback: If failed and allow_fallback, try macOS-use equivalent
@@ -647,8 +659,7 @@ class MCPManager:
             return False
 
     async def restart_server(self, server_name: str) -> bool:
-        """Force restart a server connection with retry/backoff and concurrency limits.
-        """
+        """Force restart a server connection with retry/backoff and concurrency limits."""
         logger.warning(f"[MCP] Restarting server: {server_name}")
 
         async with self._restart_semaphore:
@@ -933,7 +944,8 @@ class MCPManager:
         try:
             # 2-second timeout for catalog generation is sufficient; if it's slower, we skip tool details
             all_tools_results = await asyncio.wait_for(
-                cast("Any", asyncio.gather(*tasks, return_exceptions=True)), timeout=2.0,
+                cast("Any", asyncio.gather(*tasks, return_exceptions=True)),
+                timeout=2.0,
             )
         except Exception:
             all_tools_results = [[] for _ in tasks]  # Fallback to empty lists on overall timeout

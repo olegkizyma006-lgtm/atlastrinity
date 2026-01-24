@@ -43,7 +43,9 @@ def is_docker_running() -> bool:
     """Check if Docker daemon is active"""
     # docker info is a reliable way to check if daemon is responsive
     try:
-        result = subprocess.run(["docker", "info"], check=False, capture_output=True, text=True, timeout=5)
+        result = subprocess.run(
+            ["docker", "info"], check=False, capture_output=True, text=True, timeout=5
+        )
         return result.returncode == 0
     except Exception:
         return False
@@ -169,8 +171,7 @@ def ensure_docker(force_check: bool = False):
 
 
 def ensure_postgres(force_check: bool = False) -> bool:
-    """Ensure PostgreSQL is installed and running.
-    """
+    """Ensure PostgreSQL is installed and running."""
     flag_file = CONFIG_ROOT / ".postgres_ready"
     first_run = not flag_file.exists() or force_check
 
@@ -209,7 +210,9 @@ def ensure_postgres(force_check: bool = False) -> bool:
     # 2. Try to start via Homebrew
     if is_brew_available():
         # Check if installed
-        res = subprocess.run(["brew", "list", "--formula", "postgresql@17"], check=False, capture_output=True)
+        res = subprocess.run(
+            ["brew", "list", "--formula", "postgresql@17"], check=False, capture_output=True
+        )
         if res.returncode != 0:
             logger.info("[Services] PostgreSQL@17 not installed. Installing...")
             if not run_command(["brew", "install", "postgresql@17"]):
@@ -265,8 +268,7 @@ def ensure_database(force_check: bool = False) -> bool:
 
 
 def ensure_chrome(force_check: bool = False) -> bool:
-    """Ensure Google Chrome is installed (required for Puppeteer execution).
-    """
+    """Ensure Google Chrome is installed (required for Puppeteer execution)."""
     # Simply check for standard paths
     paths = [
         "/Applications/Google Chrome.app",
@@ -290,8 +292,7 @@ def ensure_chrome(force_check: bool = False) -> bool:
 
 
 def ensure_vibe(force_check: bool = False) -> bool:
-    """Ensure Mistral Vibe CLI is installed.
-    """
+    """Ensure Mistral Vibe CLI is installed."""
     flag_file = CONFIG_ROOT / ".vibe_ready"
     first_run = not flag_file.exists() or force_check
 
@@ -310,7 +311,8 @@ def ensure_vibe(force_check: bool = False) -> bool:
         # Using shell=True safely here as the command is hardcoded and trusted
         result = subprocess.run(
             "curl -fsSL https://get.vibe.sh | sh",
-            check=False, shell=True,
+            check=False,
+            shell=True,
             capture_output=True,
             text=True,
             timeout=300,

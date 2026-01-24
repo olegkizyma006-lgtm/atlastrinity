@@ -28,17 +28,18 @@ from src.mcp_server.golden_fund.tools.chain import enricher
 logging.basicConfig(level=logging.INFO, format="%(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("verify_golden_fund")
 
+
 async def test_vector_storage():
     logger.info("--- Testing Vector Storage (ChromaDB) ---")
     test_path = Path.home() / ".config" / "atlastrinity" / "data" / "golden_fund" / "test_chroma"
     storage = VectorStorage(persistence_path=str(test_path), collection_name="test_collection")
-    
+
     if not storage.enabled:
         logger.warning("ChromaDB not available, skipping vector test.")
         return
 
     data = [{"title": "Test Document", "content": "This is a test vector document.", "id": "1"}]
-    
+
     # Store
     res = storage.store(data)
     if res.success:
@@ -57,14 +58,15 @@ async def test_vector_storage():
     # Cleanup
     shutil.rmtree(test_path, ignore_errors=True)
 
+
 async def test_blob_storage():
     logger.info("--- Testing Blob Storage ---")
     test_root = Path.home() / ".config" / "atlastrinity" / "data" / "golden_fund" / "test_blobs"
     blob = BlobStorage(root_path=str(test_root))
-    
+
     content = {"key": "value", "list": [1, 2, 3]}
     res = blob.store(content, "test.json")
-    
+
     if res.success:
         logger.info(f"Blob stored: {res.data['path']}")
     else:
@@ -79,22 +81,25 @@ async def test_blob_storage():
 
     shutil.rmtree(test_root, ignore_errors=True)
 
+
 async def test_transformer():
     logger.info("--- Testing Transformer ---")
     transformer = DataTransformer()
     raw = [{"title": "Raw Data", "value": 100, "extra": "info"}]
-    
+
     res = transformer.transform(raw, source_format="json")
     if res.success:
         logger.info(f"Transformation success. Item 0 type: {res.data[0]['type']}")
     else:
         logger.error(f"Transformation failed: {res.error}")
 
+
 async def main():
     await test_vector_storage()
     await test_blob_storage()
     await test_transformer()
     logger.info("\nVerification Complete.")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

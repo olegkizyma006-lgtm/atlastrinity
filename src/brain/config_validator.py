@@ -256,7 +256,9 @@ class ConfigValidator:
                 file_path=path,
                 valid=False,
                 issues=[
-                    ValidationIssue(level="error", path=str(path), message=f"YAML parse error: {e}"),
+                    ValidationIssue(
+                        level="error", path=str(path), message=f"YAML parse error: {e}"
+                    ),
                 ],
             )
 
@@ -291,7 +293,9 @@ class ConfigValidator:
                 file_path=path,
                 valid=False,
                 issues=[
-                    ValidationIssue(level="error", path=str(path), message=f"JSON parse error: {e}"),
+                    ValidationIssue(
+                        level="error", path=str(path), message=f"JSON parse error: {e}"
+                    ),
                 ],
             )
 

@@ -148,7 +148,8 @@ class SystemConfig:
             "database": {
                 # Default to local SQLite (async via aiosqlite). Use DATABASE_URL env var to override.
                 "url": os.getenv(
-                    "DATABASE_URL", f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db",
+                    "DATABASE_URL",
+                    f"sqlite+aiosqlite:///{CONFIG_ROOT}/atlastrinity.db",
                 ),
             },
             "state": {"redis_url": os.getenv("REDIS_URL", "redis://localhost:6379/0")},

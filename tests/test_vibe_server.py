@@ -87,7 +87,9 @@ class TestVibeConfig:
         from src.mcp_server.vibe_config import AgentMode, VibeConfig
 
         config = VibeConfig(
-            active_model="devstral-2", default_mode=AgentMode.AUTO_APPROVE, max_turns=10,
+            active_model="devstral-2",
+            default_mode=AgentMode.AUTO_APPROVE,
+            max_turns=10,
         )
 
         args = config.to_cli_args(

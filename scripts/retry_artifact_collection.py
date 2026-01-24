@@ -24,10 +24,14 @@ async def run():
 
     # Find the latest note for step_424
     notes_search = await mcp_manager.call_tool(
-        "notes", "search_notes", {"tags": ["step_424"], "limit": 5},
+        "notes",
+        "search_notes",
+        {"tags": ["step_424"], "limit": 5},
     )
     structured = getattr(notes_search, "structuredContent", None) or getattr(
-        notes_search, "content", None,
+        notes_search,
+        "content",
+        None,
     )
     print("Notes search:", structured if structured else notes_search)
 

@@ -59,7 +59,6 @@ class TestAtlasCore:
 
                 return MockResponse()
 
-
         atlas.llm = MockLLM()  # type: ignore
 
         result = await atlas.analyze_request("відкрий термінал")

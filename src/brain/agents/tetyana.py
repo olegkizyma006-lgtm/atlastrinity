@@ -234,7 +234,8 @@ Respond in JSON:
         # Try macos-use notes first (faster)
         try:
             result = await mcp_manager.dispatch_tool(
-                "notes_get", {"name": f"Grisha Rejection Step {step_id}"},
+                "notes_get",
+                {"name": f"Grisha Rejection Step {step_id}"},
             )
 
             # Normalize notes search result to a plain dict when possible
@@ -243,7 +244,8 @@ Respond in JSON:
                 if isinstance(result, dict):
                     notes_result = result
                 elif hasattr(result, "structuredContent") and isinstance(
-                    result.structuredContent, dict,
+                    result.structuredContent,
+                    dict,
                 ):
                     notes_result = result.structuredContent.get("result", {})
                 elif (
@@ -288,7 +290,9 @@ Respond in JSON:
         # Fallback to memory
         try:
             result = await mcp_manager.call_tool(
-                "memory", "search_nodes", {"query": f"grisha_rejection_step_{step_id}"},
+                "memory",
+                "search_nodes",
+                {"query": f"grisha_rejection_step_{step_id}"},
             )
 
             if result and hasattr(result, "content"):
@@ -337,7 +341,10 @@ Respond in JSON:
                     end tell
                     """
                     subprocess.run(
-                        ["osascript", "-e", focus_script], check=False, capture_output=True, timeout=5,
+                        ["osascript", "-e", focus_script],
+                        check=False,
+                        capture_output=True,
+                        timeout=5,
                     )
                     await asyncio.sleep(0.3)  # Wait for focus
                 except Exception as e:
@@ -349,7 +356,9 @@ Respond in JSON:
                 # but we have access to mcp_manager via import
                 if "macos-use" in mcp_manager.config.get("mcpServers", {}):
                     result = await mcp_manager.call_tool(
-                        "macos-use", "macos-use_take_screenshot", {},
+                        "macos-use",
+                        "macos-use_take_screenshot",
+                        {},
                     )
 
                     base64_img = None
@@ -371,7 +380,9 @@ Respond in JSON:
                 logger.warning(f"[TETYANA] MCP screenshot failed, falling back: {e}")
 
             # 2. Fallback to screencapture
-            result = subprocess.run(["screencapture", "-x", path], check=False, capture_output=True, timeout=10)
+            result = subprocess.run(
+                ["screencapture", "-x", path], check=False, capture_output=True, timeout=10
+            )
 
             if result.returncode == 0 and os.path.exists(path):
                 logger.info(f"[TETYANA] Screenshot for Vision saved (fallback): {path}")
@@ -1046,7 +1057,9 @@ IMPORTANT:
                     "[TETYANA] Reflexion limit reached. Invoking VIBE for ultimate self-healing...",
                 )
                 v_res_raw = await self._call_mcp_direct(
-                    "vibe", "vibe_analyze_error", {"error_message": error_msg, "auto_fix": True},
+                    "vibe",
+                    "vibe_analyze_error",
+                    {"error_message": error_msg, "auto_fix": True},
                 )
                 # Convert CallToolResult to dict using existing formatter
                 v_res = self._format_mcp_result(v_res_raw) if v_res_raw else {}
@@ -1245,7 +1258,9 @@ IMPORTANT:
                 text = args.get("text", "")
                 pid = int(args.get("pid", 0))
                 res = await mcp_manager.call_tool(
-                    "macos-use", "macos-use_type_and_traverse", {"pid": pid, "text": text},
+                    "macos-use",
+                    "macos-use_type_and_traverse",
+                    {"pid": pid, "text": text},
                 )
                 return self._format_mcp_result(res)
 
@@ -1561,7 +1576,9 @@ IMPORTANT:
 
         if action in {"navigate", "open"}:
             res = await mcp_manager.call_tool(
-                "puppeteer", "puppeteer_navigate", {"url": args.get("url", "")},
+                "puppeteer",
+                "puppeteer_navigate",
+                {"url": args.get("url", "")},
             )
 
             # Try to collect artifacts (title, html, screenshot)
@@ -1574,7 +1591,9 @@ IMPORTANT:
 
                 # Document title
                 title_res = await mcp_manager.call_tool(
-                    "puppeteer", "puppeteer_evaluate", {"script": "document.title"},
+                    "puppeteer",
+                    "puppeteer_evaluate",
+                    {"script": "document.title"},
                 )
                 title_text = None
                 if (
@@ -1625,7 +1644,9 @@ IMPORTANT:
                                     pass
 
                 await _save_artifacts(
-                    html_text=html_text, title_text=title_text, screenshot_b64=screenshot_b64,
+                    html_text=html_text,
+                    title_text=title_text,
+                    screenshot_b64=screenshot_b64,
                 )
             except Exception as e:
                 from ..logger import logger
@@ -1732,7 +1753,9 @@ IMPORTANT:
         if action == "execute_script":
             return self._format_mcp_result(
                 await mcp_manager.call_tool(
-                    "applescript", "execute_script", {"script": args.get("script", "")},
+                    "applescript",
+                    "execute_script",
+                    {"script": args.get("script", "")},
                 ),
             )
         elif action == "open_app":
@@ -1746,7 +1769,9 @@ IMPORTANT:
         elif action == "volume":
             return self._format_mcp_result(
                 await mcp_manager.call_tool(
-                    "applescript", "set_system_volume", {"level": args.get("level", 50)},
+                    "applescript",
+                    "set_system_volume",
+                    {"level": args.get("level", 50)},
                 ),
             )
         return {"success": False, "error": "Unknown applescript action"}
@@ -1788,8 +1813,7 @@ IMPORTANT:
         return {"success": True, "output": output or "Success (No output)"}
 
     def get_voice_message(self, action: str, **kwargs) -> str:
-        """Generates context-aware TTS message dynamically.
-        """
+        """Generates context-aware TTS message dynamically."""
         # 1. Use LLM-provided message if available (Highest Priority)
         voice_msg = kwargs.get("voice_message")
         if voice_msg and len(voice_msg) > 5:
