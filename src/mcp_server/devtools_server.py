@@ -35,7 +35,9 @@ def devtools_check_mcp_health() -> dict[str, Any]:
 
         try:
             data = json.loads(output)
-            return data
+            if isinstance(data, dict):
+                return data
+            return {"error": "Health check returned non-dict JSON", "raw_output": output}
         except json.JSONDecodeError:
             return {"error": "Failed to parse health check JSON", "raw_output": output}
 
@@ -174,7 +176,7 @@ def _find_binary(name: str) -> str | None:
     venv_bin = PROJECT_ROOT / ".venv" / "bin" / name
     if venv_bin.exists():
         return str(venv_bin)
-    
+
     # 2. Check system PATH
     return shutil.which(name)
 
@@ -250,7 +252,7 @@ def devtools_type_check(path: str = ".") -> dict[str, Any]:
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
         stdout = result.stdout.strip()
-        
+
         # Simple heuristic for success
         success = "Success: no issues found" in stdout or result.returncode == 0
 
@@ -298,8 +300,12 @@ def devtools_lint_js(file_path: str = ".") -> dict[str, Any]:
     binary = shutil.which("oxlint") or shutil.which("npx")
     if not binary:
         return {"error": "oxlint (or npx) is not installed."}
-    
-    cmd = [binary, "oxlint", "--format", "json", file_path] if "npx" in binary else [binary, "--format", "json", file_path]
+
+    cmd = (
+        [binary, "oxlint", "--format", "json", file_path]
+        if "npx" in binary
+        else [binary, "--format", "json", file_path]
+    )
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -372,6 +378,7 @@ def devtools_check_integrity(path: str = "src/") -> dict[str, Any]:
         stderr = result.stderr.strip()
 
         import re
+
         error_match = re.search(r"Found (\d+) error", stdout + stderr, re.IGNORECASE)
         error_count = (
             int(error_match.group(1)) if error_match else (0 if result.returncode == 0 else -1)

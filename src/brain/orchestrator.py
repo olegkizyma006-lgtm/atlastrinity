@@ -733,17 +733,17 @@ class Trinity:
                         raw_theme = self.state.get("_theme")
                         # Ensure session_name is a string for SessionPathManager
                         session_name = str(raw_theme) if raw_theme else None
-                        
+
                         new_session = DBSession(
                             started_at=datetime.now(UTC),
                             name=session_name,
                         )
                         db_sess.add(new_session)
                         await db_sess.commit()
-                        
+
                         session_id_str = str(new_session.id)
                         self.state["db_session_id"] = session_id_str
-                        
+
                         # Create session folder and link to DB
                         session_folder = session_manager.get_or_create_session_folder(
                             session_id_str,
@@ -751,7 +751,7 @@ class Trinity:
                         )
                         new_session.workspace_path = str(session_folder)
                         await db_sess.commit()
-                        
+
                         # Update shared context with session info
                         shared_context.set_session(session_id_str, session_folder)
                         logger.info(f"[ORCHESTRATOR] Session folder created: {session_folder}")
@@ -759,7 +759,6 @@ class Trinity:
                 logger.error(f"DB Session creation failed: {e}")
                 if "db_session_id" in self.state:
                     del self.state["db_session_id"]
-
 
         try:
             from src.brain.state_manager import state_manager

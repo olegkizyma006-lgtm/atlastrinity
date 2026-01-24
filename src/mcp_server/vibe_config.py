@@ -217,7 +217,7 @@ class VibeConfig(BaseModel):
 
     # Core settings
     active_model: str = Field(
-        "",
+        "devstral-2",
         description="Default model alias (Must be set in vibe_config.toml)",
     )
     system_prompt_id: str = Field("default", description="System prompt ID")

@@ -6,10 +6,10 @@ from typing import Any
 import yaml
 
 try:
-    from dotenv import dotenv_values
+    from dotenv import dotenv_values  # type: ignore
 except ImportError:  # pragma: no cover
 
-    def dotenv_values(*args, **kwargs):
+    def dotenv_values(*args: Any, **kwargs: Any) -> dict[str, str | None]:
         return {}
 
 
@@ -220,7 +220,9 @@ class SystemConfig:
             if val:
                 return val
 
-        return self.get(f"api.{key_name}", "")
+        from typing import cast
+
+        return cast(str, self.get(f"api.{key_name}", ""))
 
     def get_agent_config(self, agent_name: str) -> dict[str, Any]:
         """Returns specific agent configuration with global model inheritance."""
@@ -248,11 +250,15 @@ class SystemConfig:
                     "models.default",
                 )
 
-        return agent_config
+        from typing import cast
+
+        return cast(dict[str, Any], agent_config)
 
     def get_security_config(self) -> dict[str, Any]:
         """Returns security configuration."""
-        return self.get("security", {})
+        from typing import cast
+
+        return cast(dict[str, Any], self.get("security", {}))
 
     @property
     def all(self) -> dict[str, Any]:

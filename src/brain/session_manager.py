@@ -397,8 +397,12 @@ class SessionPathManager:
 
         from .db.schema import Session as DBSession
 
-        stmt = update(DBSession).where(DBSession.id == uuid.UUID(session_id)).values(
-            workspace_path=str(folder_path),
+        stmt = (
+            update(DBSession)
+            .where(DBSession.id == uuid.UUID(session_id))
+            .values(
+                workspace_path=str(folder_path),
+            )
         )
         await db_session.execute(stmt)
         await db_session.commit()

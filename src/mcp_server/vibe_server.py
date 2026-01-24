@@ -650,26 +650,26 @@ async def vibe_prompt(
 
     config = get_vibe_config()
     eff_timeout = timeout_s if timeout_s is not None else config.timeout_s
-    
+
     # Resolve working directory: explicit cwd > session folder > default workspace
     eff_cwd = cwd
     if not eff_cwd and session_id:
         # Try to resolve session folder from session_id
         try:
             from src.brain.session_manager import session_manager
+
             session_folder = session_manager.get_session_folder(session_id)
             if session_folder:
                 eff_cwd = str(session_folder)
                 logger.info(f"[VIBE] Using session folder: {eff_cwd}")
         except Exception as e:
             logger.debug(f"[VIBE] Could not resolve session folder: {e}")
-    
+
     if not eff_cwd:
         eff_cwd = VIBE_WORKSPACE
 
     # Ensure workspace exists
     os.makedirs(eff_cwd, exist_ok=True)
-
 
     # Check network before proceeding if it's an AI prompt
     if not await is_network_available():

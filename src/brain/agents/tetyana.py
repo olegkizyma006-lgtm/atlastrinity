@@ -1202,7 +1202,9 @@ IMPORTANT:
                                 content_text += item.get("text", "")
                     result["error"] = content_text or "Unknown tool execution error"
 
-            return result
+            from typing import cast
+
+            return cast(dict[str, Any], result)
 
         except Exception as e:
             logger.error(f"[TETYANA] Tool execution failed: {e}")
@@ -1212,7 +1214,9 @@ IMPORTANT:
         from ..mcp_manager import mcp_manager
 
         try:
-            return await mcp_manager.dispatch_tool(tool, args, server)
+            from typing import cast
+
+            return cast(dict[str, Any], await mcp_manager.dispatch_tool(tool, args, server))
         except Exception as e:
             logger.error(f"[TETYANA] Unified call failed for {server}.{tool}: {e}")
             return {"success": False, "error": str(e)}

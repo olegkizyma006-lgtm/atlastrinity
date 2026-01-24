@@ -62,13 +62,14 @@ class Session(Base):
     metadata_blob: Mapped[dict[str, Any]] = mapped_column(JSON, default={})
     # Session-centric architecture fields
     name: Mapped[str | None] = mapped_column(String(200), nullable=True)  # Human-readable name
-    workspace_path: Mapped[str | None] = mapped_column(Text, nullable=True)  # Path to session folder
+    workspace_path: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # Path to session folder
 
     tasks: Mapped[list["Task"]] = relationship(
         back_populates="session",
         cascade="all, delete-orphan",
     )
-
 
 
 class Task(Base):

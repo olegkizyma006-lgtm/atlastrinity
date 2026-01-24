@@ -67,7 +67,6 @@ class SharedContext:
     current_session_id: str | None = None
     session_folder: Path | None = None
 
-
     def __post_init__(self):
         # Detect if application is packaged (binary/app mode)
         import sys
@@ -197,16 +196,15 @@ class SharedContext:
 
     def set_session(self, session_id: str, folder: Path) -> None:
         """Set the current session context.
-        
+
         Called by orchestrator when creating or resuming a session.
-        
+
         Args:
             session_id: UUID of the current session
             folder: Path to the session folder
         """
         self.current_session_id = session_id
         self.session_folder = folder
-
 
     def push_goal(self, goal: str, total_steps: int = 0) -> None:
         """Push a new goal onto the stack (entering a sub-task).

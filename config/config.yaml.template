@@ -141,6 +141,8 @@ mcp:
     oxlint_enabled: true
     knip_enabled: true
     pyrefly_enabled: true
+    pytest_enabled: true
+    mypy_enabled: true
     inspector_enabled: true
     health_check_enabled: true
 

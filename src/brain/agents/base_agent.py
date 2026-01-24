@@ -24,13 +24,15 @@ class BaseAgent:
             start = content.find("{")
             end = content.rfind("}") + 1
             if start >= 0 and end > start:
-                return json.loads(content[start:end])
+                data = json.loads(content[start:end])
+                if isinstance(data, dict):
+                    return data
         except json.JSONDecodeError:
             pass
 
         # 2. Fuzzy YAML-like parsing (handles LLM responses like "verified: true\nconfidence: 0.9")
         try:
-            data = {}
+            fuzzy_data: dict[str, Any] = {}
             for line in content.strip().split("\n"):
                 if ":" in line:
                     key, value = line.split(":", 1)
@@ -39,18 +41,18 @@ class BaseAgent:
 
                     # Handle boolean values
                     if value.lower() == "true":
-                        data[key] = True
+                        fuzzy_data[key] = True
                     elif value.lower() == "false":
-                        data[key] = False
+                        fuzzy_data[key] = False
                     # Handle numeric values
                     elif value.replace(".", "", 1).isdigit():
-                        data[key] = float(value)
+                        fuzzy_data[key] = float(value)
                     else:
-                        data[key] = value
+                        fuzzy_data[key] = value
 
             # Consider it valid fuzzy parse if we found key fields
-            if "verified" in data or "intent" in data or "success" in data:
-                return data
+            if "verified" in fuzzy_data or "intent" in fuzzy_data or "success" in fuzzy_data:
+                return fuzzy_data
         except Exception:
             pass
 

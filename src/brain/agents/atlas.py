@@ -80,7 +80,7 @@ class Atlas(BaseAgent):
             self.llm = CopilotLLM(model_name=final_model)
 
         # Optimization: Tool Cache
-        self._cached_info_tools = []
+        self._cached_info_tools: list[dict[str, Any]] = []
         self._last_tool_refresh = 0
         self._refresh_interval = 1800  # 30 minutes
         self.temperature = agent_config.get("temperature", 0.7)
@@ -304,7 +304,7 @@ class Atlas(BaseAgent):
         graph_context = ""
         vector_context = ""
         system_status = ""
-        available_tools_info = []
+        available_tools_info: list[dict[str, Any]] = []
 
         # 2. Parallel Data Fetching: Graph, Vector, and Tools
         if not is_simple_chat or intent == "solo_task":

@@ -36,9 +36,10 @@ def setup_logging(name: str = "brain"):
     except (PermissionError, OSError) as e:
         # Fallback if log file is protected by OS (e.g. sandboxed or locked)
         import sys
-        sys.stderr.write(f"Warning: Could not open log file {log_file} ({e}). Logging to console only.\n")
 
-
+        sys.stderr.write(
+            f"Warning: Could not open log file {log_file} ({e}). Logging to console only.\n"
+        )
 
     # Stream Handler (Console)
     stream_handler = logging.StreamHandler()
