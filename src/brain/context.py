@@ -8,6 +8,7 @@ of the current working directory and recent operations.
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 
 # Get the actual user home directory
 ACTUAL_HOME = os.path.expanduser("~")
@@ -24,6 +25,7 @@ class SharedContext:
     - Last successful path memory
     - Project context
     - Goal tracking for agent coordination
+    - Session-centric workspace isolation
     """
 
     # Core path context - uses actual user home directory
@@ -60,6 +62,11 @@ class SharedContext:
     current_step_id: int | None = None
     total_steps: int = 0
     available_mcp_catalog: str = ""
+
+    # Session-centric architecture fields
+    current_session_id: str | None = None
+    session_folder: Path | None = None
+
 
     def __post_init__(self):
         # Detect if application is packaged (binary/app mode)
@@ -183,7 +190,23 @@ class SharedContext:
             "step_progress": f"{self.current_step_id}/{self.total_steps}"
             if self.total_steps
             else "—",
+            # Session-centric architecture
+            "session_id": self.current_session_id,
+            "session_folder": str(self.session_folder) if self.session_folder else None,
         }
+
+    def set_session(self, session_id: str, folder: Path) -> None:
+        """Set the current session context.
+        
+        Called by orchestrator when creating or resuming a session.
+        
+        Args:
+            session_id: UUID of the current session
+            folder: Path to the session folder
+        """
+        self.current_session_id = session_id
+        self.session_folder = folder
+
 
     def push_goal(self, goal: str, total_steps: int = 0) -> None:
         """Push a new goal onto the stack (entering a sub-task).

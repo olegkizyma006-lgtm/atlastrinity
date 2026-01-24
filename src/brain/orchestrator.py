@@ -721,6 +721,7 @@ class Trinity:
             # DB Session Creation (Only for top-level)
             try:
                 from src.brain.db.manager import db_manager
+                from src.brain.session_manager import session_manager
 
                 if (
                     db_manager
@@ -728,14 +729,34 @@ class Trinity:
                     and "db_session_id" not in self.state
                 ):
                     async with await db_manager.get_session() as db_sess:
-                        new_session = DBSession(started_at=datetime.now(UTC))
+                        # Create session with name from theme
+                        session_name = self.state.get("_theme")
+                        new_session = DBSession(
+                            started_at=datetime.now(UTC),
+                            name=session_name,
+                        )
                         db_sess.add(new_session)
                         await db_sess.commit()
-                        self.state["db_session_id"] = str(new_session.id)
+                        
+                        session_id_str = str(new_session.id)
+                        self.state["db_session_id"] = session_id_str
+                        
+                        # Create session folder and link to DB
+                        session_folder = session_manager.get_or_create_session_folder(
+                            session_id_str,
+                            session_name=session_name,
+                        )
+                        new_session.workspace_path = str(session_folder)
+                        await db_sess.commit()
+                        
+                        # Update shared context with session info
+                        shared_context.set_session(session_id_str, session_folder)
+                        logger.info(f"[ORCHESTRATOR] Session folder created: {session_folder}")
             except Exception as e:
                 logger.error(f"DB Session creation failed: {e}")
                 if "db_session_id" in self.state:
                     del self.state["db_session_id"]
+
 
         try:
             from src.brain.state_manager import state_manager

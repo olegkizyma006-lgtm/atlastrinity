@@ -1,15 +1,43 @@
-STORAGE & MEMORY PROTOCOL (v1.0)
-==============================
+STORAGE & MEMORY PROTOCOL (v2.0 - Session-Centric Architecture)
+================================================================
 
 1. PHYSICAL STORAGE LOCATIONS
 -----------------------------
 - WORKSPACE: `~/.config/atlastrinity/workspace` (Main area for all active work).
 - DOWNLOADS: `~/.config/atlastrinity/workspace/downloads` (Primary destination for files from internet/browsers).
 - DATA VAULT: `~/.config/atlastrinity/workspace/vault` (Long-term storage for secondary databases, datasets from registries).
-- VIBE PROJECTS: `~/.config/atlastrinity/vibe_workspace` (Software, codebases, and experiments created by Vibe AI).
+- VIBE SESSIONS: `~/.config/atlastrinity/vibe_workspace/sessions/<date>_<uuid>` 
+  (Session-specific codebases and projects created by Vibe AI).
+- VIBE GLOBAL: `~/.config/atlastrinity/vibe_workspace/global` 
+  (Shared utilities, cross-session resources, system fixes).
 - MEMORY ROOT: `~/.config/atlastrinity/memory` (Internal system databases).
 
-2. MEMORY SCHEMAS (INTELLECTUAL CORE)
+2. SESSION-CENTRIC ARCHITECTURE (NEW)
+-------------------------------------
+Sessions provide isolated workspaces for each work session:
+
+A. SESSION FOLDER STRUCTURE:
+   ~/.config/atlastrinity/vibe_workspace/
+   ├── sessions/                           # All session folders
+   │   ├── 2026-01-24_abc12345/            # Session: date + short UUID
+   │   │   ├── .session_manifest.json      # Links folder to session_id
+   │   │   └── my_project/                 # Project created in session
+   │   └── 2026-01-25_def67890/
+   │       └── another_project/
+   └── global/                             # Cross-session resources
+       └── shared_utilities/
+
+B. SESSION DATABASE FIELDS:
+   - `sessions.name`: Human-readable session name (e.g., "fix-login-bug")
+   - `sessions.workspace_path`: Absolute path to session folder
+
+C. SESSION RESOLUTION PRIORITY:
+   1. Explicit path (if provided by user/agent)
+   2. Session folder (resolved from session_id via SessionPathManager)
+   3. Global folder (for cross-session work)
+   4. Default workspace (fallback)
+
+3. MEMORY SCHEMAS (INTELLECTUAL CORE)
 -------------------------------------
 The system uses a hybrid memory approach:
 
@@ -25,18 +53,24 @@ B. VECTOR MEMORY (ChromaDB):
 - `knowledge`: Semantic index for deep searching in the Knowledge Graph.
 - `conversations`: Semantic retrieval of past context.
 
-3. AGENT DATA DOCTRINE
+4. AGENT DATA DOCTRINE
 ----------------------
+- VIBE: Creates projects ONLY in session folders. Use `session_id` parameter.
 - TETYANA: Must save all scraped data/datasets to `workspace/downloads` or `workspace/vault`.
-- ATLAS: Must check `conversation_summaries` and `strategies` before admiting ignorance.
+- ATLAS: Must check `conversation_summaries` and `strategies` before admitting ignorance.
 - SHARED KNOWLEDGE: If you find a new ID (ЄДРПОУ) or dataset URL, ALWAYS store it in the Knowledge Graph via `kg_nodes`.
+- SELF-HEALING: System fixes and improvements go to `global/` folder.
 
-4. DATA ISOLATION (TASK SCOPING)
---------------------------------
+5. DATA ISOLATION (SESSION SCOPING)
+-----------------------------------
+- SESSION ISOLATION: Each session has a dedicated folder. Projects created in a session stay in that folder.
+- CROSS-SESSION ACCESS: Use `session_manager.find_session_by_name()` to locate projects from other sessions.
+- SESSION LINKING: Use `session_manager.link_project_to_session()` to reference existing projects.
+- GLOBAL EXCEPTIONS: Utilities, system fixes, and shared resources go to `vibe_workspace/global/`.
 - NAMESPACING: Any data collected for a specific task MUST be isolated using the `namespace` field in the Knowledge Graph or `task_id` in metadata.
-- TASK-SPECIFIC VAULT: Large raw datasets (e.g., CSV dumps) should be stored in `workspace/vault/<task_id>/` and referenced as a single node in the global Knowledge Graph.
+- TASK-SPECIFIC VAULT: Large raw datasets should be stored in `workspace/vault/<task_id>/`.
 
-5. BULK INGESTION & SEMANTIC INDEXING
+6. BULK INGESTION & SEMANTIC INDEXING
 -------------------------------------
 - VECTORIZED TABLES: For large datasets (>10,000 rows), do not create individual KG nodes for every row. 
 - INDEXING STRATEGY: Create a specialized ChromaDB collection (Vectorized Table) for the dataset and link it to the KG as a node of type `DATASET`.
@@ -47,3 +81,4 @@ DEVIATION POLICY (ROOM TO MANEUVER)
 - STORAGE VECTOR: Standard paths are the default. If a specific task or local environment requires a temporary or different path (e.g. `Desktop` for user convenience), you ARE AUTHORIZED to deviate.
 - DATABASE PERSISTENCE: Never bypass the core memory servers for long-term facts, but you can use temporary JSON/CSV files in the workspace for intermediate processing.
 - ISOLATION OVERRIDE: If a dataset is universally useful (e.g. a list of all bank codes), elevate it from a task-specific namespace to the `global` namespace.
+- GLOBAL RESOURCES: System-wide utilities and self-healing code should go to `vibe_workspace/global/`, not session folders.

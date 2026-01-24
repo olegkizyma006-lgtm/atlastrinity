@@ -192,6 +192,14 @@ security:
 system:
   workspace_path: ${CONFIG_ROOT}/workspace
   repository_path: ${PROJECT_ROOT}
+  
+  # Session-centric architecture (v2.0)
+  session:
+    sessions_root: ${CONFIG_ROOT}/vibe_workspace/sessions
+    global_folder: ${CONFIG_ROOT}/vibe_workspace/global
+    naming_pattern: "{date}_{short_id}"  # Format: 2026-01-24_abc12345
+    auto_create: true                     # Auto-create session folder on new session
+
 
 # =============================================================================
 # API CONFIGURATION
