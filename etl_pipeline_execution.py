@@ -23,11 +23,14 @@ from transformation.data_transformer import DataTransformer, TransformResult
 from distribution.data_distributor import DataDistributor, DistributionTarget, DistributionResult
 
 # Set up comprehensive logging
+LOG_DIR = Path(__file__).parent / "logs" / "etl"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('etl_pipeline_execution.log'),
+        logging.FileHandler(LOG_DIR / 'etl_pipeline_execution.log'),
         logging.StreamHandler()
     ]
 )
@@ -373,7 +376,7 @@ def main():
                 print(f"  {validation['message']}")
     
     print(f"\n=== ETL Pipeline Execution Complete ===")
-    print("Detailed logs available in: etl_pipeline_execution.log")
+    print(f"Detailed logs available in: {LOG_DIR / 'etl_pipeline_execution.log'}")
     
     # Return success status
     return 0 if execution_results['statistics']['errors_encountered'] == 0 else 1

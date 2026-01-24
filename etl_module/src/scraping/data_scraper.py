@@ -17,11 +17,14 @@ import requests
 from bs4 import BeautifulSoup
 
 # Set up logging
+LOG_DIR = Path(__file__).parents[4] / "logs" / "etl"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('scraping_audit.log'),
+        logging.FileHandler(LOG_DIR / 'scraping_audit.log'),
         logging.StreamHandler()
     ]
 )

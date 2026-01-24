@@ -25,8 +25,11 @@ def main():
     print("=== AtlasTrinity Open Data Portal Scraper ===")
     
     # Example configuration
+    DATA_DIR = Path(__file__).parent.parent / "data" / "etl" / "scraped_data"
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    
     config = {
-        "output_dir": "scraped_data",
+        "output_dir": str(DATA_DIR),
         "sample_url": "https://jsonplaceholder.typicode.com/users",  # Example API
         "sample_selectors": {
             "item": "div.user-card",
@@ -142,7 +145,8 @@ def main():
             print(f"Parsing failed: {parse_result.error}")
     
     print("\n=== Scraping Pipeline Complete ===")
-    print("Check scraping_audit.log for detailed logs")
+    from scraping.data_scraper import LOG_DIR
+    print(f"Check {LOG_DIR / 'scraping_audit.log'} for detailed logs")
 
 
 if __name__ == "__main__":
