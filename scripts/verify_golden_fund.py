@@ -30,7 +30,8 @@ logger = logging.getLogger("verify_golden_fund")
 
 async def test_vector_storage():
     logger.info("--- Testing Vector Storage (ChromaDB) ---")
-    storage = VectorStorage(persistence_path="data/golden_fund/test_chroma", collection_name="test_collection")
+    test_path = Path.home() / ".config" / "atlastrinity" / "data" / "golden_fund" / "test_chroma"
+    storage = VectorStorage(persistence_path=str(test_path), collection_name="test_collection")
     
     if not storage.enabled:
         logger.warning("ChromaDB not available, skipping vector test.")
@@ -54,11 +55,12 @@ async def test_vector_storage():
         logger.error(f"Search failed or empty: {search_res.data}")
 
     # Cleanup
-    shutil.rmtree("data/golden_fund/test_chroma", ignore_errors=True)
+    shutil.rmtree(test_path, ignore_errors=True)
 
 async def test_blob_storage():
     logger.info("--- Testing Blob Storage ---")
-    blob = BlobStorage(root_path="data/golden_fund/test_blobs")
+    test_root = Path.home() / ".config" / "atlastrinity" / "data" / "golden_fund" / "test_blobs"
+    blob = BlobStorage(root_path=str(test_root))
     
     content = {"key": "value", "list": [1, 2, 3]}
     res = blob.store(content, "test.json")
@@ -75,7 +77,7 @@ async def test_blob_storage():
     else:
         logger.error("Blob retrieval failed.")
 
-    shutil.rmtree("data/golden_fund/test_blobs", ignore_errors=True)
+    shutil.rmtree(test_root, ignore_errors=True)
 
 async def test_transformer():
     logger.info("--- Testing Transformer ---")

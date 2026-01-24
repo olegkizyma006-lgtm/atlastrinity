@@ -19,7 +19,9 @@ class BlobStorage:
     Persists data to local disk in a structured way (simulating bucket storage).
     """
     
-    def __init__(self, root_path: str = "data/golden_fund/blobs", bucket: str = "default"):
+    def __init__(self, root_path: str = None, bucket: str = "default"):
+        if root_path is None:
+            root_path = Path.home() / ".config" / "atlastrinity" / "data" / "golden_fund" / "blobs"
         self.root = Path(root_path)
         self.bucket = bucket
         self.root.mkdir(parents=True, exist_ok=True)

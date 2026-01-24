@@ -27,7 +27,9 @@ class VectorStorage:
     Vector storage adapter using ChromaDB for persistence.
     """
     
-    def __init__(self, persistence_path: str = "data/golden_fund/chroma_db", collection_name: str = "golden_fund_vectors"):
+    def __init__(self, persistence_path: str = None, collection_name: str = "golden_fund_vectors"):
+        if persistence_path is None:
+            persistence_path = Path.home() / ".config" / "atlastrinity" / "data" / "golden_fund" / "chroma_db"
         self.enabled = CHROMA_AVAILABLE
         self.collection_name = collection_name
         self.persistence_path = Path(persistence_path)
