@@ -222,13 +222,33 @@ class AgentPrompts:
 
     Respond STRICTLY in JSON.
     
-    Example SUCCESS response:
+    Example SUCCESS response (Verdict):
     {{
       "action": "verdict",
       "verified": true,
       "confidence": 1.0,
       "description": "Terminal output confirms file was created successfully.",
       "voice_message": "Завдання виконано."
+    }}
+
+    Example INTERMEDIATE response (Multiple Steps):
+    {{
+      "action": "verification",
+      "thought": "I need to check the database and then verify the file on disk.",
+      "steps": [
+        {{
+          "step": "Check DB for tool execution",
+          "server": "memory",
+          "tool": "query_db",
+          "args": {{"query": "SELECT * FROM tool_executions WHERE step_id = '{step_id}'"}}
+        }},
+        {{
+          "step": "Check file existence",
+          "server": "macos-use",
+          "tool": "execute_command",
+          "args": {{"command": "ls /path/to/file"}}
+        }}
+      ]
     }}
 
     Example REJECTION response:

@@ -709,7 +709,49 @@ Synthesize findings into a comprehensive validation verdict.
                     },
                 )
                 continue
-            if data.get("action") in ["audit", "thought", "plan"] or (
+
+            # NEW: Handle sequential verification steps
+            if data.get("action") == "verification" or "steps" in data:
+                steps = data.get("steps", [])
+                if not isinstance(steps, list):
+                    steps = [steps]
+                
+                logger.info(f"[GRISHA] Executing {len(steps)} sequential verification steps")
+                
+                for v_step in steps:
+                    v_tool = v_step.get("tool")
+                    v_args = v_step.get("args") or v_step.get("arguments", {})
+                    v_server = v_step.get("server")
+                    
+                    if not v_tool:
+                        continue
+                        
+                    full_v_tool = f"{v_server}.{v_tool}" if v_server else v_tool
+                    logger.info(f"[GRISHA] Verif-Step: {full_v_tool}({v_args})")
+                    
+                    try:
+                        v_output = await mcp_manager.dispatch_tool(full_v_tool, v_args)
+                        v_res_str = str(v_output)
+                        if len(v_res_str) > 2000:
+                            v_res_str = v_res_str[:2000] + "...(truncated)"
+                            
+                        verification_history.append({
+                            "tool": full_v_tool,
+                            "args": v_args,
+                            "result": v_res_str,
+                            "step_desc": v_step.get("step")
+                        })
+                    except Exception as e:
+                        logger.warning(f"[GRISHA] Verif-Step failed: {e}")
+                        verification_history.append({
+                            "tool": full_v_tool,
+                            "args": v_args,
+                            "result": f"Error: {e}",
+                            "step_desc": v_step.get("step")
+                        })
+                continue
+
+            if data.get("action") in ["audit", "thought", "plan", "strategy"] or (
                 not data.get("action") and "voice_message" in data and "verified" not in data
             ):
                 # Intermediate response/announcement: Log to history and continue the loop
@@ -735,7 +777,9 @@ Synthesize findings into a comprehensive validation verdict.
                 verified=data.get("verified", False),
                 confidence=confidence,
                 description=data.get("description")
-                or f"No description provided. Raw data: {data}",
+                or data.get("reason")
+                or (verification_history[-1].get("result") if verification_history and not data.get("verified") else None)
+                or f"Verified via {len(verification_history)} tool calls." if data.get("verified") else f"Verification failed. Raw data: {data}",
                 issues=data.get("issues", []),
                 voice_message=data.get("voice_message", ""),
                 screenshot_analyzed=screenshot_path is not None,
