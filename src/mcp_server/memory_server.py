@@ -578,7 +578,7 @@ async def get_db_schema() -> dict[str, Any]:
             ]
         return tables
 
-    async with await db_manager.get_session() as session:
+    async with await db_manager.get_session():
         # engine.connect().run_sync is deprecated, but DatabaseManager doesn't expose engine easily for run_sync
         # We can use the internal _engine
         tables = await db_manager._engine.run_sync(_sync_get_schema)
