@@ -461,7 +461,7 @@ async def smart_speech_to_text(
                     "-i",
                     temp_file_path,
                     "-af",
-                    "highpass=f=80, loudnorm",
+                    "highpass=f=80",
                     "-ar",
                     "16000",
                     "-ac",
@@ -491,7 +491,10 @@ async def smart_speech_to_text(
                 wav_path = temp_file_path
 
         # Smart analysis with context (async)
-        result = await trinity.stt.transcribe_with_analysis(wav_path, previous_text=previous_text)
+        agent_is_speaking = trinity.voice.is_speaking
+        result = await trinity.stt.transcribe_with_analysis(
+            wav_path, previous_text=previous_text, is_agent_speaking=agent_is_speaking
+        )
 
         # --- ECHO CANCELLATION & INTERRUPTION LOGIC ---
 

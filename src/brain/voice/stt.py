@@ -141,7 +141,7 @@ class WhisperSTT:
         # Stateful tracking for Smart STT
         self.last_speech_time = 0.0
         self.silence_threshold = (
-            8.0  # Seconds of silence before sending phrase (slightly more than UI 6s)
+            2.0  # Industry standard for snappy voice assistants
         )
 
     def _filter_text(self, text: str) -> str:
@@ -235,7 +235,10 @@ class WhisperSTT:
                     initial_prompt=initial_prompt
                     or "Це професійна розмова з AI-асистентом Атласом. Пиши чистою українською мовою з правильними розділовими знаками.",
                     vad_filter=True,
-                    vad_parameters=dict(min_silence_duration_ms=1000),
+                    vad_parameters=dict(
+                        min_silence_duration_ms=500,  # Catch shorter pauses
+                        speech_pad_ms=200
+                    ),
                 )
                 return list(segments), info
 
@@ -273,6 +276,7 @@ class WhisperSTT:
         audio_path: str,
         previous_text: str = "",
         language: str | None = None,
+        is_agent_speaking: bool = False,
     ) -> SmartSTTResult:
         import time
 
@@ -282,8 +286,12 @@ class WhisperSTT:
         result = await self.transcribe_file(audio_path, language, initial_prompt=previous_text)
         speech_type = self._analyze_speech_type(result, previous_text)
 
-        # Phrase continuation: if same user or new phrase (meaningful)
-        is_meaningful = speech_type in [SpeechType.SAME_USER, SpeechType.NEW_PHRASE]
+        # PHRASE CONTINUATION:
+        # If agent is speaking, we are much more strict. NEW_PHRASE during agent speech
+        # is likely an echo unless it's a very confident "Stop" command.
+        is_echo = is_agent_speaking and result.confidence < 0.90
+        
+        is_meaningful = speech_type in [SpeechType.SAME_USER, SpeechType.NEW_PHRASE] and not is_echo
 
         if is_meaningful and result.text.strip():
             # Update last activity time (real speech)
@@ -297,8 +305,8 @@ class WhisperSTT:
             if previous_text.strip() and self.last_speech_time > 0:
                 silence_duration = now - self.last_speech_time
 
-                # If SILENCE or NOISE (non-speech) for > 3 seconds
-                # Including NOISE here ensures we don't wait forever in loud environments
+                # If SILENCE or NOISE (non-speech) for > 3.5 seconds
+                # We only reset the timeout if we see meaningful speech with GOOD confidence
                 is_waiting_type = speech_type in [
                     SpeechType.SILENCE,
                     SpeechType.BACKGROUND_NOISE,
@@ -350,6 +358,12 @@ class WhisperSTT:
             "про що ви знаєте",
             "про те, що ви не знаєте",
             "сподівайся, як обходить",
+            "йду",
+            "іду",
+            "слідкуй",
+            "дякую",
+            "макіят",
+            "атлас",
         ]
 
         if any(p in text for p in hard_blacklist):
