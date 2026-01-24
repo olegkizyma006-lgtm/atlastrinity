@@ -278,6 +278,15 @@ class Atlas(BaseAgent):
         # Override with classification's preference for deep persona if not explicitly True
         if not use_deep_persona:
             use_deep_persona = classification.get("use_deep_persona", False)
+            
+        # SEMANTIC ESSENCE VERIFICATION:
+        # If classification says simple chat but requires semantic check, consult the Brain.
+        if not use_deep_persona and classification.get("requires_semantic_verification"):
+            logger.info(f"[ATLAS CHAT] Triggering Semantic Essence Analysis for: {user_request[:30]}...")
+            analysis = await self.analyze_request(user_request, history=history)
+            if analysis.get("use_deep_persona"):
+                use_deep_persona = True
+                logger.info("[ATLAS CHAT] Soul recognized via Semantic Essence Analysis")
         
         if use_deep_persona:
            logger.info(f"[ATLAS CHAT] Deep Persona ENABLED for intent: {classification.get('type')}")

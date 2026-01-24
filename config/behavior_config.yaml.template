@@ -95,6 +95,7 @@ intent_detection:
     intent: chat
     priority: high
     use_deep_persona: false
+    requires_semantic_verification: true
 
   # deep philosophical questions about identity/soul
   philosophical_query:
@@ -119,6 +120,7 @@ intent_detection:
     intent: chat
     priority: highest
     use_deep_persona: true
+    requires_semantic_verification: true
 
   # Information queries requiring tool usage
   info_query:

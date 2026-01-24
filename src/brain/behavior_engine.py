@@ -177,6 +177,7 @@ class BehaviorEngine:
                 "type": "philosophical_query",
                 "priority": philos_cfg.get("priority", "highest"),
                 "use_deep_persona": True,
+                "requires_semantic_verification": philos_cfg.get("requires_semantic_verification", False),
                 "require_tools": False,
                 "require_planning": False,
             }
@@ -194,6 +195,7 @@ class BehaviorEngine:
                 "type": "simple_chat",
                 "priority": simple_cfg.get("priority", "high"),
                 "use_deep_persona": simple_cfg.get("use_deep_persona", False),
+                "requires_semantic_verification": simple_cfg.get("requires_semantic_verification", False),
                 "require_tools": False,
                 "require_planning": False,
             }

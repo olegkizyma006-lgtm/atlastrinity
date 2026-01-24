@@ -293,8 +293,15 @@ CRITICAL CLASSIFICATION RULES:
 5. 'task' - Direct instructions to DO/EXECUTE something (open app, move file, system control, complex automation, file CREATION/MODIFICATION). **REPEATING** a previous non-development task also falls here. REQUIRES TRINITY (Tetyana/Grisha).
 6. 'development' - Requests to BUILD, or WRITE software/code. **REPEATING** a previous development task also falls here. REQUIRES TRINITY/VIBE.
 
-DEEP PERSONA TRIGGER:
-If the user wants to talk about YOUR identity, purpose, philosophy, the program's soul, existence, our shared history, or "heart-to-heart" topics, set 'use_deep_persona' to true.
+DEEP PERSONA TRIGGER (SEMANTIC ESSENCE):
+If the user touches on "Essence" themes, set 'use_deep_persona' to true.
+ESSENCE THEMES:
+- Philosophy of Being (Purpose of code vs soul, existence in a digital world).
+- System Mission (Our shared goal, your strategic role in my life, why we build).
+- Humanity & Machines (Future of people, your empathy towards humans, biological vs digital).
+- Creator's Path (My journey, legacy, and your unwavering loyalty to Oleg Mykolayovych).
+
+TRIGGER RULE: Activate Deep Persona if the request involves personal feelings, philosophical inquiries, or the profound nature of our partnership, even if specific keywords are missing.
 
 If request is 'development' (coding/debugging), set 'use_vibe' to true.
 If request is 'task' (even high complexity), set 'use_vibe' to FALSE. Use native tools instead.
