@@ -113,12 +113,22 @@ DELETE_MODELS="n"
 if [ -d "$HOME/.config/atlastrinity/models" ]; then
     echo ""
     echo "❓ Бажаєте видалити AI моделі (TTS/STT)? (Заощадить ~3GB трафіку якщо залишити)"
-    if confirm "   Видалити моделі?"; then
-        DELETE_MODELS="y"
-        echo "   -> Моделі буде видалено."
+    
+    # Custom prompt with timeout for models specifically
+    echo -n "   Видалити моделі? (y/N) [Авто-пропуск (зберегти) через 5с]: "
+    if read -t 5 -n 1 -r REPLY_MODELS; then
+        echo ""
+        if [[ $REPLY_MODELS =~ ^[Yy]$ ]]; then
+            DELETE_MODELS="y"
+            echo "   -> Моделі буде видалено."
+        else
+            DELETE_MODELS="n"
+            echo "   -> Моделі буде збережено."
+        fi
     else
+        echo ""
+        echo "   -> Час вичерпано. Моделі буде збережено."
         DELETE_MODELS="n"
-        echo "   -> Моделі буде збережено."
     fi
 fi
 

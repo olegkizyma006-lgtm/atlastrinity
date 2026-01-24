@@ -50,6 +50,26 @@ def print_info(msg: str):
     print(f"{Colors.OKCYAN}ℹ{Colors.ENDC} {msg}")
 
 
+def input_with_timeout(prompt: str, timeout: int = 5, default: str = "n"):
+    """Очікує вводу користувача з таймаутом"""
+    import select
+    import sys
+
+    print(prompt, end=" ", flush=True)
+    # select.select may not work on all systems (like Windows), but this is for Mac
+    try:
+        rlist, _, _ = select.select([sys.stdin], [], [], timeout)
+        if rlist:
+            res = sys.stdin.readline().strip().lower()
+            return res if res else default
+        else:
+            print(f"\n{Colors.OKCYAN}Час вичерпано. Використовуємо дефолт: {default}{Colors.ENDC}")
+            return default
+    except Exception:
+        # Fallback for systems where select.select doesn't work on stdin
+        return default
+
+
 # Константи
 REQUIRED_PYTHON = "3.12.12"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -618,7 +638,24 @@ def sync_configs():
 
 def download_models():
     """Завантажує AI моделі"""
-    print_step("Завантаження моделей (може тривати довго)...")
+    print_step("Налаштування AI моделей...")
+
+    stt_exists = any(DIRS["stt_models"].iterdir()) if DIRS["stt_models"].exists() else False
+    tts_exists = any(DIRS["tts_models"].iterdir()) if DIRS["tts_models"].exists() else False
+
+    if stt_exists and tts_exists:
+        print_success("Усі AI моделі вже завантажені")
+        return
+
+    # Prompt if any model is missing
+    prompt = f"\n{Colors.WARNING}⚠️  Деякі AI моделі відсутні.{Colors.ENDC}\nБажаєте завантажити їх зараз? (y/N) [Авто-пропуск через 5с]:"
+    choice = input_with_timeout(prompt, timeout=5, default="n")
+
+    if choice != "y":
+        print_info("Завантаження моделей пропущено. Система може працювати некоректно без них.")
+        return
+
+    print_info("Завантаження моделей (може тривати довго)...")
     venv_python = str(VENV_PATH / "bin" / "python")
 
     # 1. Faster-Whisper: Detect model from config or template
@@ -656,7 +693,7 @@ def download_models():
             check=False,
             capture_output=True,
             text=True,
-            timeout=900,
+            timeout=1200,
         )  # Increased timeout for large models
         if res.returncode == 0:
             print_success(f"STT модель {model_name} готова")
