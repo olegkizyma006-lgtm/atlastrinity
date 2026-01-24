@@ -218,3 +218,13 @@ permission = "ask"
 
 # Custom prompts directory (default: ~/.vibe/prompts)
 # prompts_dir = "${CONFIG_ROOT}/vibe/prompts"
+
+# -----------------------------------------------------------------------------
+# SESSION-CENTRIC PATHS (v2.0)
+# -----------------------------------------------------------------------------
+# Root directory for all session-specific workspaces
+# sessions_root = "${CONFIG_ROOT}/vibe_workspace/sessions"
+
+# Unified global folder for cross-session resources
+# global_folder = "${CONFIG_ROOT}/vibe_workspace/global"
+
