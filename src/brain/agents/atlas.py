@@ -270,10 +270,17 @@ class Atlas(BaseAgent):
         from ..behavior_engine import behavior_engine
         from ..mcp_manager import mcp_manager
 
-        # Use BehaviorEngine for intent classification (replaces 50+ lines of hardcoded keywords)
+        # Use BehaviorEngine for intent classification
         classification = behavior_engine.classify_intent(user_request, context={})
         intent = classification.get("intent", "solo_task")
         is_simple_chat = classification.get("type") == "simple_chat"
+        
+        # Override with classification's preference for deep persona if not explicitly True
+        if not use_deep_persona:
+            use_deep_persona = classification.get("use_deep_persona", False)
+        
+        if use_deep_persona:
+           logger.info(f"[ATLAS CHAT] Deep Persona ENABLED for intent: {classification.get('type')}")
 
         resolved_query = user_request
         if history and not is_simple_chat:

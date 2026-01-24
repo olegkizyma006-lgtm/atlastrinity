@@ -157,7 +157,7 @@ class BehaviorEngine:
         # Priority 1: Repeat intent (highest priority)
         repeat_cfg = intent_config.get("repeat_intent", {})
         if any(kw in request_lower for kw in repeat_cfg.get("keywords", [])):
-            return {
+            result = {
                 "intent": repeat_cfg.get("intent", "task"),
                 "type": "repeat_intent",
                 "priority": repeat_cfg.get("priority", "high"),
@@ -166,11 +166,13 @@ class BehaviorEngine:
                 "require_tools": False,
                 "require_planning": True,
             }
+            logger.info(f"[BEHAVIOR ENGINE] Intent: {result['type']}")
+            return result
 
         # Priority 2: Philosophical query (Soul detection)
         philos_cfg = intent_config.get("philosophical_query", {})
         if any(kw in request_lower for kw in philos_cfg.get("keywords", [])):
-            return {
+            result = {
                 "intent": philos_cfg.get("intent", "chat"),
                 "type": "philosophical_query",
                 "priority": philos_cfg.get("priority", "highest"),
@@ -178,6 +180,8 @@ class BehaviorEngine:
                 "require_tools": False,
                 "require_planning": False,
             }
+            logger.info(f"[BEHAVIOR ENGINE] Intent: {result['type']} (Soul query)")
+            return result
 
         # Priority 3: Simple chat (greetings)
         simple_cfg = intent_config.get("simple_chat", {})
@@ -185,7 +189,7 @@ class BehaviorEngine:
         if word_count <= max_words and any(
             kw in request_lower for kw in simple_cfg.get("keywords", [])
         ):
-            return {
+            result = {
                 "intent": simple_cfg.get("intent", "chat"),
                 "type": "simple_chat",
                 "priority": simple_cfg.get("priority", "high"),
@@ -193,12 +197,14 @@ class BehaviorEngine:
                 "require_tools": False,
                 "require_planning": False,
             }
+            logger.info(f"[BEHAVIOR ENGINE] Intent: {result['type']}")
+            return result
 
-        # Priority 3: Info queries (MUST come before complex_task)
+        # Priority 4: Info queries (MUST come before complex_task)
         # Info queries like "погода у Львові" should trigger solo_task, not complex_task
         info_cfg = intent_config.get("info_query", {})
         if any(kw in request_lower for kw in info_cfg.get("keywords", [])):
-            return {
+            result = {
                 "intent": info_cfg.get("intent", "solo_task"),
                 "type": "info_query",
                 "priority": info_cfg.get("priority", "medium"),
@@ -206,6 +212,8 @@ class BehaviorEngine:
                 "require_tools": info_cfg.get("require_tools", True),
                 "require_planning": False,
             }
+            logger.info(f"[BEHAVIOR ENGINE] Intent: {result['type']}")
+            return result
 
         # Priority 4: Complex tasks
         complex_cfg = intent_config.get("complex_task", {})
@@ -214,7 +222,7 @@ class BehaviorEngine:
         action_verbs = indicators.get("contains_action_verbs", [])
 
         if word_count >= min_words or any(verb in request_lower for verb in action_verbs):
-            return {
+            result = {
                 "intent": complex_cfg.get("intent", "task"),
                 "type": "complex_task",
                 "priority": complex_cfg.get("priority", "high"),
@@ -223,9 +231,11 @@ class BehaviorEngine:
                 "require_planning": complex_cfg.get("require_planning", True),
                 "enable_sequential_thinking": complex_cfg.get("enable_sequential_thinking", True),
             }
+            logger.info(f"[BEHAVIOR ENGINE] Intent: {result['type']} (word_count={word_count})")
+            return result
 
         # Default: Simple chat
-        return {
+        result = {
             "intent": "chat",
             "type": "simple_chat",
             "priority": "medium",
@@ -233,6 +243,8 @@ class BehaviorEngine:
             "require_tools": False,
             "require_planning": False,
         }
+        logger.info(f"[BEHAVIOR ENGINE] Intent: {result['type']} (default)")
+        return result
 
     def select_strategy(self, task_type: str, context: dict[str, Any]) -> str:
         """Selects execution strategy from config.
