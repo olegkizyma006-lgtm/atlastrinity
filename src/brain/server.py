@@ -365,17 +365,41 @@ async def speech_to_text(audio: UploadFile = File(...)):
         result = await trinity.stt.transcribe_file(wav_path)
 
         # Echo cancellation: Ignore if Whisper heard the agent's own voice
-        clean_text = result.text.strip().lower().replace(".", "").replace(",", "")
-        last_spoken = trinity.voice.last_text.replace(".", "").replace(",", "")
+        clean_text = result.text.strip().lower().replace(".", "").replace(",", "").replace("!", "").replace("?", "")
+        
+        phrase_history = list(trinity.voice.history)
+        if trinity.voice.last_text:
+            phrase_history.append(trinity.voice.last_text)
 
-        # Check for exact match OR if result is part of what agent said
-        # (common issue: Whisper catching the end of agent's sentence)
-        if clean_text and (
-            clean_text == last_spoken
-            or clean_text in last_spoken
-            or (len(clean_text) > 4 and last_spoken in clean_text)
-        ):
-            logger.info(f"[STT] Echo detected: '{result.text}', ignoring.")
+        is_echo = False
+        from difflib import SequenceMatcher
+        
+        for past_phrase in phrase_history:
+            past_clean = past_phrase.strip().lower().replace(".", "").replace(",", "").replace("!", "").replace("?", "")
+            if not past_clean:
+                continue
+
+            ratio = SequenceMatcher(None, clean_text, past_clean).ratio()
+            
+            # Bi-directional substring check
+            is_substring = False
+            if clean_text in past_clean or past_clean in clean_text:
+                is_substring = True
+                
+            # Word similarity
+            word_similarity = 0.0
+            words_heard = clean_text.split()
+            if words_heard:
+                words_spoken = set(past_clean.split())
+                matches = sum(1 for w in words_heard if w in words_spoken)
+                word_similarity = matches / len(words_heard)
+
+            if ratio > 0.85 or is_substring or (word_similarity > 0.7 and len(words_heard) > 2):
+                is_echo = True
+                logger.info(f"[STT] Echo detected: '{result.text}' matches history item, ignoring.")
+                break
+
+        if is_echo:
             return {"text": "", "confidence": 0, "ignored": True}
 
         logger.info(f"[STT] Result: text='{result.text}', confidence={result.confidence}")
@@ -511,15 +535,30 @@ async def smart_speech_to_text(
 
                 ratio = SequenceMatcher(None, clean_text, past_clean).ratio()
 
-                # Check substring match
-                if past_clean and clean_text in past_clean:
-                    ratio = 1.0
+                # Robust Substring Check (Bi-directional)
+                is_substring = False
+                if past_clean and clean_text:
+                    if clean_text in past_clean or past_clean in clean_text:
+                        is_substring = True
+                
+                # Word Overlap Check (Very robust against slight transcription differences)
+                word_similarity = 0.0
+                words_heard = clean_text.split()
+                if words_heard:
+                    words_spoken = set(past_clean.split())
+                    matches = sum(1 for w in words_heard if w in words_spoken)
+                    word_similarity = matches / len(words_heard)
 
                 # Strict threshold for history matching
-                if ratio > 0.85:  # Increased from 0.75 to be less aggressive
+                # Trigger echo if:
+                # 1. Sequence ratio is high
+                # 2. One is a substring of another
+                # 3. High word overlap (e.g. 70% of heard words were just spoken)
+                if ratio > 0.85 or is_substring or (word_similarity > 0.7 and len(words_heard) > 2):
                     is_echo = True
                     logger.info(
-                        f"[STT] Echo detected (History Match): '{clean_text}' ~= '{past_clean}' (Ratio: {ratio:.2f})",
+                        f"[STT] Echo detected (History Match): '{clean_text}' ~= '{past_clean}' "
+                        f"(Ratio: {ratio:.2f}, WordSim: {word_similarity:.2f}, Sub: {is_substring})",
                     )
                     break
 
