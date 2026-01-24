@@ -115,8 +115,12 @@
     "puppeteer": {
       "command": "npx",
       "args": [
-        "@modelcontextprotocol/server-puppeteer"
+        "@modelcontextprotocol/server-puppeteer",
+        "--allow-dangerous"
       ],
+      "env": {
+        "PUPPETEER_ALLOW_DANGEROUS": "true"
+      },
       "connect_timeout": 60,
       "description": "High-speed Headless Browser (Puppeteer) for web searching, navigation, screenshots, element interaction, and JavaScript execution",
       "disabled": false,

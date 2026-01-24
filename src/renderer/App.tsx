@@ -165,13 +165,13 @@ const App: React.FC = () => {
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
-    // Delay initial connection attempts by 5 seconds to allow Python server to start
-    // This prevents ERR_CONNECTION_REFUSED from "tearing the eye" in the dev console
+    // Delay initial connection attempts to allow Python server to start
+    // Reduced from 7000 to 2000 for better UX, relying on retry logic
     const startupTimeout = setTimeout(() => {
       pollState();
       fetchSessions();
       interval = setInterval(pollState, 1500); // Polling every 1.5s
-    }, 7000);
+    }, 2000);
 
     return () => {
       clearTimeout(startupTimeout);
